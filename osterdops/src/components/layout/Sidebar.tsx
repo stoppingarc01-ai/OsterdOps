@@ -2,67 +2,158 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Activity,
+  Sparkles,
+  Wallet,
+  Bell,
+  Plug,
+  Users,
+  FileBarChart,
+  CreditCard,
+  ShieldCheck,
+  Settings,
+  LogOut,
+  ArrowLeft
+} from "lucide-react";
 
-type SidebarProps = {
-  className?: string;
-};
+const navigationGroups = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+      { title: "Usage", href: "/dashboard/usage", icon: Activity },
+      { title: "Optimization", href: "/dashboard/optimization", icon: Sparkles, badge: "Save 34%" },
+    ],
+  },
+  {
+    label: "Governance",
+    items: [
+      { title: "Budgets", href: "/dashboard/budgets", icon: Wallet },
+      { title: "Alerts", href: "/dashboard/alerts", icon: Bell, badge: "3" },
+      { title: "Integrations", href: "/dashboard/integrations", icon: Plug },
+    ],
+  },
+  {
+    label: "Organization",
+    items: [
+      { title: "Teams & Developers", href: "/dashboard/teams", icon: Users },
+      { title: "Reports", href: "/dashboard/reports", icon: FileBarChart },
+      { title: "Billing", href: "/dashboard/billing", icon: CreditCard },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { title: "Security & Audit", href: "/dashboard/security", icon: ShieldCheck },
+      { title: "Settings", href: "/dashboard/settings", icon: Settings },
+    ],
+  },
+];
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
 
   return (
     <aside
       className={cn(
-        "hidden lg:flex lg:flex-col w-60 shrink-0 border-r border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)] h-full overflow-y-auto",
+        "hidden lg:flex lg:flex-col w-64 shrink-0 border-r border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#090b10] h-full overflow-y-auto justify-between",
         className
       )}
     >
-      {/* Logo bar */}
-      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-[var(--color-border-muted)] shrink-0">
-        <div className="w-7 h-7 rounded-md bg-[var(--color-primary)] flex items-center justify-center text-[var(--color-primary-text)] text-xs font-bold">
-          O
+      <div>
+        {/* Logo Bar */}
+        <div className="flex items-center justify-between px-5 h-16 border-b border-slate-200 dark:border-white/[0.08] shrink-0">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-slate-950 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center text-xs font-bold transition-transform group-hover:scale-105">
+              O
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">
+                OsterdOps
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">v1.4.0</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/"
+            className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-200 transition-colors"
+            title="Back to Landing Page"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
         </div>
-        <span className="text-heading text-sm tracking-tight">{siteConfig.name}</span>
+
+        {/* Navigation List */}
+        <nav className="p-4 flex flex-col gap-6">
+          {navigationGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                {group.label}
+              </p>
+              <div className="flex flex-col gap-1">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 text-xs rounded-xl font-medium transition-all duration-150",
+                        isActive
+                          ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-sm"
+                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={cn("w-4 h-4", isActive ? "stroke-[2.2]" : "stroke-[1.75]")} />
+                        <span>{item.title}</span>
+                      </div>
+                      {item.badge && (
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.2 rounded-full text-[9px] font-mono",
+                            isActive
+                              ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          )}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
       </div>
 
-      {/* Navigation groups */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-6">
-        {siteConfig.sidebarNav.map((group) => (
-          <div key={group.label}>
-            <p className="px-3 mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-              {group.label}
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {group.items.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-md)] transition-colors",
-                      isActive
-                        ? "bg-[var(--color-primary-muted)] text-[var(--color-primary)] font-medium"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
-                    )}
-                  >
-                    {/* Icon placeholder dot — will be replaced by icon library */}
-                    <span
-                      className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        isActive ? "bg-[var(--color-primary)]" : "bg-[var(--color-text-muted)]"
-                      )}
-                    />
-                    {item.title}
-                  </Link>
-                );
-              })}
+      {/* User profile footer in sidebar */}
+      <div className="p-4 border-t border-slate-200 dark:border-white/[0.08]">
+        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">
+              A
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Acme Corp</span>
+              <span className="text-[10px] text-slate-500">Enterprise Plan</span>
             </div>
           </div>
-        ))}
-      </nav>
+
+          <Link href="/" title="Logout" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <LogOut className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </div>
     </aside>
   );
 }

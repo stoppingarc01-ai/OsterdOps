@@ -1,103 +1,143 @@
 "use client";
 
-import Link from "next/link";
-import { siteConfig } from "@/config/site";
-import { ThemeToggle } from "./ThemeToggle";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
+import React, { useState } from "react";
+import { ChevronDown, ArrowRight, Sun, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { OsterdOpsLogo } from "./OsterdOpsLogo";
 
-type NavbarProps = {
-  className?: string;
-};
+const navLinks = [
+  {
+    label: "Product",
+    hasDropdown: true,
+    items: [
+      { title: "Real-time Observability", desc: "Live spend and latency tracking" },
+      { title: "Smart Guardrails", desc: "Proactive budget & rate limits" },
+      { title: "AI Routing & Optimization", desc: "Intelligent model fallback & caching" },
+      { title: "Enterprise Governance", desc: "Granular RBAC and SOC2 audit logs" },
+    ],
+  },
+  {
+    label: "Solutions",
+    hasDropdown: true,
+    items: [
+      { title: "For Engineering Teams", desc: "Unified LLM gateway & debugging" },
+      { title: "For FinOps & Finance", desc: "Accurate cost allocation & forecasting" },
+      { title: "For AI Startups", desc: "Scale without runway surprises" },
+    ],
+  },
+  { label: "Integrations", hasDropdown: false, href: "#integrations" },
+  { label: "Pricing", hasDropdown: false, href: "#pricing" },
+  { label: "Docs", hasDropdown: false, href: "#docs" },
+  {
+    label: "Resources",
+    hasDropdown: true,
+    items: [
+      { title: "Blog & Guides", desc: "Best practices for LLM cost management" },
+      { title: "Customer Stories", desc: "How top teams save 30%+ on AI spend" },
+      { title: "API Reference", desc: "REST & SDK integration docs" },
+    ],
+  },
+];
 
-export function Navbar({ className }: NavbarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+export function Navbar() {
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 w-full border-b border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)]/80 backdrop-blur-lg",
-        className
-      )}
+    <motion.header
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="sticky top-0 z-50 w-full bg-[#06070b]/90 backdrop-blur-md border-b border-[#181a24]"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-14 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-7 h-7 rounded-md bg-[var(--color-primary)] flex items-center justify-center text-[var(--color-primary-text)] text-xs font-bold tracking-tight transition-transform group-hover:scale-105">
-              O
-            </div>
-            <span className="text-heading text-base tracking-tight">{siteConfig.name}</span>
-          </Link>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
+        {/* Left: Brand Logo */}
+        <a href="#" className="flex items-center gap-2 group">
+          <OsterdOpsLogo size="md" />
+        </a>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {siteConfig.mainNav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)]"
+        {/* Center navigation */}
+        <nav className="hidden md:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <div
+              key={link.label}
+              className="relative"
+              onMouseEnter={() => link.hasDropdown && setActiveDropdown(link.label)}
+              onMouseLeave={() => link.hasDropdown && setActiveDropdown(null)}
+            >
+              <a
+                href={link.href || "#"}
+                className={`flex items-center gap-1 px-3.5 py-1.5 text-[13.5px] font-medium transition-colors duration-200 rounded-lg ${
+                  activeDropdown === link.label
+                    ? "text-[#dfba82] bg-white/[0.04]"
+                    : "text-[#9da1b2] hover:text-[#f4efe6] hover:bg-white/[0.03]"
+                }`}
               >
-                {item.title}
-              </Link>
-            ))}
-          </nav>
+                {link.label}
+                {link.hasDropdown && (
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform duration-200 opacity-60 ${
+                      activeDropdown === link.label ? "rotate-180 text-[#dfba82]" : ""
+                    }`}
+                  />
+                )}
+              </a>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {link.hasDropdown && activeDropdown === link.label && link.items && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="absolute left-0 top-full mt-1.5 w-64 p-2 rounded-xl bg-[#0c0e16] border border-[#212435] shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-50"
+                  >
+                    <div className="space-y-1">
+                      {link.items.map((item) => (
+                        <a
+                          key={item.title}
+                          href="#"
+                          className="block p-2.5 rounded-lg hover:bg-white/[0.05] transition-colors group/item"
+                        >
+                          <div className="text-[12.5px] font-medium text-[#e4e0d8] group-hover/item:text-[#dfba82]">
+                            {item.title}
+                          </div>
+                          <div className="text-[11px] text-[#717688] mt-0.5">
+                            {item.desc}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </nav>
 
-            <Link
-              href="/dashboard"
-              className="hidden sm:inline-flex items-center px-4 py-1.5 text-sm font-medium bg-[var(--color-primary)] text-[var(--color-primary-text)] rounded-[var(--radius-md)] hover:bg-[var(--color-primary-hover)] transition-colors"
-            >
-              Dashboard
-            </Link>
+        {/* Right actions */}
+        <div className="flex items-center gap-3">
+          {/* Light/Theme icon */}
+          <button
+            type="button"
+            aria-label="Toggle theme"
+            className="p-2 text-[#878c9e] hover:text-[#dfba82] rounded-lg transition-colors hover:bg-white/[0.04]"
+          >
+            <Sun className="h-4 w-4" />
+          </button>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-          </div>
+          {/* Sign in text */}
+          <button className="px-3.5 py-1.5 text-[13.5px] font-medium text-[#c5c8d4] hover:text-[#f4efe6] transition-colors">
+            Sign in
+          </button>
+
+          {/* Get Started Button */}
+          <button className="group flex items-center gap-1.5 px-4 py-2 text-[13.5px] font-semibold text-[#090a0f] bg-[#f2e7d3] hover:bg-[#faeedb] rounded-lg transition-all duration-200 shadow-[0_2px_12px_rgba(223,186,130,0.2)] hover:shadow-[0_4px_18px_rgba(223,186,130,0.35)] hover:-translate-y-0.5">
+            <span>Get Started</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </button>
         </div>
       </div>
-
-      {/* Mobile nav */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)]">
-          <nav className="px-4 py-3 flex flex-col gap-1">
-            {siteConfig.mainNav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] transition-colors"
-              >
-                {item.title}
-              </Link>
-            ))}
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileOpen(false)}
-              className="mt-2 px-4 py-2 text-sm font-medium text-center bg-[var(--color-primary)] text-[var(--color-primary-text)] rounded-[var(--radius-md)] hover:bg-[var(--color-primary-hover)] transition-colors"
-            >
-              Dashboard
-            </Link>
-          </nav>
-        </div>
-      )}
-    </header>
+    </motion.header>
   );
 }
