@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, ArrowRight, Sun, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OsterdOpsLogo } from "./OsterdOpsLogo";
@@ -127,15 +128,21 @@ export function Navbar() {
           </button>
 
           {/* Sign in text */}
-          <button className="px-3.5 py-1.5 text-[13.5px] font-medium text-[#c5c8d4] hover:text-[#f4efe6] transition-colors">
+          <Link
+            href="/sign-in"
+            className="px-3.5 py-1.5 text-[13.5px] font-medium text-[#c5c8d4] hover:text-[#f4efe6] transition-colors"
+          >
             Sign in
-          </button>
+          </Link>
 
           {/* Get Started Button */}
-          <button className="group flex items-center gap-1.5 px-4 py-2 text-[13.5px] font-semibold text-[#090a0f] bg-[#f2e7d3] hover:bg-[#faeedb] rounded-lg transition-all duration-200 shadow-[0_2px_12px_rgba(223,186,130,0.2)] hover:shadow-[0_4px_18px_rgba(223,186,130,0.35)] hover:-translate-y-0.5">
+          <Link
+            href="/sign-up"
+            className="group flex items-center gap-1.5 px-4 py-2 text-[13.5px] font-semibold text-[#090a0f] bg-[#f2e7d3] hover:bg-[#faeedb] rounded-lg transition-all duration-200 shadow-[0_2px_12px_rgba(223,186,130,0.2)] hover:shadow-[0_4px_18px_rgba(223,186,130,0.35)] hover:-translate-y-0.5"
+          >
             <span>Get Started</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-          </button>
+          </Link>
         </div>
       </div>
     </motion.header>

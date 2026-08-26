@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, ShieldCheck, Lock, ArrowRight } from "lucide-react";
 import { DashboardMockup } from "./DashboardMockup";
@@ -59,10 +60,13 @@ export function HeroSection() {
             {/* CTAs */}
             <div className="flex flex-wrap items-center gap-3.5 mb-10">
               {/* Primary Champagne Button */}
-              <button className="group flex items-center gap-2 px-5 sm:px-6 py-3 bg-[#f2e7d3] hover:bg-[#faeedb] text-[#090a0f] text-[13.5px] sm:text-[14px] font-semibold rounded-xl shadow-[0_4px_20px_rgba(223,186,130,0.22)] hover:shadow-[0_6px_25px_rgba(223,186,130,0.38)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
+              <Link
+                href="/sign-up"
+                className="group flex items-center gap-2 px-5 sm:px-6 py-3 bg-[#f2e7d3] hover:bg-[#faeedb] text-[#090a0f] text-[13.5px] sm:text-[14px] font-semibold rounded-xl shadow-[0_4px_20px_rgba(223,186,130,0.22)] hover:shadow-[0_6px_25px_rgba(223,186,130,0.38)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+              >
                 <span>Get Started</span>
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </button>
+              </Link>
 
               {/* Secondary Dark Button */}
               <button className="flex items-center gap-2 px-5 sm:px-6 py-3 bg-[#0d0f16]/90 hover:bg-[#151722] text-[#d5cabe] hover:text-[#f4efe6] text-[13.5px] sm:text-[14px] font-medium border border-[#262420] hover:border-[#3d3830] rounded-xl transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
