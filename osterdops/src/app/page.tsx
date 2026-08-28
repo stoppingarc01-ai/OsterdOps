@@ -4,6 +4,7 @@ import { IntegrationsSection } from "@/components/marketing/IntegrationsSection"
 import { StatsBar } from "@/components/marketing/StatsBar";
 import { CodeIntegrationSection } from "@/components/marketing/CodeIntegrationSection";
 import { EnterpriseSecuritySection } from "@/components/marketing/EnterpriseSecuritySection";
+import { PricingSection } from "@/components/marketing/PricingSection";
 import { CtaSection } from "@/components/marketing/CtaSection";
 import { Footer } from "@/components/layout/Footer";
 
@@ -28,6 +29,9 @@ export default function HomePage() {
 
         {/* Enterprise Security & Compliance Grid */}
         <EnterpriseSecuritySection />
+
+        {/* OsterdOps Tiered Pricing Plans */}
+        <PricingSection />
 
         {/* Pre-Footer Conversion CTA Banner */}
         <CtaSection />

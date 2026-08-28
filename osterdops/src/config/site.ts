@@ -58,6 +58,7 @@ export const siteConfig = {
     {
       label: "System",
       items: [
+        { title: "Admin Console", href: "/admin", icon: "shield-check" },
         { title: "Security & Audit", href: "/dashboard/security", icon: "shield-check" },
         { title: "Settings", href: "/dashboard/settings", icon: "settings" },
       ],

@@ -30,7 +30,7 @@ export function SignUpCard() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      window.location.href = "/";
+      window.location.href = "/onboarding";
     }, 800);
   };
 

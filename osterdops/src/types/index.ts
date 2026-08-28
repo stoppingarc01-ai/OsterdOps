@@ -2,6 +2,8 @@
    OsterdOps — Shared Type Definitions
    ============================================================ */
 
+export * from "./backend";
+
 /** Generic API response envelope */
 export type ApiResponse<T = unknown> = {
   success: boolean;
@@ -9,10 +11,16 @@ export type ApiResponse<T = unknown> = {
   error?: {
     code: string;
     message: string;
+    details?: unknown;
+  };
+  meta?: {
+    requestId?: string;
+    latencyMs?: number;
+    [key: string]: unknown;
   };
 };
 
-/** Base entity fields shared by all domain objects */
+/** Base entity fields shared by domain objects */
 export type BaseEntity = {
   id: string;
   createdAt: string;
@@ -24,7 +32,7 @@ export type User = BaseEntity & {
   name: string;
   email: string;
   avatarUrl?: string;
-  role: "owner" | "admin" | "member" | "viewer";
+  role: "owner" | "admin" | "member" | "viewer" | "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
 };
 
 /** Navigation item (UI) */

@@ -27,6 +27,10 @@ const jakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"],
 });
 
+import { CustomCursor } from "@/components/ui/CustomCursor";
+import { ThemeCustomizerProvider } from "@/context/ThemeCustomizerContext";
+import { CustomizeThemeModal } from "@/components/ui/CustomizeThemeModal";
+
 export const metadata: Metadata = {
   title: {
     default: siteConfig.name,
@@ -54,9 +58,15 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </ThemeProvider>
+        <ThemeCustomizerProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              {children}
+              <CustomCursor />
+              <CustomizeThemeModal />
+            </ToastProvider>
+          </ThemeProvider>
+        </ThemeCustomizerProvider>
       </body>
     </html>
   );

@@ -46,7 +46,7 @@ export function CtaSection() {
           {submitted ? (
             <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#14b8a6]/10 border border-[#14b8a6]/30 text-[#14b8a6] text-[14px] font-medium">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Thank you! We've sent your sandbox access link to {email}.</span>
+              <span>Thank you! We&apos;ve sent your sandbox access link to {email}.</span>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-md mx-auto mb-6">
