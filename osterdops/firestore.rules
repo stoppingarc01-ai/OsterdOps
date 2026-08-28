@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isOrgMember(orgId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function getMemberData(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && (getMemberData(orgId).role == 'OWNER' || getMemberData(orgId).role == 'ADMIN');
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if isUser(userId);
+    }
+
+    // Organizations
+    match /organizations/{orgId} {
+      allow read: if isOrgMember(orgId);
+      allow create: if isAuthenticated();
+      allow update, delete: if isOrgAdmin(orgId);
+
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+
+      // Projects subcollection
+      match /projects/{projectId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+
+      // API Keys (Read restricted to admins, create/delete to admins)
+      match /apiKeys/{keyId} {
+        allow read, write: if isOrgAdmin(orgId);
+      }
+
+      // Budgets subcollection
+      match /budgets/{budgetId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+
+      // Alerts subcollection
+      match /alerts/{alertId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+
+      // Usage telemetry subcollection
+      match /usage/{usageId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if false; // Only written via server gateway
+      }
+
+      // Audit Logs subcollection
+      match /auditLogs/{logId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false; // Immutable SOC 2 audit stream
+      }
+
+      // Provider Connections
+      match /providerConnections/{connId} {
+        allow read, write: if isOrgAdmin(orgId);
+      }
+    }
+  }
+}

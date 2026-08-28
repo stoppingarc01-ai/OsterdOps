@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ArrowRight, Sun, Sparkles, ShieldCheck } from "lucide-react";
+import { ChevronDown, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OsterdOpsLogo } from "./OsterdOpsLogo";
 import { useThemeCustomizer } from "@/context/ThemeCustomizerContext";
@@ -120,16 +120,6 @@ export function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3">
-          {/* Admin Console Direct Link */}
-          <Link
-            href="/admin"
-            id="navbar-admin-console-btn"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#dfba82] bg-[#dfba82]/10 hover:bg-[#dfba82]/20 border border-[#dfba82]/35 hover:border-[#dfba82]/60 rounded-lg transition-all shadow-[0_0_12px_rgba(223,186,130,0.12)] hover:shadow-[0_0_18px_rgba(223,186,130,0.25)]"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-[#dfba82]" />
-            <span>Admin Console</span>
-          </Link>
-
           {/* Sign in text */}
           <Link
             href="/sign-in"

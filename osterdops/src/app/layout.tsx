@@ -30,6 +30,7 @@ const jakarta = Plus_Jakarta_Sans({
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { ThemeCustomizerProvider } from "@/context/ThemeCustomizerContext";
 import { CustomizeThemeModal } from "@/components/ui/CustomizeThemeModal";
+import { FirebaseAnalyticsProvider } from "@/components/analytics/FirebaseAnalyticsProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -58,6 +59,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <FirebaseAnalyticsProvider />
         <ThemeCustomizerProvider>
           <ThemeProvider>
             <ToastProvider>

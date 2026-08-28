@@ -1,16 +1,18 @@
 /**
  * OsterdOps — Client-Side Firebase SDK Initialization
- * Used exclusively in browser components for Auth & Client Firestore.
+ * Used exclusively in browser components for Auth, Firestore & Analytics.
  */
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getFirebaseClientConfig } from "./config";
 
 let clientApp: FirebaseApp | undefined;
 let clientAuth: Auth | undefined;
 let clientDb: Firestore | undefined;
+let clientAnalytics: Analytics | undefined;
 
 /**
  * Initializes or returns the singleton client-side Firebase App.
@@ -50,3 +52,26 @@ export function getFirebaseFirestore(): Firestore {
   }
   return clientDb;
 }
+
+/**
+ * Initializes and returns Firebase Analytics if supported in the current environment (browser-only).
+ */
+export async function getFirebaseAnalytics(): Promise<Analytics | null> {
+  if (typeof window === "undefined") return null;
+  if (clientAnalytics) return clientAnalytics;
+
+  try {
+    const supported = await isSupported();
+    if (supported) {
+      const app = getFirebaseClientApp();
+      clientAnalytics = getAnalytics(app);
+      return clientAnalytics;
+    }
+  } catch (err) {
+    console.warn("[OsterdOps Analytics] Firebase Analytics initialization note:", err);
+  }
+  return null;
+}
+
+// Convenient singletons for direct import
+export const app = typeof window !== "undefined" ? getFirebaseClientApp() : undefined;

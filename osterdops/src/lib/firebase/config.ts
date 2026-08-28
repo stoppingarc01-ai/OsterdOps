@@ -9,6 +9,7 @@ export interface FirebaseClientConfig {
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+  measurementId?: string;
 }
 
 export interface FirebaseAdminConfig {
@@ -18,16 +19,30 @@ export interface FirebaseAdminConfig {
 }
 
 /**
+ * Default fallback Firebase configuration provided for OsterdOps.
+ */
+export const DEFAULT_FIREBASE_CONFIG: FirebaseClientConfig = {
+  apiKey: "AIzaSyAZMDMsBZC5IltAVVnFdcdyyYQ-1TOdvSw",
+  authDomain: "osterdops.firebaseapp.com",
+  projectId: "osterdops",
+  storageBucket: "osterdops.firebasestorage.app",
+  messagingSenderId: "105623223533",
+  appId: "1:105623223533:web:16b1ef8f75256b71f120e4",
+  measurementId: "G-8X7W89BGCZ",
+};
+
+/**
  * Returns and validates the client-side Firebase configuration.
  * Safe to be bundled into the browser via NEXT_PUBLIC_* variables.
  */
 export function getFirebaseClientConfig(): FirebaseClientConfig {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "";
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "";
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "";
-  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "";
-  const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "";
-  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "";
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || DEFAULT_FIREBASE_CONFIG.apiKey;
+  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || DEFAULT_FIREBASE_CONFIG.authDomain;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE_CONFIG.projectId;
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || DEFAULT_FIREBASE_CONFIG.storageBucket;
+  const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE_CONFIG.messagingSenderId;
+  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || DEFAULT_FIREBASE_CONFIG.appId;
+  const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || DEFAULT_FIREBASE_CONFIG.measurementId;
 
   return {
     apiKey,
@@ -36,6 +51,7 @@ export function getFirebaseClientConfig(): FirebaseClientConfig {
     storageBucket,
     messagingSenderId,
     appId,
+    measurementId,
   };
 }
 
@@ -64,7 +80,7 @@ export function getFirebaseAdminConfig(): FirebaseAdminConfig | null {
   }
 
   // Otherwise, use individual env vars
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "";
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE_CONFIG.projectId;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || "";
   const rawKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || "";
   const privateKey = rawKey.replace(/\\n/g, "\n");
