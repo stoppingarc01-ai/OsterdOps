@@ -62,6 +62,26 @@ export async function verifyUserToken(idToken: string): Promise<DecodedIdToken |
 }
 
 /**
+ * Resolves the authenticated user from a Request without generating HTTP error responses.
+ * Useful for optional authentication contexts and internal middleware.
+ */
+export async function getAuthenticatedUser(request: Request): Promise<AuthenticatedUser | null> {
+  const token = extractAuthToken(request);
+  if (!token) return null;
+
+  const decoded = await verifyUserToken(token);
+  if (!decoded) return null;
+
+  return {
+    uid: decoded.uid,
+    email: decoded.email || "",
+    displayName: decoded.name || decoded.email?.split("@")[0] || "User",
+    photoURL: decoded.picture,
+    token: decoded,
+  };
+}
+
+/**
  * Server-side guard: Ensures the request is authenticated with a valid Firebase ID token.
  * Returns either the AuthenticatedUser context or a 401 Unauthorized response.
  */

@@ -2,7 +2,6 @@
  * OsterdOps — Immutable Audit Logging Service
  */
 
-import "server-only";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { AuditLog } from "@/types";
@@ -23,6 +22,9 @@ export interface RecordAuditLogParams {
  * Appends an immutable audit log record to Firestore.
  */
 export async function recordAuditLog(params: RecordAuditLogParams): Promise<void> {
+  if (!process.env.FIREBASE_PROJECT_ID && !process.env.GCLOUD_PROJECT && !process.env.GOOGLE_CLOUD_PROJECT) {
+    return;
+  }
   try {
     const db = getAdminFirestore();
     const auditRef = db
@@ -33,7 +35,7 @@ export async function recordAuditLog(params: RecordAuditLogParams): Promise<void
 
     const now = FieldValue.serverTimestamp();
 
-    const logData: Omit<AuditLog, "id"> = {
+    const rawData: Record<string, unknown> = {
       organizationId: params.organizationId,
       actorId: params.actorId,
       actorEmail: params.actorEmail,
@@ -43,12 +45,21 @@ export async function recordAuditLog(params: RecordAuditLogParams): Promise<void
       metadata: params.details || {},
       ipAddress: params.ipAddress,
       userAgent: params.userAgent,
-      timestamp: now as unknown as string,
+      timestamp: now,
     };
 
-    await auditRef.set(logData);
+    const cleanData: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawData)) {
+      if (v !== undefined) {
+        cleanData[k] = v;
+      }
+    }
+
+    await auditRef.set(cleanData);
   } catch (err) {
-    console.error("[OsterdOps Audit Log] Failed to write audit log:", err);
+    if (process.env.NODE_ENV !== "test") {
+      console.error("[OsterdOps Audit Log] Failed to write audit log:", err);
+    }
   }
 }
 

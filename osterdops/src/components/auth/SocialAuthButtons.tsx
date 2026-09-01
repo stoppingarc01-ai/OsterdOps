@@ -1,15 +1,34 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export function SocialAuthButtons() {
+  const router = useRouter();
+  const { signInWithGoogle } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleAuth = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      router.push("/dashboard");
+    } catch {
+      // Handled in context
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-3 gap-2.5 w-full">
       {/* Google */}
       <button
         type="button"
-        onClick={() => {}}
-        className="flex items-center justify-center gap-2 py-2.5 px-3 bg-[#ffffff] hover:bg-[#faf7f0] border border-[#e5e0d4] hover:border-[#cfc9bc] rounded-xl text-[12.5px] font-semibold text-[#2c303b] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-sm transition-all duration-150 cursor-pointer"
+        disabled={googleLoading}
+        onClick={handleGoogleAuth}
+        className="flex items-center justify-center gap-2 py-2.5 px-3 bg-[#ffffff] hover:bg-[#faf7f0] border border-[#e5e0d4] hover:border-[#cfc9bc] rounded-xl text-[12.5px] font-semibold text-[#2c303b] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-60"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
           <path
@@ -29,7 +48,7 @@ export function SocialAuthButtons() {
             fill="#EA4335"
           />
         </svg>
-        <span>Google</span>
+        <span>{googleLoading ? "..." : "Google"}</span>
       </button>
 
       {/* Microsoft */}

@@ -7,22 +7,35 @@ import type { AIProviderAdapter } from "./types";
 import { OpenAIAdapter } from "./openai.adapter";
 import { AnthropicAdapter } from "./anthropic.adapter";
 import { GeminiAdapter } from "./gemini.adapter";
+import { AzureAdapter } from "./azure.adapter";
+import { BedrockAdapter } from "./bedrock.adapter";
 
-const adapterInstances: Partial<Record<AIProvider, AIProviderAdapter>> = {
+const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   openai: new OpenAIAdapter(),
   anthropic: new AnthropicAdapter(),
   gemini: new GeminiAdapter(),
+  azure: new AzureAdapter(),
+  bedrock: new BedrockAdapter(),
 };
 
 /**
  * Returns the adapter singleton for a given AI provider.
  */
-export function getProviderAdapter(provider: AIProvider): AIProviderAdapter {
-  const adapter = adapterInstances[provider];
+export function getProviderAdapter(provider: string): AIProviderAdapter {
+  const normalized = (provider || "").trim().toLowerCase() as AIProvider;
+  const adapter = adapterInstances[normalized];
   if (!adapter) {
     throw new Error(`Unsupported AI provider: '${provider}'`);
   }
   return adapter;
+}
+
+/**
+ * Checks if a provider identifier is supported by the registry.
+ */
+export function isSupportedProvider(provider: string): provider is AIProvider {
+  const normalized = (provider || "").trim().toLowerCase() as AIProvider;
+  return normalized in adapterInstances;
 }
 
 /**
@@ -37,6 +50,14 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
 
   if (normalized.startsWith("gemini") || normalized.startsWith("models/gemini")) {
     return "gemini";
+  }
+
+  if (normalized.startsWith("azure-") || normalized.startsWith("azure/")) {
+    return "azure";
+  }
+
+  if (normalized.startsWith("bedrock-") || normalized.startsWith("amazon.") || normalized.startsWith("anthropic.claude")) {
+    return "bedrock";
   }
 
   if (

@@ -1,59 +1,79 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, Settings, Check, Plus, ExternalLink, Activity, ShieldCheck } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Search, Settings, Plus, Loader2 } from "lucide-react";
+import { IntegrationLogoBadge } from "@/components/ui/IntegrationLogos";
+import { useAuth } from "@/context/AuthContext";
+import type { ProviderConnection } from "@/types";
 
-interface IntegrationItem {
+export interface IntegrationItem {
   id: string;
+  backendProviderId?: string;
   name: string;
   category: "Model Providers" | "Observability & APM" | "Cloud Billing" | "Webhooks & CI/CD";
   desc: string;
-  status: "Connected" | "Available";
+  status: "Connected" | "Validation Failed" | "Disabled" | "Available";
   modelsOrTags: string[];
   metrics: string;
   enabled: boolean;
+  connectionId?: string;
 }
 
-const INTEGRATIONS_CATALOG: IntegrationItem[] = [
+const INITIAL_CATALOG: IntegrationItem[] = [
   {
     id: "openai",
+    backendProviderId: "openai",
     name: "OpenAI",
     category: "Model Providers",
     desc: "GPT-4o, GPT-4o-mini, Embeddings & DALL·E direct API proxy and cost tracking.",
-    status: "Connected",
+    status: "Available",
     modelsOrTags: ["gpt-4o", "gpt-4o-mini", "embeddings"],
-    metrics: "89.2M tokens today",
-    enabled: true,
+    metrics: "Direct Proxy",
+    enabled: false,
   },
   {
     id: "anthropic",
+    backendProviderId: "anthropic",
     name: "Anthropic Claude",
     category: "Model Providers",
     desc: "Claude 3.5 Sonnet, Opus & Haiku prompt compression and spend guardrails.",
-    status: "Connected",
+    status: "Available",
     modelsOrTags: ["claude-3-5-sonnet", "claude-3-haiku"],
-    metrics: "67.8M tokens today",
-    enabled: true,
+    metrics: "Direct Proxy",
+    enabled: false,
   },
   {
     id: "google-vertex",
+    backendProviderId: "gemini",
     name: "Google Vertex & Gemini",
     category: "Model Providers",
     desc: "Gemini 1.5 Pro, Flash multimodal inference monitoring and rate-limiting.",
-    status: "Connected",
+    status: "Available",
     modelsOrTags: ["gemini-1.5-pro", "gemini-1.5-flash"],
-    metrics: "42.3M tokens today",
-    enabled: true,
+    metrics: "Direct Proxy",
+    enabled: false,
+  },
+  {
+    id: "azure-openai",
+    backendProviderId: "azure",
+    name: "Microsoft Azure OpenAI",
+    category: "Model Providers",
+    desc: "Enterprise private Azure OpenAI deployments with Azure AD role-based access.",
+    status: "Available",
+    modelsOrTags: ["azure-eastus", "enterprise"],
+    metrics: "Ready to connect",
+    enabled: false,
   },
   {
     id: "aws-bedrock",
+    backendProviderId: "bedrock",
     name: "AWS Bedrock",
     category: "Model Providers",
     desc: "Llama 3.1 70B, Amazon Titan & Claude via AWS IAM cross-account authentication.",
-    status: "Connected",
+    status: "Available",
     modelsOrTags: ["llama-3-1-70b", "titan-text"],
-    metrics: "8.4M tokens today",
-    enabled: true,
+    metrics: "Ready to connect",
+    enabled: false,
   },
   {
     id: "datadog",
@@ -84,16 +104,6 @@ const INTEGRATIONS_CATALOG: IntegrationItem[] = [
     modelsOrTags: ["#ai-alerts", "instant-dispatch"],
     metrics: "Active in 3 channels",
     enabled: true,
-  },
-  {
-    id: "azure-openai",
-    name: "Microsoft Azure OpenAI",
-    category: "Model Providers",
-    desc: "Enterprise private Azure OpenAI deployments with Azure AD role-based access.",
-    status: "Available",
-    modelsOrTags: ["azure-eastus", "enterprise"],
-    metrics: "Ready to connect",
-    enabled: false,
   },
   {
     id: "opentelemetry",
@@ -137,23 +147,113 @@ const INTEGRATIONS_CATALOG: IntegrationItem[] = [
   },
 ];
 
-import { IntegrationLogoBadge } from "@/components/ui/IntegrationLogos";
-
 interface IntegrationsGridCardProps {
   onOpenConnect: (item?: IntegrationItem) => void;
 }
 
 export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProps) {
+  const { currentOrg, getIdToken } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("All");
-  const [items, setItems] = useState<IntegrationItem[]>(INTEGRATIONS_CATALOG);
+  const [items, setItems] = useState<IntegrationItem[]>(INITIAL_CATALOG);
+  const [loading, setLoading] = useState(false);
 
-  const toggleStatus = (id: string) => {
+  useEffect(() => {
+    let isMounted = true;
+    const orgId = currentOrg?.id;
+    if (!orgId) return;
+
+    async function fetchConnections() {
+      setLoading(true);
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+
+        const res = await fetch(`/api/v1/provider-connections?organizationId=${orgId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && isMounted) {
+            const connections: ProviderConnection[] = json.data;
+
+            setItems((prev) =>
+              prev.map((item) => {
+                const match = connections.find(
+                  (c) => c.provider === item.backendProviderId || c.provider === item.id
+                );
+
+                if (match) {
+                  let mappedStatus: IntegrationItem["status"] = "Connected";
+                  if (match.status === "validation_failed" || match.status === "invalid") {
+                    mappedStatus = "Validation Failed";
+                  } else if (match.status === "disabled") {
+                    mappedStatus = "Disabled";
+                  }
+
+                  return {
+                    ...item,
+                    connectionId: match.id,
+                    status: mappedStatus,
+                    enabled: match.status === "active",
+                    metrics: match.status === "active" ? "Active (AES-256 Encrypted)" : "Needs Attention",
+                  };
+                }
+                return item;
+              })
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("[IntegrationsGridCard] Fetch connections fallback:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchConnections();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
+
+  const toggleStatus = async (item: IntegrationItem) => {
+    const nextEnabled = !item.enabled;
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, enabled: !item.enabled } : item
+      prev.map((i) =>
+        i.id === item.id ? { ...i, enabled: nextEnabled, status: nextEnabled ? "Connected" : "Disabled" } : i
       )
     );
+
+    if (item.connectionId && currentOrg?.id) {
+      try {
+        const token = await getIdToken();
+        if (token) {
+          if (!nextEnabled) {
+            await fetch(`/api/v1/provider-connections/${item.connectionId}?organizationId=${currentOrg.id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } else {
+            await fetch(`/api/v1/provider-connections/${item.connectionId}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                organizationId: currentOrg.id,
+                status: "active",
+              }),
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[IntegrationsGridCard] Toggle error:", err);
+      }
+    }
   };
 
   const filtered = items.filter((item) => {
@@ -161,9 +261,9 @@ export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProp
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.modelsOrTags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     if (selectedFilter === "All") return matchesSearch;
-    if (selectedFilter === "Connected") return matchesSearch && item.status === "Connected";
+    if (selectedFilter === "Connected") return matchesSearch && (item.status === "Connected" || item.status === "Validation Failed");
     return matchesSearch && item.category === selectedFilter;
   });
 
@@ -208,7 +308,11 @@ export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProp
           <div
             key={item.id}
             className={`p-4 bg-[#0d0f18] border rounded-2xl flex flex-col justify-between space-y-3 transition-all hover:border-[#dfba82]/40 group ${
-              item.status === "Connected" ? "border-[#1d202e]" : "border-[#161826] opacity-90"
+              item.status === "Connected"
+                ? "border-[#1d202e]"
+                : item.status === "Validation Failed"
+                ? "border-[#ef4444]/40 bg-[#ef4444]/5"
+                : "border-[#161826] opacity-90"
             }`}
           >
             {/* Top Row: Icon + Name + Toggle */}
@@ -221,10 +325,10 @@ export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProp
                 </div>
               </div>
 
-              {item.status === "Connected" ? (
+              {item.status === "Connected" || item.status === "Disabled" || item.status === "Validation Failed" ? (
                 <button
                   type="button"
-                  onClick={() => toggleStatus(item.id)}
+                  onClick={() => toggleStatus(item)}
                   className={`w-8 h-4.5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
                     item.enabled ? "bg-[#dfba82]" : "bg-[#232738]"
                   }`}
@@ -266,10 +370,13 @@ export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProp
                 {item.status === "Connected" && (
                   <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" />
                 )}
+                {item.status === "Validation Failed" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] shrink-0" />
+                )}
                 <span>{item.metrics}</span>
               </div>
 
-              {item.status === "Connected" ? (
+              {item.status === "Connected" || item.status === "Validation Failed" || item.status === "Disabled" ? (
                 <button
                   type="button"
                   onClick={() => onOpenConnect(item)}

@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { Key, Plus, Copy, Check, Trash2, Shield, Lock, Globe } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Key, Plus, Copy, Check, Trash2, Shield, Lock, Globe, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import type { ApiKey } from "@/types";
 
 interface ApiKeyItem {
   id: string;
+  projectId?: string;
   name: string;
   keyPrefix: string;
   created: string;
@@ -16,7 +19,7 @@ const INITIAL_KEYS: ApiKeyItem[] = [
   {
     id: "1",
     name: "Production Gateway Ingestion",
-    keyPrefix: "osk_live_••••••••••••94f2",
+    keyPrefix: "ost_live_••••••••••••94f2",
     created: "Apr 12, 2025",
     lastUsed: "4 seconds ago",
     role: "Full Ingestion Proxy",
@@ -24,7 +27,7 @@ const INITIAL_KEYS: ApiKeyItem[] = [
   {
     id: "2",
     name: "Staging Pipeline Proxy",
-    keyPrefix: "osk_test_••••••••••••381a",
+    keyPrefix: "ost_test_••••••••••••381a",
     created: "May 02, 2025",
     lastUsed: "12 minutes ago",
     role: "Read & Write",
@@ -32,7 +35,7 @@ const INITIAL_KEYS: ApiKeyItem[] = [
   {
     id: "3",
     name: "Datadog APM Exporter",
-    keyPrefix: "osk_live_••••••••••••77bc",
+    keyPrefix: "ost_live_••••••••••••77bc",
     created: "May 08, 2025",
     lastUsed: "1 hour ago",
     role: "Telemetry Only",
@@ -44,10 +47,92 @@ interface SecuritySettingsCardProps {
 }
 
 export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCardProps) {
+  const { currentOrg, getIdToken } = useAuth();
   const [keys, setKeys] = useState<ApiKeyItem[]>(INITIAL_KEYS);
+  const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [mfaEnforced, setMfaEnforced] = useState(true);
   const [ipWhitelist, setIpWhitelist] = useState("192.168.1.0/24, 10.0.0.0/8");
+
+  useEffect(() => {
+    let isMounted = true;
+    const orgId = currentOrg?.id;
+    if (!orgId) return;
+
+    async function fetchKeys() {
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+
+        const projRes = await fetch(`/api/v1/projects?organizationId=${orgId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          if (projData.success && Array.isArray(projData.data) && projData.data.length > 0) {
+            const defaultProj = projData.data[0];
+            const keysRes = await fetch(`/api/v1/projects/${defaultProj.id}/api-keys`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (keysRes.ok) {
+              const keysData = await keysRes.json();
+              if (keysData.success && Array.isArray(keysData.data) && keysData.data.length > 0) {
+                const parseDate = (val: unknown): Date | null => {
+                  if (!val) return null;
+                  if (typeof val === "string" || typeof val === "number") return new Date(val);
+                  if (typeof val === "object" && val !== null && "toDate" in val && typeof (val as { toDate: () => Date }).toDate === "function") {
+                    return (val as { toDate: () => Date }).toDate();
+                  }
+                  return null;
+                };
+
+                const formatted: ApiKeyItem[] = keysData.data
+                  .filter((k: ApiKey) => k.status !== "revoked")
+                  .map((k: ApiKey) => {
+                    const createdDate = parseDate(k.createdAt);
+                    const lastUsedDate = parseDate(k.lastUsedAt);
+
+                    return {
+                      id: k.id,
+                      projectId: defaultProj.id,
+                      name: k.name,
+                      keyPrefix: k.keyPrefix,
+                      created: createdDate
+                        ? createdDate.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Recently",
+                      lastUsed: lastUsedDate
+                        ? lastUsedDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                        : "Never",
+                      role: k.environment === "production" ? "Full Ingestion Proxy" : "Read & Write",
+                    };
+                  });
+
+                if (isMounted && formatted.length > 0) {
+                  setKeys(formatted);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[SecuritySettingsCard] Load keys fallback:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchKeys();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
 
   const handleCopy = (id: string, prefix: string) => {
     navigator.clipboard.writeText(prefix);
@@ -55,8 +140,20 @@ export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCard
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleRevoke = (id: string) => {
+  const handleRevoke = async (id: string, projectId?: string) => {
     setKeys((prev) => prev.filter((k) => k.id !== id));
+
+    try {
+      const token = await getIdToken();
+      if (token && projectId) {
+        await fetch(`/api/v1/projects/${projectId}/api-keys/${id}/revoke`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (err) {
+      console.warn("[SecuritySettingsCard] Error revoking key on server:", err);
+    }
   };
 
   return (
@@ -67,6 +164,7 @@ export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCard
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-[#dfba82]" />
             <h3 className="text-base font-semibold text-[#f4efe6]">Workspace API Keys</h3>
+            {loading && <Loader2 className="w-3.5 h-3.5 text-[#dfba82] animate-spin ml-2" />}
           </div>
           <button
             type="button"
@@ -116,7 +214,7 @@ export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCard
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleRevoke(k.id)}
+                      onClick={() => handleRevoke(k.id, k.projectId)}
                       className="p-1.5 rounded-lg border border-[#232738] hover:border-[#ef4444]/40 text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors cursor-pointer"
                       title="Revoke Key"
                     >

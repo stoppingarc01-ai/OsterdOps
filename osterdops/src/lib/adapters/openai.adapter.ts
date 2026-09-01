@@ -1,5 +1,7 @@
 /**
- * OsterdOps — OpenAI Provider Adapter
+ * OsterdOps — OpenAI Provider Adapter (Phase 22)
+ * Production-grade integration supporting chat completions, streaming SSE,
+ * usage extraction, and canonical error normalization.
  */
 
 import type {
@@ -7,6 +9,8 @@ import type {
   GatewayChatRequest,
   GatewayChatResponse,
   NormalizedProviderError,
+  NormalizedProviderErrorCode,
+  ParsedStreamChunk,
   ProviderCredentials,
   TokenUsageBreakdown,
 } from "./types";
@@ -14,6 +18,10 @@ import type {
 interface OpenAIChoice {
   index?: number;
   message?: {
+    role?: string;
+    content?: string;
+  };
+  delta?: {
     role?: string;
     content?: string;
   };
@@ -48,6 +56,50 @@ interface OpenAIResponseBody {
 export class OpenAIAdapter implements AIProviderAdapter {
   readonly provider = "openai" as const;
 
+  /**
+   * Safe server-side credential validation using OpenAI models endpoint.
+   */
+  async validateCredentials(
+    credentials: ProviderCredentials
+  ): Promise<{ valid: boolean; error?: string }> {
+    if (!credentials.apiKey || typeof credentials.apiKey !== "string") {
+      return { valid: false, error: "API key is required" };
+    }
+
+    const baseUrl = credentials.baseUrl || "https://api.openai.com/v1";
+    const url = `${baseUrl.replace(/\/+$/, "")}/models`;
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${credentials.apiKey}`,
+        },
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer));
+
+      if (res.ok) {
+        return { valid: true };
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        return { valid: false, error: "INVALID_CREDENTIALS: Invalid OpenAI API key." };
+      }
+
+      if (res.status === 429) {
+        return { valid: false, error: "PROVIDER_RATE_LIMITED: OpenAI rate limit reached." };
+      }
+
+      return { valid: false, error: `VALIDATION_FAILED: OpenAI responded with HTTP ${res.status}.` };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Network error";
+      return { valid: false, error: `PROVIDER_UNAVAILABLE: ${errMsg}` };
+    }
+  }
+
   formatRequest(
     request: GatewayChatRequest,
     credentials: ProviderCredentials
@@ -60,19 +112,45 @@ export class OpenAIAdapter implements AIProviderAdapter {
       Authorization: `Bearer ${credentials.apiKey}`,
     };
 
-    const body = JSON.stringify({
+    // Transform request parameters for OpenAI API
+    const isReasoningModel = request.model.startsWith("o1") || request.model.startsWith("o3");
+    const payload: Record<string, unknown> = {
       model: request.model,
       messages: request.messages,
-      temperature: request.temperature,
-      max_tokens: request.max_tokens,
-      top_p: request.top_p,
       stream: false,
-      frequency_penalty: request.frequency_penalty,
-      presence_penalty: request.presence_penalty,
-      stop: request.stop,
-    });
+    };
 
-    return { url, headers, body };
+    if (isReasoningModel) {
+      if (request.max_tokens !== undefined) {
+        payload.max_completion_tokens = request.max_tokens;
+      }
+    } else {
+      if (request.temperature !== undefined) payload.temperature = request.temperature;
+      if (request.max_tokens !== undefined) payload.max_tokens = request.max_tokens;
+      if (request.top_p !== undefined) payload.top_p = request.top_p;
+      if (request.frequency_penalty !== undefined) payload.frequency_penalty = request.frequency_penalty;
+      if (request.presence_penalty !== undefined) payload.presence_penalty = request.presence_penalty;
+    }
+
+    if (request.stop !== undefined) payload.stop = request.stop;
+
+    return { url, headers, body: JSON.stringify(payload) };
+  }
+
+  formatStreamRequest(
+    request: GatewayChatRequest,
+    credentials: ProviderCredentials
+  ): { url: string; headers: Record<string, string>; body: string } {
+    const base = this.formatRequest(request, credentials);
+    const parsed = JSON.parse(base.body) as Record<string, unknown>;
+    parsed.stream = true;
+    parsed.stream_options = { include_usage: true };
+
+    return {
+      url: base.url,
+      headers: base.headers,
+      body: JSON.stringify(parsed),
+    };
   }
 
   async executeRequest(
@@ -98,6 +176,44 @@ export class OpenAIAdapter implements AIProviderAdapter {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  parseStreamChunk(chunk: string): ParsedStreamChunk[] {
+    const lines = chunk.split("\n");
+    const results: ParsedStreamChunk[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith(":") || trimmed === "data: [DONE]") {
+        continue;
+      }
+
+      if (trimmed.startsWith("data:")) {
+        const jsonStr = trimmed.slice(5).trim();
+        try {
+          const parsed = JSON.parse(jsonStr) as OpenAIResponseBody;
+          const choice = parsed.choices?.[0];
+          const deltaText = choice?.delta?.content || "";
+          const finishReason = choice?.finish_reason || null;
+
+          let usage: TokenUsageBreakdown | undefined;
+          if (parsed.usage) {
+            usage = this.extractUsage(parsed);
+          }
+
+          results.push({
+            deltaText,
+            finishReason,
+            usage,
+            rawJson: parsed,
+          });
+        } catch {
+          // Skip invalid chunk lines
+        }
+      }
+    }
+
+    return results;
   }
 
   extractUsage(responseBody: unknown): TokenUsageBreakdown {
@@ -149,11 +265,25 @@ export class OpenAIAdapter implements AIProviderAdapter {
     const err = rawError as OpenAIResponseBody;
     const errObj = err?.error;
 
+    let normalizedCode: NormalizedProviderErrorCode = "PROVIDER_INTERNAL_ERROR";
+    if (statusCode === 401 || statusCode === 403 || errObj?.code === "invalid_api_key") {
+      normalizedCode = "INVALID_CREDENTIALS";
+    } else if (statusCode === 404 || errObj?.code === "model_not_found") {
+      normalizedCode = "PROVIDER_MODEL_NOT_FOUND";
+    } else if (statusCode === 400 || errObj?.type === "invalid_request_error") {
+      normalizedCode = "PROVIDER_BAD_REQUEST";
+    } else if (statusCode === 429 || errObj?.code === "rate_limit_exceeded") {
+      normalizedCode = "PROVIDER_RATE_LIMITED";
+    } else if (statusCode === 504 || statusCode === 408) {
+      normalizedCode = "PROVIDER_TIMEOUT";
+    } else if (statusCode >= 500) {
+      normalizedCode = "PROVIDER_UNAVAILABLE";
+    }
+
     const message = errObj?.message || "OpenAI upstream request failed.";
-    const code = errObj?.code || `OPENAI_HTTP_${statusCode}`;
 
     return {
-      code,
+      code: normalizedCode,
       message,
       statusCode,
       retryable: statusCode === 429 || statusCode >= 500,

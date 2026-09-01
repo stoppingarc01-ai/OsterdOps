@@ -44,10 +44,10 @@ export const COLLECTIONS = {
 /**
  * Generic Firestore Data Converter for TypeScript Type Safety
  */
-export function createConverter<T extends Record<string, any>>(): FirestoreDataConverter<T> {
+export function createConverter<T extends object>(): FirestoreDataConverter<T> {
   return {
     toFirestore(model: T) {
-      const data = { ...model };
+      const data = { ...model } as Record<string, unknown>;
       if ("id" in data) {
         delete data.id;
       }

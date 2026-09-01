@@ -7,10 +7,11 @@ import { getAdminFirestore } from "@/lib/firebase/admin";
 import { requireAuth, type AuthenticatedUser } from "./server";
 import { ApiErrors } from "@/lib/api/response";
 import { hasMinimumRole, ROLE_HIERARCHY } from "./rbac-rules";
+import { hasPermission, type Permission, ROLE_PERMISSIONS } from "./permissions";
 import type { OrganizationRole, OrganizationMember, Organization, Project } from "@/types";
 import type { NextResponse } from "next/server";
 
-export { hasMinimumRole, ROLE_HIERARCHY };
+export { hasMinimumRole, ROLE_HIERARCHY, hasPermission, ROLE_PERMISSIONS, type Permission };
 
 export type OrgAuthResult =
   | {
@@ -57,7 +58,7 @@ export async function requireOrganizationMember(
     return { errorResponse: ApiErrors.forbidden("This organization has been suspended.") };
   }
 
-  // 2. Fetch membership document
+  // 2. Fetch membership document directly from Firestore
   const memberDocRef = orgDocRef.collection("members").doc(user.uid);
   const memberSnap = await memberDocRef.get();
 
@@ -85,6 +86,42 @@ export async function requireOrganizationMember(
   }
 
   return { user, member, org };
+}
+
+/**
+ * Server-side guard: Alias to requireOrganizationMember with explicit role requirement.
+ */
+export async function requireRole(
+  request: Request,
+  orgId: string,
+  requiredRole: OrganizationRole
+): Promise<OrgAuthResult> {
+  return requireOrganizationMember(request, orgId, requiredRole);
+}
+
+/**
+ * Server-side guard: Ensures caller has a specific granular permission within the organization.
+ */
+export async function requirePermission(
+  request: Request,
+  orgId: string,
+  permission: Permission
+): Promise<OrgAuthResult> {
+  const authResult = await requireOrganizationMember(request, orgId, "VIEWER");
+  if (authResult.errorResponse) {
+    return authResult;
+  }
+
+  const { member } = authResult;
+  if (!hasPermission(member.role, permission)) {
+    return {
+      errorResponse: ApiErrors.forbidden(
+        `Action requires permission '${permission}'. Role '${member.role}' does not have this permission.`
+      ),
+    };
+  }
+
+  return authResult;
 }
 
 export type ProjectAuthResult =

@@ -42,45 +42,36 @@ export {
  */
 export function useFirestoreDoc<T = DocumentData>(path: string) {
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(path));
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!path) {
-      setData(null);
-      setLoading(false);
-      return;
-    }
+    if (!path) return;
 
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = doc(db, path);
+    const db = getFirebaseFirestore();
+    const docRef = doc(db, path);
 
-      const unsubscribe = onSnapshot(
-        docRef,
-        (snapshot) => {
-          if (snapshot.exists()) {
-            setData({ id: snapshot.id, ...snapshot.data() } as T);
-          } else {
-            setData(null);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.error(`[Firestore useFirestoreDoc error for ${path}]:`, err);
-          setError(err);
-          setLoading(false);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setData({ id: snapshot.id, ...snapshot.data() } as T);
+        } else {
+          setData(null);
         }
-      );
+        setLoading(false);
+      },
+      (err) => {
+        console.error(`[Firestore useFirestoreDoc error for ${path}]:`, err);
+        setError(err);
+        setLoading(false);
+      }
+    );
 
-      return () => unsubscribe();
-    } catch (err) {
-      setError(err as Error);
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, [path]);
 
-  return { data, loading, error };
+  return { data: path ? data : null, loading: path ? loading : false, error };
 }
 
 /**
@@ -91,44 +82,35 @@ export function useFirestoreCollection<T = DocumentData>(
   constraints: QueryConstraint[] = []
 ) {
   const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(collectionPath));
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!collectionPath) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
+    if (!collectionPath) return;
 
-    try {
-      const db = getFirebaseFirestore();
-      const colRef = collection(db, collectionPath);
-      const q = query(colRef, ...constraints);
+    const db = getFirebaseFirestore();
+    const colRef = collection(db, collectionPath);
+    const q = query(colRef, ...constraints);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const items: T[] = [];
-          snapshot.forEach((docSnap) => {
-            items.push({ id: docSnap.id, ...docSnap.data() } as T);
-          });
-          setData(items);
-          setLoading(false);
-        },
-        (err) => {
-          console.error(`[Firestore useFirestoreCollection error for ${collectionPath}]:`, err);
-          setError(err);
-          setLoading(false);
-        }
-      );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items: T[] = [];
+        snapshot.forEach((docSnap) => {
+          items.push({ id: docSnap.id, ...docSnap.data() } as T);
+        });
+        setData(items);
+        setLoading(false);
+      },
+      (err) => {
+        console.error(`[Firestore useFirestoreCollection error for ${collectionPath}]:`, err);
+        setError(err);
+        setLoading(false);
+      }
+    );
 
-      return () => unsubscribe();
-    } catch (err) {
-      setError(err as Error);
-      setLoading(false);
-    }
-  }, [collectionPath]);
+    return () => unsubscribe();
+  }, [collectionPath, constraints]);
 
-  return { data, loading, error };
+  return { data: collectionPath ? data : [], loading: collectionPath ? loading : false, error };
 }

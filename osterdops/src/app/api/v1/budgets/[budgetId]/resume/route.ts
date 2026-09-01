@@ -1,0 +1,50 @@
+/**
+ * POST /api/v1/budgets/[budgetId]/resume
+ * Resumes a paused budget and immediately re-evaluates spending (Requires budgets:manage / ADMIN)
+ */
+
+import { requirePermission } from "@/lib/auth/rbac";
+import { resumeBudget } from "@/lib/services/budget.service";
+import { apiSuccess, ApiErrors } from "@/lib/api/response";
+
+interface RouteParams {
+  params: Promise<{ budgetId: string }>;
+}
+
+export async function POST(request: Request, props: RouteParams) {
+  try {
+    const { budgetId } = await props.params;
+    let orgId: string | null = null;
+
+    try {
+      const body = await request.json();
+      orgId = body?.organizationId;
+    } catch {
+      // JSON body is optional
+    }
+
+    if (!orgId) {
+      const { searchParams } = new URL(request.url);
+      orgId = searchParams.get("organizationId");
+    }
+
+    if (!orgId) {
+      return ApiErrors.badRequest("Property or query param 'organizationId' is required.");
+    }
+
+    const authResult = await requirePermission(request, orgId, "budgets:manage");
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
+    }
+
+    const resumedBudget = await resumeBudget(orgId, budgetId, authResult.user?.uid);
+    if (!resumedBudget) {
+      return ApiErrors.notFound(`Budget '${budgetId}' not found.`);
+    }
+
+    return apiSuccess(resumedBudget);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to resume budget.";
+    return ApiErrors.internalError(message);
+  }
+}

@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronDown, Sun, Moon, Bell, Search, Command, X, Zap, ShieldCheck } from "lucide-react";
+import { Calendar, ChevronDown, Sun, Moon, Bell, Search, X, Zap, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -11,10 +12,13 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  userName = "Shaan",
+  userName,
   onOpenCommandPalette,
   onOpenSimulator,
 }: DashboardHeaderProps) {
+  const { user, userProfile } = useAuth();
+  const activeUserName = userName || userProfile?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Shaan";
+
   const [selectedDateRange, setSelectedDateRange] = useState("May 10 – May 16, 2025");
   const [selectedProject, setSelectedProject] = useState("All Projects");
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -54,7 +58,7 @@ export function DashboardHeader({
           className="text-2xl sm:text-[26px] font-medium tracking-tight text-[#f4efe6] flex items-center gap-2"
           style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
         >
-          <span>Good morning, {userName}!</span>
+          <span>Good morning, {activeUserName}!</span>
           <span className="text-xl">👋</span>
         </h1>
         <p className="text-[13px] text-[#8e93a6] mt-0.5">

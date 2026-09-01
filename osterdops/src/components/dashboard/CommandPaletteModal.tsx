@@ -1,13 +1,36 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Command, ArrowRight, X, Cpu, DollarSign, ShieldAlert, Folder, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  Command,
+  ArrowRight,
+  X,
+  Cpu,
+  DollarSign,
+  ShieldAlert,
+  Folder,
+  Zap,
+  LayoutDashboard,
+  LineChart,
+  Wallet,
+  Bell,
+  KeyRound,
+  Users,
+  CreditCard,
+  ShieldCheck,
+  FileCheck2,
+  HeartPulse,
+  Settings,
+  BookOpen,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectAction: (action: string) => void;
+  onSelectAction?: (action: string) => void;
 }
 
 export function CommandPaletteModal({
@@ -16,15 +39,13 @@ export function CommandPaletteModal({
   onSelectAction,
 }: CommandPaletteModalProps) {
   const [query, setQuery] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         if (isOpen) onClose();
-        else {
-          // Open triggered by parent if needed
-        }
       }
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -37,12 +58,20 @@ export function CommandPaletteModal({
   if (!isOpen) return null;
 
   const items = [
+    { id: "dash", title: "Go to Overview Dashboard", category: "Navigation", href: "/dashboard", icon: LayoutDashboard, shortcut: "G D" },
+    { id: "analytics", title: "View Spend & Usage Analytics", category: "Observability", href: "/dashboard/analytics", icon: LineChart, shortcut: "G A" },
+    { id: "budgets", title: "Manage Budgets & Spend Ceilings", category: "Governance", href: "/dashboard/budgets", icon: Wallet, shortcut: "G B" },
+    { id: "alerts", title: "View Operational & Threshold Alerts", category: "Governance", href: "/dashboard/alerts", icon: Bell, shortcut: "G L" },
+    { id: "projects", title: "Manage Projects & API Configuration", category: "Developer", href: "/dashboard/projects", icon: Folder, shortcut: "G P" },
+    { id: "keys", title: "Manage Scoped API Keys", category: "Developer", href: "/dashboard/api-keys", icon: KeyRound, shortcut: "G K" },
+    { id: "docs", title: "API Documentation & Specifications", category: "Developer", href: "/dashboard/developers/api", icon: BookOpen, shortcut: "G R" },
+    { id: "members", title: "Team Members & Role Management", category: "Organization", href: "/dashboard/members", icon: Users, shortcut: "G M" },
+    { id: "audit", title: "Inspect Tamper-Evident Audit Logs", category: "Organization", href: "/dashboard/audit-logs", icon: FileCheck2, shortcut: "G T" },
+    { id: "billing", title: "Subscription, Invoices & Usage", category: "Billing", href: "/dashboard/billing", icon: CreditCard, shortcut: "G $" },
+    { id: "security", title: "Security Center & Posture Score", category: "Security", href: "/dashboard/security", icon: ShieldCheck, shortcut: "G S" },
+    { id: "system", title: "System Health & Diagnostics", category: "System", href: "/dashboard/system", icon: HeartPulse, shortcut: "G H" },
+    { id: "settings", title: "Organization & Governance Settings", category: "Settings", href: "/dashboard/settings", icon: Settings, shortcut: "G ," },
     { id: "sim", title: "Open AI Cost Simulator", category: "Actions", icon: Zap, shortcut: "⌘S" },
-    { id: "budget", title: "Create New Budget Guardrail", category: "Actions", icon: DollarSign, shortcut: "⌘B" },
-    { id: "policy", title: "Enforce Model Rate Limit Policy", category: "Governance", icon: ShieldAlert, shortcut: "⌘P" },
-    { id: "gpt4o", title: "Inspect gpt-4o Model Spend & Latency", category: "Models", icon: Cpu, shortcut: "↵" },
-    { id: "support", title: "View Support Agent Project Analytics", category: "Projects", icon: Folder, shortcut: "↵" },
-    { id: "keys", title: "Manage Provider API Keys & Proxy Tokens", category: "Settings", icon: Command, shortcut: "⌘K" },
   ];
 
   const filtered = items.filter(
@@ -50,6 +79,16 @@ export function CommandPaletteModal({
       i.title.toLowerCase().includes(query.toLowerCase()) ||
       i.category.toLowerCase().includes(query.toLowerCase())
   );
+
+  const handleSelect = (item: (typeof items)[0]) => {
+    if (item.href) {
+      router.push(item.href);
+    }
+    if (onSelectAction) {
+      onSelectAction(item.title);
+    }
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -92,10 +131,7 @@ export function CommandPaletteModal({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => {
-                      onSelectAction(item.title);
-                      onClose();
-                    }}
+                    onClick={() => handleSelect(item)}
                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#151828] border border-transparent hover:border-[#dfba82]/30 transition-all cursor-pointer group text-left"
                   >
                     <div className="flex items-center gap-3">

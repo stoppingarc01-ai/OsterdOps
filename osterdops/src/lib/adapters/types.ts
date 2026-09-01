@@ -64,21 +64,56 @@ export interface ProviderCredentials {
   baseUrl?: string;
 }
 
+export type NormalizedProviderErrorCode =
+  | "INVALID_CREDENTIALS"
+  | "PROVIDER_AUTHENTICATION_FAILED"
+  | "PROVIDER_RATE_LIMITED"
+  | "PROVIDER_TIMEOUT"
+  | "PROVIDER_BAD_REQUEST"
+  | "PROVIDER_MODEL_NOT_FOUND"
+  | "PROVIDER_UNAVAILABLE"
+  | "PROVIDER_INTERNAL_ERROR"
+  | "PROVIDER_STREAM_ERROR"
+  | "UNSUPPORTED_PROVIDER"
+  | "VALIDATION_FAILED";
+
 export interface NormalizedProviderError {
-  code: string;
+  code: NormalizedProviderErrorCode | string;
   message: string;
   statusCode: number;
   retryable: boolean;
   provider: AIProvider;
 }
 
+export interface ParsedStreamChunk {
+  deltaText?: string;
+  finishReason?: "stop" | "length" | "tool_calls" | "content_filter" | null;
+  usage?: TokenUsageBreakdown;
+  rawJson?: unknown;
+}
+
 export interface AIProviderAdapter {
   readonly provider: AIProvider;
+
+  /**
+   * Validates the provided credentials against the upstream vendor API in a safe, non-destructive call.
+   */
+  validateCredentials(
+    credentials: ProviderCredentials
+  ): Promise<{ valid: boolean; error?: string }>;
 
   /**
    * Formats the incoming OpenAI-standardized chat request into the provider's specific API body and headers.
    */
   formatRequest(
+    request: GatewayChatRequest,
+    credentials: ProviderCredentials
+  ): { url: string; headers: Record<string, string>; body: string };
+
+  /**
+   * Formats a streaming request for the provider API.
+   */
+  formatStreamRequest?(
     request: GatewayChatRequest,
     credentials: ProviderCredentials
   ): { url: string; headers: Record<string, string>; body: string };
@@ -90,6 +125,11 @@ export interface AIProviderAdapter {
     formatted: { url: string; headers: Record<string, string>; body: string },
     timeoutMs?: number
   ): Promise<{ rawResponse: Response; responseBody: unknown; latencyMs: number }>;
+
+  /**
+   * Parses an SSE/chunk string from the provider's streaming response into normalized deltas.
+   */
+  parseStreamChunk?(chunk: string, model?: string): ParsedStreamChunk[];
 
   /**
    * Extracts detailed token usage metrics from the vendor response body.

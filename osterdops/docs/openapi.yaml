@@ -1,0 +1,892 @@
+openapi: 3.1.0
+info:
+  title: OsterdOps AI Governance & Gateway API
+  version: "1.0.0"
+  description: |
+    OsterdOps is an enterprise-grade AI Cost Governance, Observability, and Gateway platform.
+    This OpenAPI 3.1.0 specification documents the public API endpoints, schemas, authentication schemes,
+    and error models supported by the OsterdOps backend.
+  contact:
+    name: OsterdOps Developer Support
+    url: https://osterdops.com
+    email: developers@osterdops.com
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.osterdops.com
+    description: Production API Server
+  - url: https://staging-api.osterdops.com
+    description: Staging API Server
+  - url: http://localhost:3000
+    description: Local Development Server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  /api/health:
+    get:
+      summary: Liveness Probe
+      description: Returns service liveness health status for container orchestrators.
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: Service is alive and operational.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/ready:
+    get:
+      summary: Readiness Probe
+      description: Checks readiness of Firestore, job queue, and rate limiter.
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: Service is ready to accept traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+
+  /api/v1/system/health:
+    get:
+      summary: System Health Status
+      tags: [System]
+      responses:
+        "200":
+          description: Overall operational health.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealthResponse"
+
+  /api/v1/system/diagnostics:
+    get:
+      summary: System Diagnostics
+      description: Detailed system diagnostics (privileged details for ADMIN and OWNER).
+      tags: [System]
+      responses:
+        "200":
+          description: Diagnostic metrics and component states.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemDiagnosticsResponse"
+
+  /api/v1/system/api:
+    get:
+      summary: API Capability Discovery
+      description: Returns supported API versions, available platform capabilities, OpenAPI spec URLs, and documentation metadata.
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: API capability discovery payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string, example: "v1" }
+                  supportedVersions: { type: array, items: { type: string } }
+                  capabilities: { type: object }
+
+  /api/v1/api-keys:
+    get:
+      summary: List Organization API Keys
+      description: Lists all API keys across projects within the caller's active organization with cursor-based pagination. Plaintext secrets and hashes are never returned.
+      tags: [API Keys]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: Paginated list of API keys.
+    post:
+      summary: Create Organization API Key
+      description: Generates a new API key with optional fine-grained scopes. The plaintext secret is returned EXACTLY ONCE.
+      tags: [API Keys]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                projectId: { type: string }
+                environment: { type: string, enum: [production, staging, development] }
+                scopes: { type: array, items: { type: string } }
+      responses:
+        "201":
+          description: Key created and secret returned once.
+
+  /api/v1/chat/completions:
+    post:
+      summary: AI Gateway Chat Completions
+      description: |
+        Primary AI Gateway proxy endpoint. Routes incoming chat completions to upstream providers (OpenAI, Anthropic, Gemini, Azure, Bedrock), calculates real-time cost, enforces budget limits, and records token usage asynchronously.
+      tags: [Gateway]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GatewayChatRequest"
+      parameters:
+        - in: header
+          name: x-osterdops-request-id
+          required: false
+          schema:
+            type: string
+          description: Optional client-assigned correlation request ID.
+      responses:
+        "200":
+          description: Successful AI completion with token usage and cost.
+          headers:
+            x-osterdops-request-id:
+              schema: { type: string }
+              description: Unique correlation request ID.
+            x-osterdops-latency-ms:
+              schema: { type: string }
+              description: Upstream provider execution duration in milliseconds.
+            x-osterdops-cost-usd:
+              schema: { type: string }
+              description: Calculated inference spend in USD.
+            x-osterdops-input-tokens:
+              schema: { type: string }
+            x-osterdops-output-tokens:
+              schema: { type: string }
+            x-osterdops-total-tokens:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayChatResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/BudgetExceededOrRateLimited"
+        "502":
+          $ref: "#/components/responses/ProviderError"
+        "504":
+          $ref: "#/components/responses/Timeout"
+
+  /api/v1/gateway/chat/completions:
+    post:
+      summary: Public AI Gateway Chat Proxy (with CORS support)
+      tags: [Gateway]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GatewayChatRequest"
+      responses:
+        "200":
+          description: Chat completion response envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayChatResponse"
+
+  /api/v1/projects:
+    get:
+      summary: List Projects
+      description: Lists active projects within the caller's organization.
+      tags: [Projects]
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: List of projects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+    post:
+      summary: Create Project
+      description: Creates a new project in the target organization. Requires ADMIN or OWNER.
+      tags: [Projects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Project created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/projects/{projectId}:
+    get:
+      summary: Get Project
+      tags: [Projects]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Project"
+    patch:
+      summary: Update Project
+      tags: [Projects]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Project"
+    delete:
+      summary: Archive Project
+      tags: [Projects]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+
+  /api/v1/projects/{projectId}/api-keys:
+    get:
+      summary: List Project API Keys
+      description: Lists all API keys for the specified project. Plaintext secrets are never returned.
+      tags: [API Keys]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiKey"
+    post:
+      summary: Create Project API Key
+      description: Issues a new API key. The unmasked plaintext secret is returned EXACTLY ONCE.
+      tags: [API Keys]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApiKeyRequest"
+      responses:
+        "201":
+          description: API key created with plaintext secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/GeneratedApiKey"
+
+  /api/v1/projects/{projectId}/api-keys/{keyId}/revoke:
+    post:
+      summary: Revoke API Key
+      tags: [API Keys]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: keyId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+
+  /api/v1/projects/{projectId}/api-keys/{keyId}/rotate:
+    post:
+      summary: Rotate API Key
+      description: Issues a new key while scheduling existing key revocation. Plaintext secret returned ONCE.
+      tags: [API Keys]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: keyId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/GeneratedApiKey"
+
+  /api/v1/usage:
+    get:
+      summary: Aggregated Usage Metrics
+      tags: [Usage]
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+        - in: query
+          name: projectId
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/UsageSummary"
+
+  /api/v1/costs:
+    get:
+      summary: Cost Breakdown
+      tags: [Costs]
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+        - in: query
+          name: projectId
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/CostSummary"
+
+  /api/v1/analytics/overview:
+    get:
+      summary: Analytics Executive Overview
+      tags: [Analytics]
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+        - in: query
+          name: projectId
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/AnalyticsOverview"
+
+  /api/v1/budgets:
+    get:
+      summary: List Budgets
+      tags: [Budgets]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Budget"
+    post:
+      summary: Create Budget
+      tags: [Budgets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBudgetRequest"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/Budget"
+
+  /api/v1/alerts:
+    get:
+      summary: List Alerts
+      tags: [Alerts]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Alert"
+
+  /api/v1/billing:
+    get:
+      summary: Billing & Plan Status
+      tags: [Billing]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/BillingSummary"
+
+  /api/v1/security/posture:
+    get:
+      summary: Security Posture Assessment
+      tags: [Security]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    $ref: "#/components/schemas/SecurityPosture"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: OsterdOps API Key / JWT
+      description: Pass OsterdOps Project API Key (`osk_live_...`) or User JWT in Authorization header.
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Pass OsterdOps Project API Key (`osk_live_...`).
+
+  responses:
+    BadRequest:
+      description: Invalid request payload, missing required fields, or validation error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Unauthorized:
+      description: Missing, revoked, or expired OsterdOps API key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Forbidden:
+      description: Insufficient RBAC permissions to perform this operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    BudgetExceededOrRateLimited:
+      description: Spend limit exceeded or API key rate limit reached.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Conflict:
+      description: Resource conflict or duplicate identifier.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    ProviderError:
+      description: Upstream AI provider returned an error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Timeout:
+      description: Gateway request deadline exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: "UNAUTHORIZED" }
+            message: { type: string, example: "Invalid OsterdOps API key." }
+            details: { type: object }
+
+    GatewayChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool, developer]
+          example: "user"
+        content:
+          type: string
+          example: "Explain latency vs throughput in distributed systems."
+        name:
+          type: string
+
+    GatewayChatRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+          example: "gpt-4o"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/GatewayChatMessage"
+        temperature:
+          type: number
+          example: 0.7
+        max_tokens:
+          type: integer
+          example: 1024
+        top_p:
+          type: number
+          example: 1.0
+        provider:
+          type: string
+          enum: [openai, anthropic, gemini, azure, bedrock]
+          example: "openai"
+
+    GatewayTokenUsage:
+      type: object
+      required: [inputTokens, outputTokens, totalTokens]
+      properties:
+        inputTokens: { type: integer, example: 42 }
+        outputTokens: { type: integer, example: 128 }
+        totalTokens: { type: integer, example: 170 }
+        cachedTokens: { type: integer, example: 0 }
+        reasoningTokens: { type: integer, example: 0 }
+
+    GatewayChatResponse:
+      type: object
+      required: [id, provider, model, output, usage, finishReason, latencyMs]
+      properties:
+        id: { type: string, example: "req_1788022596819_ibaxa6s" }
+        provider: { type: string, example: "openai" }
+        model: { type: string, example: "gpt-4o" }
+        output:
+          type: object
+          properties:
+            role: { type: string, example: "assistant" }
+            content: { type: string, example: "Latency measures the time taken to process a single request..." }
+        usage:
+          $ref: "#/components/schemas/GatewayTokenUsage"
+        finishReason: { type: string, example: "stop" }
+        latencyMs: { type: integer, example: 342 }
+
+    Project:
+      type: object
+      required: [id, organizationId, name, slug, status, createdAt]
+      properties:
+        id: { type: string, example: "proj_9481ad" }
+        organizationId: { type: string, example: "org_01j9a8b" }
+        name: { type: string, example: "Production Backend" }
+        slug: { type: string, example: "production-backend" }
+        description: { type: string, example: "Core AI microservices" }
+        status: { type: string, enum: [ACTIVE, ARCHIVED, active, archived, suspended], example: "ACTIVE" }
+        spendLimitMonthly: { type: number, example: 500 }
+        currentMonthSpend: { type: number, example: 42.15 }
+        totalRequests: { type: integer, example: 14820 }
+        totalTokens: { type: integer, example: 894000 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: "Production Backend" }
+        slug: { type: string, example: "production-backend" }
+        description: { type: string, example: "Core AI microservices" }
+        spendLimitMonthly: { type: number, example: 500 }
+        organizationId: { type: string }
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        spendLimitMonthly: { type: number }
+        status: { type: string, enum: [ACTIVE, ARCHIVED] }
+
+    ApiKey:
+      type: object
+      required: [id, organizationId, projectId, name, keyPrefix, environment, status, createdAt]
+      properties:
+        id: { type: string, example: "key_8841a" }
+        organizationId: { type: string, example: "org_01j9a8b" }
+        projectId: { type: string, example: "proj_9481ad" }
+        name: { type: string, example: "Prod Ingestion Key" }
+        keyPrefix: { type: string, example: "osk_live_••••94f2" }
+        environment: { type: string, enum: [production, staging, development], example: "production" }
+        status: { type: string, enum: [active, revoked, expired], example: "active" }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+
+    GeneratedApiKey:
+      type: object
+      required: [id, name, keyPrefix, secret, projectId, createdAt]
+      properties:
+        id: { type: string, example: "key_8841a" }
+        name: { type: string, example: "Prod Ingestion Key" }
+        keyPrefix: { type: string, example: "osk_live_••••94f2" }
+        secret: { type: string, example: "osk_live_94f2a188c9f4d1e204b78912" }
+        projectId: { type: string, example: "proj_9481ad" }
+        createdAt: { type: string, format: date-time }
+
+    CreateApiKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: "Prod Ingestion Key" }
+        environment: { type: string, enum: [production, staging, development], default: "production" }
+        expiresAt: { type: string, format: date-time }
+
+    UsageSummary:
+      type: object
+      properties:
+        totalRequests: { type: integer, example: 45200 }
+        totalTokens: { type: integer, example: 3200000 }
+        inputTokens: { type: integer, example: 1200000 }
+        outputTokens: { type: integer, example: 2000000 }
+        cachedTokens: { type: integer, example: 340000 }
+        totalCostUsd: { type: number, example: 14.85 }
+
+    CostSummary:
+      type: object
+      properties:
+        totalCostUsd: { type: number, example: 124.50 }
+        currency: { type: string, example: "USD" }
+        breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              provider: { type: string, example: "openai" }
+              model: { type: string, example: "gpt-4o" }
+              costUsd: { type: number, example: 84.20 }
+              requests: { type: integer, example: 1200 }
+
+    AnalyticsOverview:
+      type: object
+      properties:
+        totalRequests: { type: integer, example: 142000 }
+        totalTokens: { type: integer, example: 12500000 }
+        totalCostUsd: { type: number, example: 312.40 }
+        avgLatencyMs: { type: integer, example: 380 }
+        p50LatencyMs: { type: integer, example: 290 }
+        p95LatencyMs: { type: integer, example: 740 }
+        p99LatencyMs: { type: integer, example: 1200 }
+        cacheHitRatePercent: { type: number, example: 24.5 }
+        errorRatePercent: { type: number, example: 0.12 }
+
+    Budget:
+      type: object
+      properties:
+        id: { type: string, example: "bud_99a81" }
+        name: { type: string, example: "Monthly Team Budget" }
+        amountUsd: { type: number, example: 1000 }
+        currentSpendUsd: { type: number, example: 420.50 }
+        period: { type: string, example: "MONTHLY" }
+        enforcementMode: { type: string, enum: [MONITOR, BLOCK], example: "BLOCK" }
+        status: { type: string, example: "ACTIVE" }
+
+    CreateBudgetRequest:
+      type: object
+      required: [name, amountUsd, period]
+      properties:
+        name: { type: string, example: "Monthly Team Budget" }
+        amountUsd: { type: number, example: 1000 }
+        period: { type: string, enum: [daily, weekly, monthly, quarterly], example: "monthly" }
+        projectId: { type: string }
+        enforcementMode: { type: string, enum: [MONITOR, BLOCK], default: "MONITOR" }
+        thresholds: { type: array, items: { type: number }, example: [50, 80, 100] }
+
+    Alert:
+      type: object
+      properties:
+        id: { type: string, example: "alt_129" }
+        type: { type: string, example: "BUDGET_THRESHOLD" }
+        severity: { type: string, enum: [INFO, WARNING, CRITICAL], example: "WARNING" }
+        status: { type: string, enum: [PENDING, ACKNOWLEDGED, RESOLVED], example: "PENDING" }
+        message: { type: string, example: "Budget 'Monthly Team Budget' reached 80% threshold." }
+        createdAt: { type: string, format: date-time }
+
+    BillingSummary:
+      type: object
+      properties:
+        plan: { type: string, enum: [starter, team, enterprise], example: "team" }
+        status: { type: string, enum: [active, past_due, canceled, trialing], example: "active" }
+        currentPeriodSpendUsd: { type: number, example: 84.50 }
+        spendLimitUsd: { type: number, example: 1000 }
+        currency: { type: string, example: "USD" }
+
+    SecurityPosture:
+      type: object
+      properties:
+        score: { type: integer, example: 98 }
+        tier: { type: string, example: "OPTIMAL" }
+        mfaEnforced: { type: boolean, example: true }
+        encryptionAtRest: { type: boolean, example: true }
+        zeroContentRetention: { type: boolean, example: true }
+
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, example: "ok" }
+        service: { type: string, example: "osterdops" }
+        timestamp: { type: string, format: date-time }
+
+    ReadyResponse:
+      type: object
+      properties:
+        status: { type: string, example: "ready" }
+        database: { type: string, example: "connected" }
+        queue: { type: string, example: "active" }
+
+    SystemHealthResponse:
+      type: object
+      properties:
+        status: { type: string, example: "healthy" }
+        version: { type: string, example: "1.0.0" }
+        environment: { type: string, example: "production" }
+
+    SystemDiagnosticsResponse:
+      type: object
+      properties:
+        status: { type: string, example: "healthy" }
+        checks: { type: object }
+        metrics: { type: object }

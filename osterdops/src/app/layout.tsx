@@ -29,6 +29,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { ThemeCustomizerProvider } from "@/context/ThemeCustomizerContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { CustomizeThemeModal } from "@/components/ui/CustomizeThemeModal";
 import { FirebaseAnalyticsProvider } from "@/components/analytics/FirebaseAnalyticsProvider";
 
@@ -60,15 +61,17 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <FirebaseAnalyticsProvider />
-        <ThemeCustomizerProvider>
-          <ThemeProvider>
-            <ToastProvider>
-              {children}
-              <CustomCursor />
-              <CustomizeThemeModal />
-            </ToastProvider>
-          </ThemeProvider>
-        </ThemeCustomizerProvider>
+        <AuthProvider>
+          <ThemeCustomizerProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                {children}
+                <CustomCursor />
+                <CustomizeThemeModal />
+              </ToastProvider>
+            </ThemeProvider>
+          </ThemeCustomizerProvider>
+        </AuthProvider>
       </body>
     </html>
   );

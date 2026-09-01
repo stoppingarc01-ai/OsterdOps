@@ -1,7 +1,7 @@
 /**
  * /api/v1/organizations/[orgId]/projects
  * GET: Lists all projects under the organization (Requires VIEWER)
- * POST: Creates a new project (Requires DEVELOPER)
+ * POST: Creates a new project (Requires ADMIN or OWNER)
  */
 
 import { requireOrganizationMember } from "@/lib/auth/rbac";
@@ -30,10 +30,12 @@ export async function GET(request: Request, context: Params) {
 export async function POST(request: Request, context: Params) {
   const { orgId } = await context.params;
 
-  const authResult = await requireOrganizationMember(request, orgId, "DEVELOPER");
+  const authResult = await requireOrganizationMember(request, orgId, "ADMIN");
   if (authResult.errorResponse) {
     return authResult.errorResponse;
   }
+
+  const { user } = authResult;
 
   try {
     const body = await request.json();
@@ -41,15 +43,25 @@ export async function POST(request: Request, context: Params) {
       return ApiErrors.badRequest("Project name is required.");
     }
 
-    const project = await createProject(orgId, {
+    if (body.name.trim().length > 100) {
+      return ApiErrors.badRequest("Project name must not exceed 100 characters.");
+    }
+
+    const project = await createProject(orgId, user.uid, {
       name: body.name.trim(),
+      slug: typeof body.slug === "string" ? body.slug.trim() : undefined,
       description: typeof body.description === "string" ? body.description.trim() : undefined,
       spendLimitMonthly: typeof body.spendLimitMonthly === "number" ? body.spendLimitMonthly : undefined,
     });
 
     return apiSuccess(project, undefined, 201);
-  } catch (err) {
-    console.error("[OsterdOps Projects] Creation failed:", err);
+  } catch (err: unknown) {
+    const customErr = err as { code?: string; message?: string };
+    if (customErr.code === "DUPLICATE_SLUG") {
+      return ApiErrors.conflict(customErr.message || "A project with this slug already exists.");
+    }
+
+    console.error("[OsterdOps Org Projects] Creation failed:", err);
     return ApiErrors.internalError("Failed to create project.");
   }
 }
