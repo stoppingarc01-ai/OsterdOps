@@ -244,8 +244,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     );
   }
 
-  // 7. Resolve Decrypted Upstream Provider Credentials
-  const credentials = await resolveProviderCredentials(organization.id, provider, project.id);
+  // 7. Resolve Decrypted Upstream Provider Credentials (dynamic tenant/model lookup)
+  const credentials = await resolveProviderCredentials(organization.id, provider, project.id, payload.model);
   if (!credentials || !credentials.apiKey) {
     recordGatewayTelemetry({
       requestId,
@@ -273,8 +273,9 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     );
   }
 
-  // 8. Resolve Provider Adapter
-  const adapter = getProviderAdapter(provider);
+  // 8. Resolve Provider Adapter (support custom OpenAI-compatible endpoints)
+  const effectiveProvider = (credentials.provider || provider) as AIProvider;
+  const adapter = getProviderAdapter(effectiveProvider);
   const timeoutMs = Number(process.env.GATEWAY_REQUEST_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
 
   // ==========================================

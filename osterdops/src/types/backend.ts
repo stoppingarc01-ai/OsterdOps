@@ -106,14 +106,23 @@ export interface GeneratedApiKeyResponse {
    3. Provider Connections
    ============================================================ */
 
-export type AIProvider = "openai" | "anthropic" | "gemini" | "azure" | "bedrock" | "meta" | "groq";
+export type AIProvider =
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "azure"
+  | "bedrock"
+  | "meta"
+  | "groq"
+  | "mistral"
+  | "custom";
 
 export type ProviderConnectionStatus =
   | "active"
-  | "invalid"
   | "rate_limited"
   | "disabled"
   | "validation_failed"
+  | "invalid"
   | "unvalidated";
 
 export interface ProviderConnection {
@@ -129,6 +138,10 @@ export interface ProviderConnection {
   keyTag: string;       // GCM auth tag (redacted from client responses)
   maskedKey: string;    // Safe preview e.g. "sk-proj-••••49a1"
   customBaseUrl?: string;
+  models?: string[];
+  defaultModel?: string;
+  maxSpendCap?: number;
+  fallbackModel?: string;
   createdBy?: string;
   createdAt: Timestamp | string;
   updatedAt: Timestamp | string;

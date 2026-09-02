@@ -23,6 +23,10 @@ export interface CreateProviderConnectionParams {
   displayName?: string;
   projectId?: string;
   customBaseUrl?: string;
+  models?: string[];
+  defaultModel?: string;
+  maxSpendCap?: number;
+  fallbackModel?: string;
 }
 
 export interface UpdateProviderConnectionParams {
@@ -32,6 +36,10 @@ export interface UpdateProviderConnectionParams {
   customBaseUrl?: string;
   status?: ProviderConnectionStatus;
   projectId?: string;
+  models?: string[];
+  defaultModel?: string;
+  maxSpendCap?: number;
+  fallbackModel?: string;
 }
 
 /**
@@ -65,6 +73,10 @@ function sanitizeConnection(docId: string, data: Record<string, unknown>): Provi
     updatedAt: toDateString(data.updatedAt) || new Date().toISOString(),
     lastValidatedAt: toDateString(data.lastValidatedAt),
     lastUsedAt: toDateString(data.lastUsedAt),
+    models: Array.isArray(data.models) ? (data.models as string[]) : undefined,
+    defaultModel: data.defaultModel ? String(data.defaultModel) : undefined,
+    maxSpendCap: typeof data.maxSpendCap === "number" ? data.maxSpendCap : undefined,
+    fallbackModel: data.fallbackModel ? String(data.fallbackModel) : undefined,
   };
 }
 
@@ -111,6 +123,10 @@ export async function createProviderConnection(
     keyTag: encrypted.tag,
     maskedKey,
     customBaseUrl: params.customBaseUrl?.trim() || null,
+    models: Array.isArray(params.models) ? params.models : (params.defaultModel ? [params.defaultModel.trim()] : []),
+    defaultModel: params.defaultModel?.trim() || null,
+    maxSpendCap: typeof params.maxSpendCap === "number" ? params.maxSpendCap : null,
+    fallbackModel: params.fallbackModel?.trim() || null,
     createdBy: userId,
     createdAt: now,
     updatedAt: now,
@@ -130,6 +146,7 @@ export async function createProviderConnection(
       name: params.name.trim(),
       projectId: params.projectId,
       maskedKey,
+      defaultModel: params.defaultModel,
     },
   });
 
@@ -226,6 +243,18 @@ export async function updateProviderConnection(
   }
   if (updates.projectId !== undefined) {
     updatePayload.projectId = updates.projectId || null;
+  }
+  if (updates.models !== undefined) {
+    updatePayload.models = updates.models;
+  }
+  if (updates.defaultModel !== undefined) {
+    updatePayload.defaultModel = updates.defaultModel.trim() || null;
+  }
+  if (updates.maxSpendCap !== undefined) {
+    updatePayload.maxSpendCap = updates.maxSpendCap;
+  }
+  if (updates.fallbackModel !== undefined) {
+    updatePayload.fallbackModel = updates.fallbackModel.trim() || null;
   }
 
   // If replacing API key, re-encrypt with fresh random IV
@@ -397,52 +426,123 @@ export async function disableProviderConnection(
  */
 export async function resolveProviderCredentials(
   orgId: string,
-  provider: AIProvider,
-  projectId?: string
-): Promise<{ apiKey: string; baseUrl?: string } | null> {
+  provider: AIProvider | string,
+  projectId?: string,
+  modelName?: string
+): Promise<{ apiKey: string; baseUrl?: string; connectionId?: string; provider?: string } | null> {
   const db = getAdminFirestore();
+  const normalizedProvider = (provider || "openai").toLowerCase();
+  const normalizedModel = (modelName || "").trim().toLowerCase();
 
-  // 1. Check organization's configured provider connections in Firestore
-  const snap = await db
+  // 1. Primary path: Dynamically check tenant's configured provider connections in Firestore
+  const connColl = db
     .collection("organizations")
     .doc(orgId)
-    .collection("providerConnections")
-    .where("provider", "==", provider)
-    .where("status", "==", "active")
-    .get();
+    .collection("providerConnections");
+
+  const snap = await connColl.where("status", "==", "active").get();
 
   if (!snap.empty) {
-    // If projectId specified, prefer project-associated connection; otherwise use org-level connection
-    const docs = snap.docs.map((d) => d.data() as ProviderConnection);
-    const matched =
-      (projectId && docs.find((d) => d.projectId === projectId)) ||
-      docs.find((d) => !d.projectId) ||
-      docs[0];
+    const rawDocs = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Record<string, unknown>),
+    })) as Array<{
+      id: string;
+      provider?: string;
+      defaultModel?: string;
+      models?: string[];
+      projectId?: string;
+      encryptedKey?: string;
+      keyIv?: string;
+      keyTag?: string;
+      customBaseUrl?: string;
+    }>;
 
-    try {
-      const decryptedKey = decryptSecret({
-        ciphertext: matched.encryptedKey,
-        iv: matched.keyIv,
-        tag: matched.keyTag,
+    // Find the best match:
+    // a. Explicit model match (in models array or defaultModel) and matching project
+    // b. Explicit provider match and matching project
+    // c. Organization-wide model match
+    // d. Organization-wide provider match
+    // e. Custom OpenAI-compatible connection
+    let matched = rawDocs.find((d) => {
+      const defaultModel = String(d.defaultModel || "").toLowerCase();
+      const models = Array.isArray(d.models) ? d.models.map((m: unknown) => String(m).toLowerCase()) : [];
+      const projectMatches = !projectId || !d.projectId || d.projectId === projectId;
+      const modelMatches = Boolean(normalizedModel && (defaultModel === normalizedModel || models.includes(normalizedModel)));
+
+      return projectMatches && modelMatches;
+    });
+
+    if (!matched) {
+      matched = rawDocs.find((d) => {
+        const p = String(d.provider || "").toLowerCase();
+        const projectMatches = !projectId || !d.projectId || d.projectId === projectId;
+        const providerMatches =
+          p === normalizedProvider ||
+          (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai"));
+
+        return projectMatches && providerMatches;
       });
-      return {
-        apiKey: decryptedKey,
-        baseUrl: matched.customBaseUrl,
-      };
-    } catch (err) {
-      console.error(`[OsterdOps Provider] Failed to decrypt ${provider} connection key:`, err);
+    }
+
+    if (!matched && normalizedModel) {
+      matched = rawDocs.find((d) => {
+        const defaultModel = String(d.defaultModel || "").toLowerCase();
+        const models = Array.isArray(d.models) ? d.models.map((m: unknown) => String(m).toLowerCase()) : [];
+        return defaultModel === normalizedModel || models.includes(normalizedModel);
+      });
+    }
+
+    if (!matched) {
+      matched = rawDocs.find((d) => {
+        const p = String(d.provider || "").toLowerCase();
+        return (
+          p === normalizedProvider ||
+          (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai")) ||
+          (p === "custom" && (normalizedProvider === "openai" || normalizedProvider === "custom" || normalizedProvider === "groq" || normalizedProvider === "mistral"))
+        );
+      });
+    }
+
+    if (matched) {
+      try {
+        const decryptedKey = decryptSecret({
+          ciphertext: String(matched.encryptedKey || ""),
+          iv: String(matched.keyIv || ""),
+          tag: String(matched.keyTag || ""),
+        });
+
+        if (decryptedKey) {
+          // Touch lastUsedAt asynchronously without blocking
+          connColl.doc(matched.id).update({ lastUsedAt: FieldValue.serverTimestamp() }).catch(() => {});
+
+          return {
+            apiKey: decryptedKey,
+            baseUrl: matched.customBaseUrl ? String(matched.customBaseUrl) : undefined,
+            connectionId: matched.id,
+            provider: String(matched.provider || normalizedProvider),
+          };
+        }
+      } catch (err) {
+        console.error(`[OsterdOps Provider] Failed to decrypt ${provider} connection key:`, err);
+      }
     }
   }
 
-  // 2. Developer/Environment Fallback
-  if (provider === "openai" && process.env.OPENAI_API_KEY) {
-    return { apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL };
-  }
-  if (provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
-    return { apiKey: process.env.ANTHROPIC_API_KEY, baseUrl: process.env.ANTHROPIC_BASE_URL };
-  }
-  if (provider === "gemini" && process.env.GEMINI_API_KEY) {
-    return { apiKey: process.env.GEMINI_API_KEY, baseUrl: process.env.GEMINI_BASE_URL };
+  // 2. Controlled developer/test environment fallback
+  if (process.env.NODE_ENV !== "production" || process.env.ENABLE_ENV_KEY_FALLBACK === "true") {
+    if (normalizedProvider === "openai" && process.env.OPENAI_API_KEY) {
+      return { apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL, provider: "openai" };
+    }
+    if (normalizedProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+      return { apiKey: process.env.ANTHROPIC_API_KEY, baseUrl: process.env.ANTHROPIC_BASE_URL, provider: "anthropic" };
+    }
+    if (normalizedProvider === "gemini" && process.env.GEMINI_API_KEY) {
+      return { apiKey: process.env.GEMINI_API_KEY, baseUrl: process.env.GEMINI_BASE_URL, provider: "gemini" };
+    }
+    if (normalizedProvider === "groq" && process.env.GROQ_API_KEY) {
+      return { apiKey: process.env.GROQ_API_KEY, baseUrl: "https://api.groq.com/openai/v1", provider: "groq" };
+    }
   }
 
   return null;

@@ -18,6 +18,8 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   bedrock: new BedrockAdapter(),
   meta: new OpenAIAdapter(),
   groq: new OpenAIAdapter(),
+  mistral: new OpenAIAdapter(),
+  custom: new OpenAIAdapter(),
 };
 
 /**

@@ -22,18 +22,19 @@ export async function POST(request: Request) {
       return ApiErrors.badRequest("Missing or invalid JSON request body.");
     }
 
-    const { organizationId, provider, name, apiKey, customBaseUrl, projectId, displayName } = body;
+    const { organizationId, provider, name, apiKey, customBaseUrl, projectId, displayName, models, defaultModel, maxSpendCap, fallbackModel } = body;
 
     if (!organizationId || typeof organizationId !== "string") {
       return ApiErrors.badRequest("Field 'organizationId' is required.");
     }
 
     if (!provider || typeof provider !== "string") {
-      return ApiErrors.badRequest("Field 'provider' is required (e.g. 'openai', 'anthropic', 'gemini').");
+      return ApiErrors.badRequest("Field 'provider' is required (e.g. 'openai', 'anthropic', 'gemini', 'groq', 'mistral', 'custom').");
     }
 
-    if (!isSupportedProvider(provider)) {
-      return ApiErrors.badRequest(`Unsupported AI provider: '${provider}'. Supported providers: openai, anthropic, gemini, azure, bedrock.`);
+    const normProvider = provider.trim().toLowerCase();
+    if (!isSupportedProvider(normProvider) && normProvider !== "custom" && normProvider !== "mistral") {
+      return ApiErrors.badRequest(`Unsupported AI provider: '${provider}'. Supported providers: openai, anthropic, gemini, groq, meta, mistral, azure, bedrock, custom.`);
     }
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -51,12 +52,16 @@ export async function POST(request: Request) {
     }
 
     const connection = await createProviderConnection(organizationId, orgAuth.user.uid, {
-      provider,
+      provider: normProvider,
       name,
       displayName,
       apiKey,
       customBaseUrl,
       projectId,
+      models: Array.isArray(models) ? models : undefined,
+      defaultModel: typeof defaultModel === "string" ? defaultModel : undefined,
+      maxSpendCap: typeof maxSpendCap === "number" ? maxSpendCap : undefined,
+      fallbackModel: typeof fallbackModel === "string" ? fallbackModel : undefined,
     });
 
     return apiSuccess(connection, undefined, 201);
