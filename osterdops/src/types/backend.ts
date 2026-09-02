@@ -48,6 +48,8 @@ export interface OrganizationMember {
   role: OrganizationRole;
   status: MembershipStatus;
   invitedBy?: string;
+  mustResetPassword?: boolean;
+  projectIdScope?: string[];
   joinedAt: Timestamp | string;
   updatedAt: Timestamp | string;
 }

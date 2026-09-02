@@ -10,24 +10,28 @@ import {
   Shield,
   ShieldAlert,
   Search,
-  MoreVertical,
   CheckCircle2,
-  Clock,
-  Trash2,
   Lock,
   Zap,
   RefreshCw,
   Sparkles,
-  Info,
   ArrowRight,
   X,
   Loader2,
   Mail,
+  Key,
+  Eye,
+  EyeOff,
+  Copy,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { RbacGuard } from "@/components/auth/RbacGuard";
 import { can } from "@/lib/auth/client-permissions";
 import { apiRequest } from "@/lib/api/client";
+import { ProvisionCredentialsModal } from "@/components/members/ProvisionCredentialsModal";
+import { ForcePasswordChangeModal } from "@/components/auth/ForcePasswordChangeModal";
 import type { OrganizationRole } from "@/types";
 
 interface MemberItem {
@@ -36,21 +40,52 @@ interface MemberItem {
   email: string;
   role: OrganizationRole;
   status: "ACTIVE" | "INVITED";
+  mustResetPassword?: boolean;
   joinedAt: string;
   lastActive: string;
 }
 
+export function generateClientPassword(length = 14): string {
+  const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
+  let result = "";
+  const values = new Uint32Array(length);
+  if (typeof window !== "undefined" && window.crypto) {
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < length; i++) {
+      result += charset[values[i] % charset.length];
+    }
+  } else {
+    for (let i = 0; i < length; i++) {
+      result += charset[Math.floor(Math.random() * charset.length)];
+    }
+  }
+  return result;
+}
+
 export default function MembersPage() {
-  const { currentMembership, currentOrg, user, getIdToken } = useAuth();
+  const { currentMembership, currentOrg, user, userProfile, getIdToken } = useAuth();
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("ALL");
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<OrganizationRole>("DEVELOPER");
-  const [inviting, setInviting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // Direct Provisioning Modal State
+  const [isProvisionOpen, setIsProvisionOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<OrganizationRole>("DEVELOPER");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionError, setProvisionError] = useState<string | null>(null);
+
+  // One-time Credentials Modal State
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    email: string;
+    role: string;
+    temporaryPassword: string;
+    workspaceName?: string;
+  } | null>(null);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
 
   const callerRole: OrganizationRole = currentMembership?.role || "OWNER";
   const canManage = can("members:manage", callerRole);
@@ -61,43 +96,46 @@ export default function MembersPage() {
 
     try {
       const token = await getIdToken();
-      const res = await apiRequest<any[]>(`/api/v1/organizations/${currentOrg.id}/members`, {
+      const res = await apiRequest<any[]>(`/api/v1/workspace/members?orgId=${currentOrg.id}`, {
         token,
       });
 
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         const mapped: MemberItem[] = res.data.map((m: any) => ({
           id: m.id || m.userId,
-          name: m.user?.name || m.user?.displayName || m.email?.split("@")[0] || "Team Member",
+          name: m.user?.name || m.user?.displayName || m.displayName || m.email?.split("@")[0] || "Team Member",
           email: m.user?.email || m.email || "user@workspace",
-          role: (m.role || "MEMBER").toUpperCase() as OrganizationRole,
+          role: (m.role || "DEVELOPER").toUpperCase() as OrganizationRole,
           status: m.status === "INVITED" ? "INVITED" : "ACTIVE",
+          mustResetPassword: Boolean(m.mustResetPassword),
           joinedAt: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : "Active",
           lastActive: m.lastActive ? new Date(m.lastActive).toLocaleDateString() : "Recently",
         }));
         setMembers(mapped);
       } else {
-        // Self membership fallback for authenticated user
+        // Self fallback
         const selfMember: MemberItem = {
           id: user?.uid || "usr_self",
-          name: user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Owner"),
+          name: userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Owner"),
           email: user?.email || "admin@workspace.com",
           role: callerRole,
           status: "ACTIVE",
+          mustResetPassword: Boolean(currentMembership?.mustResetPassword),
           joinedAt: "Today",
           lastActive: "Just now",
         };
         setMembers([selfMember]);
       }
-    } catch (e) {
+    } catch {
       if (user?.email) {
         setMembers([
           {
             id: user.uid,
-            name: user.displayName || user.email.split("@")[0],
+            name: userProfile?.name || user.displayName || user.email.split("@")[0],
             email: user.email,
             role: callerRole,
             status: "ACTIVE",
+            mustResetPassword: Boolean(currentMembership?.mustResetPassword),
             joinedAt: "Today",
             lastActive: "Just now",
           },
@@ -108,41 +146,70 @@ export default function MembersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentOrg, getIdToken, user, callerRole]);
+  }, [currentOrg, getIdToken, user, userProfile, callerRole, currentMembership]);
 
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentOrg?.id || !inviteEmail.trim()) return;
+  // Open direct provisioning modal with pre-generated secure password
+  const handleOpenProvisionModal = () => {
+    setProvisionError(null);
+    setEmail("");
+    setRole("DEVELOPER");
+    setTemporaryPassword(generateClientPassword(14));
+    setShowPassword(false);
+    setIsProvisionOpen(true);
+  };
 
-    setInviting(true);
-    setInviteError(null);
+  const handleGenerateNewPassword = () => {
+    setTemporaryPassword(generateClientPassword(14));
+  };
+
+  const handleProvisionMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg?.id || !email.trim()) return;
+
+    setProvisioning(true);
+    setProvisionError(null);
 
     try {
       const token = await getIdToken();
-      const res = await apiRequest(`/api/v1/organizations/${currentOrg.id}/members`, {
+      const res = await fetch("/api/v1/workspace/members", {
         method: "POST",
-        token,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          email: inviteEmail.trim(),
-          role: inviteRole,
+          orgId: currentOrg.id,
+          email: email.trim(),
+          role: role.toLowerCase(),
+          password: temporaryPassword.trim(),
         }),
       });
 
-      if (res.error) {
-        throw new Error(res.error || "Failed to invite member.");
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error?.message || "Failed to provision workspace member.");
       }
 
-      setIsInviteOpen(false);
-      setInviteEmail("");
+      // Close provision form & open one-time credentials modal
+      setIsProvisionOpen(false);
+      setCreatedCredentials({
+        email: email.trim(),
+        role,
+        temporaryPassword: payload.data.temporaryPassword || temporaryPassword,
+        workspaceName: currentOrg.name,
+      });
+      setIsCredentialsModalOpen(true);
+
+      // Refresh directory
       await fetchMembers();
-    } catch (err: any) {
-      setInviteError(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      setProvisionError((err as Error).message || "An unexpected error occurred.");
     } finally {
-      setInviting(false);
+      setProvisioning(false);
     }
   };
 
@@ -156,376 +223,299 @@ export default function MembersPage() {
 
   const ownersCount = members.filter((m) => m.role === "OWNER").length;
   const adminsCount = members.filter((m) => m.role === "ADMIN").length;
-  const devCount = members.filter((m) => (m.role as string) === "DEVELOPER" || (m.role as string) === "MEMBER").length;
+  const devCount = members.filter((m) => m.role === "DEVELOPER").length;
   const viewerCount = members.filter((m) => m.role === "VIEWER").length;
 
-  return (
-    <div className="min-h-screen bg-[#07080c] text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
-      <AppSidebar />
+  const mustResetSelf = Boolean(currentMembership?.mustResetPassword || (userProfile as any)?.mustResetPassword);
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">
-        <ContentTransition>
-          <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#dfba82] tracking-wider uppercase mb-1">
-                  <Zap className="w-3 h-3 text-[#dfba82]" />
-                  <span>ORGANIZATION & ACCESS</span>
-                  <span className="text-[#555a6d]">/</span>
-                  <span className="text-[#c5c9d6]">MEMBERS</span>
+  return (
+    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col font-sans selection:bg-[#DFB277] selection:text-[#0E0E0E]">
+      <div className="flex-1 flex flex-col lg:flex-row">
+        <AppSidebar />
+
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-[1600px] mx-auto w-full">
+          <ContentTransition>
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1A1A1A]">
+                <div>
+                  <div className="text-[11px] font-mono text-[#DFB277] uppercase tracking-wider font-semibold">
+                    Access Control &amp; RBAC
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight mt-0.5">
+                    Workspace Members
+                  </h1>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    Directly provision team members with secure temporary credentials, enforce first-login password resets, and assign least-privilege roles.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  <h1
-                    className="text-2xl sm:text-3xl font-bold tracking-tight text-[#f4efe6]"
-                    style={{ fontFamily: "var(--font-serif-luxury), Georgia, serif" }}
-                  >
-                    Team & Workspace Access
-                  </h1>
-                  <div className="w-5 h-5 rounded-md border border-[#dfba82]/40 bg-[#dfba82]/10 flex items-center justify-center text-[#dfba82]">
-                    <Users className="w-3.5 h-3.5 stroke-[2.2]" />
-                  </div>
-                </div>
-                <p className="text-xs text-[#8e93a6] mt-0.5">
-                  Manage organization roles, team permissions, and workspace access invitations.
-                </p>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={fetchMembers}
-                  className="p-2 rounded-xl bg-[#0c0e16] border border-[#1b1e2c] text-[#8e93a6] hover:text-white hover:border-[#2a2f45] transition-all cursor-pointer"
-                  title="Refresh members"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#dfba82]" : ""}`} />
-                </button>
-
-                <div className="relative flex items-center">
-                  <Search className="w-3.5 h-3.5 absolute left-3 text-[#6b7082] pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-44 sm:w-56 pl-8 pr-3 py-1.5 rounded-xl bg-[#0c0e16] border border-[#1b1e2c] text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]/50"
-                  />
-                </div>
-
-                <RbacGuard permission="members:manage">
                   <button
-                    onClick={() => setIsInviteOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#dfba82] hover:bg-[#ebd4aa] text-black text-xs font-bold rounded-xl shadow-[0_2px_12px_rgba(223,186,130,0.25)] transition-all cursor-pointer shrink-0"
+                    type="button"
+                    onClick={fetchMembers}
+                    disabled={loading}
+                    className="p-2.5 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    title="Refresh member directory"
                   >
-                    <UserPlus className="w-4 h-4 stroke-[2.5]" />
-                    <span>Invite Member</span>
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                   </button>
-                </RbacGuard>
-              </div>
-            </div>
 
-            {/* 5 Top Stat KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              {/* Card 1: Total Members */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82]">
-                      <Users className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium flex items-center gap-1">
-                      Total Members
-                      <Info className="w-3 h-3 text-[#555a6d]" />
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-white pt-0.5">{members.length}</div>
-                  <div className="text-[10.5px] text-[#8e93a6]">Workspace collaborators</div>
-                </div>
-                <div className="w-20 h-10 flex items-end">
-                  <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                    <path
-                      d="M 0 35 C 20 38, 45 28, 65 32 C 80 34, 88 12, 100 6"
-                      fill="none"
-                      stroke="#dfba82"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Card 2: Owners */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-amber-950/40 border border-amber-800/30 flex items-center justify-center text-[#dfba82]">
-                      <Shield className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Owners</span>
-                  </div>
-                  <div className="text-xl font-bold text-white pt-0.5">{ownersCount}</div>
-                  <div className="text-[10.5px] text-[#dfba82] font-medium">Full governance</div>
-                </div>
-                <div className="w-20 h-10 flex items-end">
-                  <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                    <path
-                      d="M 0 36 C 25 35, 50 38, 70 20 C 85 10, 92 16, 100 8"
-                      fill="none"
-                      stroke="#f59e0b"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Card 3: Admins */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-blue-950/40 border border-blue-800/30 flex items-center justify-center text-blue-400">
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Administrators</span>
-                  </div>
-                  <div className="text-xl font-bold text-white pt-0.5">{adminsCount}</div>
-                  <div className="text-[10.5px] text-blue-400 font-medium">Policy management</div>
-                </div>
-                <div className="w-20 h-10 flex items-end">
-                  <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                    <path
-                      d="M 0 34 C 20 30, 40 18, 60 26 C 75 30, 85 12, 100 6"
-                      fill="none"
-                      stroke="#38bdf8"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Card 4: Developers */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-purple-950/40 border border-purple-800/30 flex items-center justify-center text-purple-400">
-                      <Zap className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Developers</span>
-                  </div>
-                  <div className="text-xl font-bold text-white pt-0.5">{devCount}</div>
-                  <div className="text-[10.5px] text-purple-400 font-medium">Gateway & SDK access</div>
-                </div>
-                <div className="w-20 h-10 flex items-end">
-                  <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                    <path
-                      d="M 0 35 C 20 38, 40 32, 60 22 C 75 14, 85 18, 100 8"
-                      fill="none"
-                      stroke="#a855f7"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Card 5: Viewers */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-emerald-950/40 border border-emerald-800/30 flex items-center justify-center text-emerald-400">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Viewers</span>
-                  </div>
-                  <div className="text-xl font-bold text-white pt-0.5">{viewerCount}</div>
-                  <div className="text-[10.5px] text-emerald-400 font-medium">Read-only observability</div>
-                </div>
-                <div className="w-20 h-10 flex items-end">
-                  <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                    <path
-                      d="M 0 32 C 25 30, 45 22, 65 24 C 80 26, 88 12, 100 6"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Members Table */}
-            <div className="rounded-2xl border border-[#1a1d2b] bg-[#0c0e16] overflow-hidden shadow-xl">
-              <div className="p-4 border-b border-[#161824] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-white uppercase tracking-wider">Team Directory</h2>
-                  <span className="text-[11px] text-[#6b7082]">({filteredMembers.length} listed)</span>
-                </div>
-
-                {/* Role Filter Tabs */}
-                <div className="flex items-center gap-1 p-0.5 rounded-xl bg-[#141624] border border-[#23273a] text-xs">
-                  {["ALL", "OWNER", "ADMIN", "DEVELOPER", "VIEWER"].map((role) => (
+                  <RbacGuard permission="members:manage" fallback={null}>
                     <button
-                      key={role}
                       type="button"
-                      onClick={() => setSelectedRole(role)}
-                      className={`px-2.5 py-1 rounded-lg font-semibold text-[11px] transition-all cursor-pointer ${
-                        selectedRole === role
-                          ? "bg-[#dfba82] text-black font-bold shadow-[0_0_10px_rgba(223,186,130,0.25)]"
-                          : "text-[#8e93a6] hover:text-white"
-                      }`}
+                      onClick={handleOpenProvisionModal}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#DFB277] hover:bg-[#E5C38E] text-[#0E0E0E] font-mono font-bold text-xs transition-colors cursor-pointer shadow-sm"
                     >
-                      {role}
+                      <UserPlus className="w-4 h-4 stroke-[2.5]" />
+                      <span>Provision Member</span>
                     </button>
-                  ))}
+                  </RbacGuard>
                 </div>
               </div>
 
-              {loading ? (
-                <div className="p-12 text-center text-xs text-[#6b7082] space-y-2">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#dfba82]" />
-                  <div>Loading workspace members...</div>
+              {/* 4 Metric Micro-Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Total Members */}
+                <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A]">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <span className="uppercase">Total Members</span>
+                    <Users className="w-3.5 h-3.5 text-[#DFB277]" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-white mt-1">
+                    {members.length}
+                  </div>
+                  <div className="text-[10px] text-neutral-500 font-mono mt-0.5">Active workspace accounts</div>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-[#161824] text-[10.5px] uppercase tracking-wider text-[#555a6d] font-semibold">
-                        <th className="py-3 px-4">Member</th>
-                        <th className="py-3 px-4">Email</th>
-                        <th className="py-3 px-4">Role</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Joined</th>
-                        <th className="py-3 px-4 text-right">Last Active</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#141724]">
-                      {filteredMembers.map((m) => (
-                        <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-[#161828] border border-[#262a3e] flex items-center justify-center text-xs font-bold text-[#dfba82] uppercase">
-                                {m.name.charAt(0)}
-                              </div>
-                              <span className="font-bold text-white text-xs">{m.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-[#c5c9d6] text-[11.5px]">{m.email}</td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold ${
-                                m.role === "OWNER"
-                                  ? "bg-amber-950/50 text-[#dfba82] border border-amber-800/40"
-                                  : m.role === "ADMIN"
-                                  ? "bg-blue-950/50 text-blue-300 border border-blue-800/40"
-                                  : m.role === "DEVELOPER"
-                                  ? "bg-purple-950/50 text-purple-300 border border-purple-800/40"
-                                  : "bg-zinc-900 text-zinc-300 border border-zinc-700/40"
-                              }`}
-                            >
-                              {m.role}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              {m.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-[#8e93a6] font-mono text-[11px]">{m.joinedAt}</td>
-                          <td className="py-3.5 px-4 text-right text-[#8e93a6] font-mono text-[11px]">
-                            {m.lastActive}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
 
-            {/* Bottom RBAC Banner */}
-            <div className="rounded-2xl border border-[#1a1d2b] bg-[#0c0e16] p-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-[#dfba82]/10 border border-[#dfba82]/25 flex items-center justify-center text-[#dfba82] shrink-0">
-                  <Sparkles className="w-3.5 h-3.5" />
+                {/* Admins */}
+                <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A]">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <span className="uppercase">Administrators</span>
+                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-white mt-1">
+                    {ownersCount + adminsCount}
+                  </div>
+                  <div className="text-[10px] text-amber-400 font-mono mt-0.5">Full policy governance</div>
+                </div>
+
+                {/* Developers */}
+                <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A]">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <span className="uppercase">Developers</span>
+                    <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-white mt-1">
+                    {devCount}
+                  </div>
+                  <div className="text-[10px] text-cyan-400 font-mono mt-0.5">API key &amp; proxy ingress</div>
+                </div>
+
+                {/* Viewers */}
+                <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A]">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <span className="uppercase">Viewers</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-white mt-1">
+                    {viewerCount}
+                  </div>
+                  <div className="text-[10px] text-[#10B981] font-mono mt-0.5">Read-only audit telemetry</div>
+                </div>
+              </div>
+
+              {/* Members Directory Card */}
+              <div className="rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] overflow-hidden shadow-sm">
+                {/* Search and Filters Bar */}
+                <div className="p-4 bg-[#0A0A0A] border-b border-[#1A1A1A] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  {/* Search Input */}
+                  <div className="relative max-w-sm w-full">
+                    <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by name or email..."
+                      className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-[#0E0E0E] border border-[#1A1A1A] focus:border-[#DFB277] text-white text-xs font-mono placeholder:text-neutral-600 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#0E0E0E] border border-[#1A1A1A] overflow-x-auto">
+                    {(["ALL", "OWNER", "ADMIN", "DEVELOPER", "VIEWER"] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setSelectedRole(r)}
+                        className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase transition-all cursor-pointer ${
+                          selectedRole === r
+                            ? "bg-[#DFB277] text-[#0E0E0E] font-bold"
+                            : "text-neutral-400 hover:text-white hover:bg-[#161616]"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Directory Table */}
+                {loading ? (
+                  <div className="p-12 text-center text-xs font-mono text-neutral-500 space-y-2">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[#DFB277]" />
+                    <div>Synchronizing member directory...</div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-[#161616] text-[10px] uppercase tracking-wider text-neutral-500 bg-[#0A0A0A]/50">
+                          <th className="py-3 px-4">Member</th>
+                          <th className="py-3 px-4">Role</th>
+                          <th className="py-3 px-4">Security Status</th>
+                          <th className="py-3 px-4">Provisioned</th>
+                          <th className="py-3 px-4 text-right">Last Active</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#161616]">
+                        {filteredMembers.map((m) => (
+                          <tr key={m.id} className="hover:bg-[#121212] transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-[#141414] border border-[#222222] flex items-center justify-center text-xs font-bold text-[#DFB277] uppercase shrink-0">
+                                  {m.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white text-xs">{m.name}</div>
+                                  <div className="text-[11px] text-neutral-400">{m.email}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Role Badge */}
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`inline-block text-[10px] px-2 py-0.5 rounded font-bold border ${
+                                  m.role === "OWNER"
+                                    ? "bg-[#DFB277]/10 text-[#DFB277] border-[#DFB277]/40"
+                                    : m.role === "ADMIN"
+                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                    : m.role === "DEVELOPER"
+                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                                    : "bg-neutral-800/40 text-neutral-300 border-neutral-700"
+                                }`}
+                              >
+                                {m.role}
+                              </span>
+                            </td>
+
+                            {/* Security Status */}
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-xs text-[#10B981] font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                                  Active
+                                </span>
+
+                                {m.mustResetPassword && (
+                                  <span className="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[9px] font-mono">
+                                    Reset Required
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-neutral-400 text-[11px]">
+                              {m.joinedAt}
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right text-neutral-400 text-[11px]">
+                              {m.lastActive}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ContentTransition>
+        </main>
+      </div>
+
+      {/* =========================================================================
+          Direct Provisioning Modal (Deep Obsidian luxury palette)
+         ========================================================================= */}
+      {isProvisionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85">
+          <div className="relative w-full max-w-lg bg-[#0E0E0E] border border-[#1A1A1A] rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] overflow-hidden">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between px-6 py-4 bg-[#0A0A0A] border-b border-[#1A1A1A]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#DFB277]/10 border border-[#DFB277]/30 flex items-center justify-center text-[#DFB277]">
+                  <UserPlus className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">Fine-Grained RBAC Governance</div>
-                  <div className="text-[11.5px] text-[#8e93a6]">
-                    Roles strictly enforce least-privilege principles across budgets, API keys, and model deployments.
+                  <h3 className="text-sm font-bold font-mono text-white">Direct Member Provisioning</h3>
+                  <div className="text-[10px] font-mono text-neutral-500">
+                    Instantly create workspace account with temporary credentials
                   </div>
                 </div>
               </div>
 
-              <Link
-                href="/dashboard/settings"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#dfba82] hover:text-[#ebd4aa] transition-colors shrink-0"
-              >
-                <span>Workspace Settings</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </ContentTransition>
-      </main>
-
-      {/* Invite Member Modal */}
-      {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0e1017] border border-[#232738] rounded-2xl p-6 shadow-2xl text-white relative space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-[#1c1f2e]">
-              <div className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-[#dfba82]" />
-                <h3 className="text-base font-bold text-[#f4efe6]">Invite Team Member</h3>
-              </div>
               <button
-                onClick={() => setIsInviteOpen(false)}
-                className="text-[#787d91] hover:text-white transition-colors"
+                type="button"
+                onClick={() => setIsProvisionOpen(false)}
+                className="p-1 rounded-lg hover:bg-[#161616] text-neutral-400 hover:text-white transition-colors cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {inviteError && (
-              <div className="p-3 rounded-xl bg-red-950/50 border border-red-800/40 text-red-300 text-xs">
-                {inviteError}
-              </div>
-            )}
+            {/* Form */}
+            <form onSubmit={handleProvisionMember} className="p-6 space-y-4 text-xs font-mono">
+              {provisionError && (
+                <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/60 text-xs text-red-400 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{provisionError}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleInvite} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">
+              {/* Work Email */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-neutral-400 uppercase font-semibold">
                   Work Email Address
                 </label>
-                <input
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="colleague@company.com"
-                  className="w-full px-3.5 py-2 bg-[#141622] border border-[#232738] rounded-xl text-white placeholder-[#5e6377] focus:outline-none focus:border-[#dfba82]"
-                />
+                <div className="relative">
+                  <Mail className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="engineer@company.com"
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-[#0A0A0A] border border-[#161616] focus:border-[#DFB277] text-white text-xs placeholder:text-neutral-600 focus:outline-none transition-colors"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">
+              {/* Role Selection */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-neutral-400 uppercase font-semibold">
                   Assigned Workspace Role
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {(["ADMIN", "DEVELOPER", "VIEWER"] as const).map((r) => (
                     <button
                       key={r}
                       type="button"
-                      onClick={() => setInviteRole(r)}
-                      className={`p-2.5 rounded-xl border text-center font-semibold transition-all cursor-pointer ${
-                        inviteRole === r
-                          ? "bg-[#dfba82]/15 border-[#dfba82] text-[#dfba82]"
-                          : "bg-[#141622] border-[#232738] text-[#8e93a6]"
+                      onClick={() => setRole(r)}
+                      className={`p-2.5 rounded-lg border text-center font-bold text-xs transition-all cursor-pointer ${
+                        role === r
+                          ? "bg-[#DFB277]/15 border-[#DFB277] text-[#DFB277]"
+                          : "bg-[#0A0A0A] border-[#161616] text-neutral-400 hover:text-white hover:border-[#262626]"
                       }`}
                     >
                       {r}
@@ -534,28 +524,93 @@ export default function MembersPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-[#1c1f2e]">
+              {/* Temporary Password */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] text-neutral-400 uppercase font-semibold">
+                    Temporary Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateNewPassword}
+                    className="text-[10px] text-[#DFB277] hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    Auto-Generate
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    value={temporaryPassword}
+                    onChange={(e) => setTemporaryPassword(e.target.value)}
+                    placeholder="Enter or auto-generate password"
+                    className="w-full pl-3 pr-10 py-2.5 rounded-lg bg-[#0A0A0A] border border-[#161616] focus:border-[#DFB277] text-white text-xs placeholder:text-neutral-600 focus:outline-none transition-colors select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <div className="text-[10px] text-neutral-500 pt-0.5">
+                  User will be forced to change this password upon first login.
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#161616]">
                 <button
                   type="button"
-                  onClick={() => setIsInviteOpen(false)}
-                  disabled={inviting}
-                  className="px-3.5 py-2 text-xs text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
+                  onClick={() => setIsProvisionOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-[#141414] hover:bg-[#1A1A1A] border border-[#222222] text-neutral-300 text-xs transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={inviting}
-                  className="px-4 py-2 bg-[#dfba82] text-black font-bold rounded-xl hover:bg-[#ebd4aa] transition-colors cursor-pointer flex items-center gap-1.5"
+                  disabled={provisioning}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#DFB277] hover:bg-[#E5C38E] text-[#0E0E0E] font-bold text-xs transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {inviting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Send Invite</span>
+                  {provisioning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Provisioning...</span>
+                    </>
+                  ) : (
+                    <span>Provision &amp; View Credentials</span>
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          One-Time Copyable Credentials Modal
+         ========================================================================= */}
+      <ProvisionCredentialsModal
+        isOpen={isCredentialsModalOpen}
+        credentials={createdCredentials}
+        onClose={() => {
+          setIsCredentialsModalOpen(false);
+          setCreatedCredentials(null);
+        }}
+      />
+
+      {/* =========================================================================
+          First-Time Login Security Guard Modal
+         ========================================================================= */}
+      <ForcePasswordChangeModal
+        isOpen={mustResetSelf}
+        onSuccess={() => fetchMembers()}
+      />
     </div>
   );
 }
