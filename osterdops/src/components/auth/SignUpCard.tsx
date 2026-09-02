@@ -28,6 +28,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { SocialAuthButtons } from "./SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { OtpInput } from "./OtpInput";
+import { CountryCodeSelector, TOP_50_COUNTRIES, type Country } from "./CountryCodeSelector";
 
 export function SignUpCard() {
   const router = useRouter();
@@ -47,8 +48,10 @@ export function SignUpCard() {
   const [localLoading, setLocalLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Phone OTP Flow State
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // Phone OTP Flow State with Top 50 Country Selector
+  const [selectedCountry, setSelectedCountry] = useState<Country>(TOP_50_COUNTRIES[0]);
+  const [nationalPhoneNumber, setNationalPhoneNumber] = useState("");
+  const [fullFormattedPhone, setFullFormattedPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [phoneStep, setPhoneStep] = useState<"details" | "otp">("details");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
@@ -180,13 +183,9 @@ export function SignUpCard() {
     setFormError(null);
     clearError();
 
-    const cleanPhone = phoneNumber.trim();
-    if (!cleanPhone) {
+    const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
+    if (!cleanDigits) {
       setFormError("Please enter an administrative phone number.");
-      return;
-    }
-    if (!cleanPhone.startsWith("+")) {
-      setFormError("Please include international country code (e.g. +1 555 0199).");
       return;
     }
     if (!companyName.trim()) {
@@ -194,11 +193,14 @@ export function SignUpCard() {
       return;
     }
 
+    const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
+    setFullFormattedPhone(`${selectedCountry.flag} ${selectedCountry.dialCode} ${nationalPhoneNumber.trim()}`);
+
     setPhoneLoading(true);
     try {
       const auth = getFirebaseAuth();
       const verifier = getOrCreateRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, cleanPhone, verifier);
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(confirmation);
       setPhoneStep("otp");
       setCountdown(60);
@@ -241,6 +243,9 @@ export function SignUpCard() {
       // 3. Obtain fresh ID Token
       const idToken = await user.getIdToken(true);
 
+      const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
+      const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
+
       // 4. Provision tenant via atomic registration API contract
       const res = await fetch("/api/v1/auth/register", {
         method: "POST",
@@ -252,7 +257,7 @@ export function SignUpCard() {
           uid: user.uid,
           name: adminFullName,
           organizationName: companyName.trim() || "My Organization",
-          phone: phoneNumber.trim(),
+          phone: fullPhone,
         }),
       });
 
@@ -278,7 +283,9 @@ export function SignUpCard() {
     try {
       const auth = getFirebaseAuth();
       const verifier = getOrCreateRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber.trim(), verifier);
+      const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
+      const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(confirmation);
       setCountdown(60);
     } catch (err: unknown) {
@@ -611,34 +618,45 @@ export function SignUpCard() {
                 </div>
               </div>
 
-              {/* Phone Number */}
+              {/* Phone Number with Top 50 Country Selector */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="block text-[11.5px] font-semibold text-[#2d313f]">
                     Admin phone number
                   </label>
                   <span className="text-[10px] font-mono text-[#b8860b] uppercase tracking-wider bg-[#f3ede0] px-2 py-0.5 rounded-md border border-[#e5dfd2]">
-                    Hardware OTP // E.164
+                    Top 50 Countries // E.164
                   </span>
                 </div>
-                <div className="relative flex items-center">
-                  <Smartphone className="absolute left-3 h-3.5 w-3.5 text-[#989cb0] pointer-events-none" />
-                  <input
-                    type="tel"
-                    required
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      setPhoneNumber(e.target.value);
+                <div className="flex items-center gap-2">
+                  <CountryCodeSelector
+                    selected={selectedCountry}
+                    onSelect={(c) => {
+                      setSelectedCountry(c);
                       if (formError) setFormError(null);
                     }}
-                    placeholder="+1 555 019 9234"
                     disabled={phoneLoading}
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#e1dcd0] rounded-xl text-[12.5px] font-mono text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
                   />
+                  <div className="relative flex-1 flex items-center">
+                    <Smartphone className="absolute left-3.5 h-3.5 w-3.5 text-[#989cb0] pointer-events-none" />
+                    <input
+                      type="tel"
+                      required
+                      value={nationalPhoneNumber}
+                      onChange={(e) => {
+                        setNationalPhoneNumber(e.target.value);
+                        if (formError) setFormError(null);
+                      }}
+                      placeholder="(555) 019-9234"
+                      disabled={phoneLoading}
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-[#e1dcd0] rounded-xl text-[12.5px] font-mono text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
+                    />
+                  </div>
                 </div>
-                <p className="text-[10px] text-[#7a7f92]">
-                  Must include international dialing prefix (e.g. +1, +44, +91)
-                </p>
+                <div className="flex items-center justify-between text-[10px] text-[#7a7f92]">
+                  <span>{selectedCountry.flag} {selectedCountry.name} ({selectedCountry.dialCode})</span>
+                  <span className="font-mono text-[#989cb0]">Standard E.164</span>
+                </div>
               </div>
 
               {/* Terms Checkbox */}
@@ -671,10 +689,10 @@ export function SignUpCard() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={phoneLoading || !agreedToTerms || !phoneNumber.trim()}
+                disabled={phoneLoading || !agreedToTerms || !nationalPhoneNumber.trim()}
                 className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#101218] hover:bg-[#1c1f2a] text-[#fbf7ee] text-[13px] font-semibold rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.25)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-all duration-200 cursor-pointer disabled:opacity-70 mt-1"
               >
-                <span>{phoneLoading ? "Sending Code..." : "Send Verification Code"}</span>
+                <span>{phoneLoading ? "Dispatching Token..." : "Send Verification Code"}</span>
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </button>
             </form>
@@ -695,7 +713,9 @@ export function SignUpCard() {
                 </div>
                 <div className="flex items-center justify-between text-[#6e7385]">
                   <span>Authorized Target</span>
-                  <span className="font-mono font-semibold text-[#b8860b]">{phoneNumber}</span>
+                  <span className="font-mono font-semibold text-[#b8860b]">
+                    {fullFormattedPhone || `${selectedCountry.dialCode} ${nationalPhoneNumber}`}
+                  </span>
                 </div>
               </div>
 
