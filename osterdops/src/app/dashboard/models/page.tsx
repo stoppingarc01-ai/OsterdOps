@@ -30,21 +30,27 @@ interface CatalogModel {
   id: string;
   name: string;
   provider: string;
-  providerDisplayName: string;
-  category: "frontier" | "reasoning" | "open-weights" | "embeddings" | "multimodal";
+  providerDisplayName?: string;
+  providerName?: string;
+  category?: "frontier" | "reasoning" | "open-weights" | "embeddings" | "multimodal";
   contextWindow: string;
-  inputCostPer1M: string;
-  outputCostPer1M: string;
+  inputCostPer1M?: string;
+  inputCost?: string;
+  outputCostPer1M?: string;
+  outputCost?: string;
   description: string;
-  capabilities: {
+  capabilities?: {
     vision: boolean;
     reasoning: boolean;
     streaming: boolean;
     functionCalling?: boolean;
     code?: boolean;
   };
+  tags?: string[];
   fallbackModel?: string;
+  fallback?: string;
   popular?: boolean;
+  isPopular?: boolean;
 }
 
 const CURATED_MODELS: CatalogModel[] = [
@@ -330,43 +336,60 @@ const CURATED_MODELS: CatalogModel[] = [
   // DeepSeek AI (V3 & R1)
   {
     id: "deepseek-chat",
-    name: "DeepSeek Chat (V3)",
+    name: "DeepSeek-V3",
     provider: "deepseek",
+    providerName: "DeepSeek AI",
     providerDisplayName: "DeepSeek AI",
     category: "frontier",
+    description: "Ultra-low cost high-performance flagship model with breakthrough reasoning efficiency.",
     contextWindow: "64k tokens",
+    inputCost: "$0.14",
+    outputCost: "$0.28",
     inputCostPer1M: "$0.14",
     outputCostPer1M: "$0.28",
-    description: "DeepSeek-V3 MoE frontier flagship model with ultra-low token economics and high-throughput inference.",
+    tags: ["Streaming", "Tool Calling"],
     capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "gpt-4o-mini",
     fallbackModel: "gpt-4o-mini",
+    isPopular: true,
     popular: true,
   },
   {
     id: "deepseek-reasoner",
-    name: "DeepSeek Reasoner (R1)",
+    name: "DeepSeek-R1",
     provider: "deepseek",
+    providerName: "DeepSeek AI",
     providerDisplayName: "DeepSeek AI",
     category: "reasoning",
+    description: "Open-weights reasoning model with explicit chain-of-thought verification.",
     contextWindow: "64k tokens",
+    inputCost: "$0.55",
+    outputCost: "$2.19",
     inputCostPer1M: "$0.55",
     outputCostPer1M: "$2.19",
-    description: "DeepSeek-R1 frontier reasoning model with verifiable Chain-of-Thought (CoT) and code/math superiority.",
+    tags: ["Reasoning", "Streaming"],
     capabilities: { vision: false, reasoning: true, streaming: true },
+    fallback: "deepseek-chat",
     fallbackModel: "deepseek-chat",
+    isPopular: true,
     popular: true,
   },
   {
     id: "deepseek-coder",
-    name: "DeepSeek Coder",
+    name: "DeepSeek Coder V2",
     provider: "deepseek",
+    providerName: "DeepSeek AI",
     providerDisplayName: "DeepSeek AI",
     category: "frontier",
+    description: "State-of-the-art code synthesis, repository navigation, and debugging.",
     contextWindow: "16k tokens",
+    inputCost: "$0.14",
+    outputCost: "$0.28",
     inputCostPer1M: "$0.14",
     outputCostPer1M: "$0.28",
-    description: "Dedicated code generation, refactoring, and fill-in-the-middle repository synthesis model.",
+    tags: ["Coding", "Streaming"],
     capabilities: { vision: false, reasoning: false, streaming: true, code: true },
+    fallback: "deepseek-chat",
     fallbackModel: "deepseek-chat",
   },
 
@@ -375,55 +398,74 @@ const CURATED_MODELS: CatalogModel[] = [
     id: "grok-2",
     name: "Grok 2",
     provider: "xai",
+    providerName: "xAI",
     providerDisplayName: "xAI Grok",
     category: "frontier",
+    description: "State-of-the-art frontier model with real-time knowledge and tool execution.",
     contextWindow: "128k tokens",
+    inputCost: "$2.00",
+    outputCost: "$10.00",
     inputCostPer1M: "$2.00",
     outputCostPer1M: "$10.00",
-    description: "Frontier reasoning and general intelligence model by xAI with real-time knowledge synthesis.",
+    tags: ["Streaming", "Tools"],
     capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "grok-2-mini",
     fallbackModel: "grok-2-mini",
+    isPopular: true,
     popular: true,
   },
   {
     id: "grok-2-vision",
     name: "Grok 2 Vision",
     provider: "xai",
+    providerName: "xAI",
     providerDisplayName: "xAI Grok",
     category: "multimodal",
+    description: "Multimodal frontier model capable of visual reasoning, charts, and document parsing.",
     contextWindow: "32k tokens",
+    inputCost: "$2.00",
+    outputCost: "$10.00",
     inputCostPer1M: "$2.00",
     outputCostPer1M: "$10.00",
-    description: "Frontier multimodal vision model by xAI for complex image understanding and spatial document QA.",
+    tags: ["Vision", "Streaming"],
     capabilities: { vision: true, reasoning: false, streaming: true },
+    fallback: "grok-2",
     fallbackModel: "grok-2",
-    popular: true,
   },
   {
     id: "grok-2-mini",
     name: "Grok 2 Mini",
     provider: "xai",
+    providerName: "xAI",
     providerDisplayName: "xAI Grok",
     category: "frontier",
+    description: "Lightweight, cost-efficient model optimized for high-speed agentic routing.",
     contextWindow: "128k tokens",
+    inputCost: "$0.20",
+    outputCost: "$1.00",
     inputCostPer1M: "$0.20",
     outputCostPer1M: "$1.00",
-    description: "Cost-efficient compact frontier model for high-throughput reasoning and conversational flows.",
+    tags: ["Streaming", "Fast"],
     capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "gpt-4o-mini",
     fallbackModel: "gpt-4o-mini",
-    popular: true,
   },
   {
     id: "grok-beta",
     name: "Grok Beta",
     provider: "xai",
+    providerName: "xAI",
     providerDisplayName: "xAI Grok",
     category: "frontier",
+    description: "High-speed preview model with real-time knowledge synthesis and conversational intelligence.",
     contextWindow: "128k tokens",
+    inputCost: "$5.00",
+    outputCost: "$15.00",
     inputCostPer1M: "$5.00",
     outputCostPer1M: "$15.00",
-    description: "High-speed preview model with real-time knowledge synthesis and conversational intelligence.",
+    tags: ["Preview", "Streaming"],
     capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "grok-2",
     fallbackModel: "grok-2",
   },
 
@@ -514,7 +556,7 @@ export default function DashboardModelsPage() {
       if (activeFilter === "xai" && m.provider !== "xai") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
       if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
-      if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
+      if (activeFilter === "reasoning" && !m.capabilities?.reasoning) return false;
       if (activeFilter === "embeddings" && m.category !== "embeddings") return false;
 
       // Search query
@@ -522,7 +564,7 @@ export default function DashboardModelsPage() {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = m.name.toLowerCase().includes(q);
         const matchesId = m.id.toLowerCase().includes(q);
-        const matchesProvider = m.providerDisplayName.toLowerCase().includes(q);
+        const matchesProvider = (m.providerName || m.providerDisplayName || "").toLowerCase().includes(q);
         const matchesDesc = m.description.toLowerCase().includes(q);
         if (!matchesName && !matchesId && !matchesProvider && !matchesDesc) {
           return false;
@@ -544,7 +586,7 @@ export default function DashboardModelsPage() {
       xai: CURATED_MODELS.filter((m) => m.provider === "xai").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
       kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
-      reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
+      reasoning: CURATED_MODELS.filter((m) => m.capabilities?.reasoning).length,
       embeddings: CURATED_MODELS.filter((m) => m.category === "embeddings").length,
     };
   }, []);
@@ -713,7 +755,7 @@ export default function DashboardModelsPage() {
                           <ModelProviderLogo provider={model.provider} modelId={model.id} size="md" />
                           <div>
                             <div className="text-[11px] font-mono uppercase text-[#DFB277] tracking-wider font-semibold">
-                              {model.provider === "deepseek" ? "DEEPSEEK AI" : model.providerDisplayName}
+                              {model.providerName || (model.provider === "deepseek" ? "DeepSeek AI" : model.providerDisplayName)}
                             </div>
                             <h3 className="text-sm font-bold text-white group-hover:text-[#E5C38E] transition-colors">
                               {model.name}
@@ -733,7 +775,7 @@ export default function DashboardModelsPage() {
                             </span>
                           )}
 
-                          {model.popular && (
+                          {(model.popular || model.isPopular) && (
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-bold bg-[#D4A362]/5 text-[#D4A362] border border-[#D4A362]/40">
                               POPULAR
                             </span>
@@ -760,7 +802,7 @@ export default function DashboardModelsPage() {
                         <div className="p-2 rounded bg-[#0A0A0A] border border-[#161616]">
                           <div className="text-neutral-500 text-[10px]">Token Cost ($/1M)</div>
                           <div className="text-neutral-200 font-semibold mt-0.5">
-                            {model.inputCostPer1M} / {model.outputCostPer1M}
+                            {model.inputCost || model.inputCostPer1M} / {model.outputCost || model.outputCostPer1M}
                           </div>
                         </div>
                       </div>
@@ -792,34 +834,39 @@ export default function DashboardModelsPage() {
                             xAI Grok
                           </span>
                         )}
-                        {model.capabilities.functionCalling && (
+                        {model.tags && model.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
+                            {tag}
+                          </span>
+                        ))}
+                        {model.capabilities?.functionCalling && !model.tags && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
                             Function Calling
                           </span>
                         )}
-                        {model.capabilities.code && (
+                        {model.capabilities?.code && !model.tags && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
                             Code
                           </span>
                         )}
-                        {model.capabilities.vision && (
+                        {model.capabilities?.vision && !model.tags?.includes("Vision") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
                             Vision
                           </span>
                         )}
-                        {model.capabilities.reasoning && model.id !== "deepseek-reasoner" && (
+                        {model.capabilities?.reasoning && model.id !== "deepseek-reasoner" && !model.tags?.includes("Reasoning") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4A362]/10 text-[#D4A362] border border-[#D4A362]/40 font-semibold">
                             Reasoning
                           </span>
                         )}
-                        {model.capabilities.streaming && (
+                        {model.capabilities?.streaming && !model.tags?.includes("Streaming") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-400 border border-[#161616]">
                             Streaming
                           </span>
                         )}
-                        {model.fallbackModel && (
+                        {(model.fallback || model.fallbackModel) && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-500 border border-[#161616]">
-                            Fallback: {model.fallbackModel}
+                            Fallback: {model.fallback || model.fallbackModel}
                           </span>
                         )}
                       </div>

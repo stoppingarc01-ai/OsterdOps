@@ -30,19 +30,27 @@ interface CatalogModel {
   id: string;
   name: string;
   provider: string;
-  providerDisplayName: string;
-  category: "frontier" | "reasoning" | "open-weights" | "embeddings" | "multimodal";
+  providerDisplayName?: string;
+  providerName?: string;
+  category?: "frontier" | "reasoning" | "open-weights" | "embeddings" | "multimodal";
   contextWindow: string;
-  inputCostPer1M: string;
-  outputCostPer1M: string;
+  inputCostPer1M?: string;
+  inputCost?: string;
+  outputCostPer1M?: string;
+  outputCost?: string;
   description: string;
-  capabilities: {
+  capabilities?: {
     vision: boolean;
     reasoning: boolean;
     streaming: boolean;
+    functionCalling?: boolean;
+    code?: boolean;
   };
+  tags?: string[];
   fallbackModel?: string;
+  fallback?: string;
   popular?: boolean;
+  isPopular?: boolean;
 }
 
 const CURATED_MODELS: CatalogModel[] = [
@@ -325,6 +333,142 @@ const CURATED_MODELS: CatalogModel[] = [
     popular: true,
   },
 
+  // DeepSeek AI (V3 & R1)
+  {
+    id: "deepseek-chat",
+    name: "DeepSeek-V3",
+    provider: "deepseek",
+    providerName: "DeepSeek AI",
+    providerDisplayName: "DeepSeek AI",
+    category: "frontier",
+    description: "Ultra-low cost high-performance flagship model with breakthrough reasoning efficiency.",
+    contextWindow: "64k tokens",
+    inputCost: "$0.14",
+    outputCost: "$0.28",
+    inputCostPer1M: "$0.14",
+    outputCostPer1M: "$0.28",
+    tags: ["Streaming", "Tool Calling"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "deepseek-reasoner",
+    name: "DeepSeek-R1",
+    provider: "deepseek",
+    providerName: "DeepSeek AI",
+    providerDisplayName: "DeepSeek AI",
+    category: "reasoning",
+    description: "Open-weights reasoning model with explicit chain-of-thought verification.",
+    contextWindow: "64k tokens",
+    inputCost: "$0.55",
+    outputCost: "$2.19",
+    inputCostPer1M: "$0.55",
+    outputCostPer1M: "$2.19",
+    tags: ["Reasoning", "Streaming"],
+    capabilities: { vision: false, reasoning: true, streaming: true },
+    fallback: "deepseek-chat",
+    fallbackModel: "deepseek-chat",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "deepseek-coder",
+    name: "DeepSeek Coder V2",
+    provider: "deepseek",
+    providerName: "DeepSeek AI",
+    providerDisplayName: "DeepSeek AI",
+    category: "frontier",
+    description: "State-of-the-art code synthesis, repository navigation, and debugging.",
+    contextWindow: "16k tokens",
+    inputCost: "$0.14",
+    outputCost: "$0.28",
+    inputCostPer1M: "$0.14",
+    outputCostPer1M: "$0.28",
+    tags: ["Coding", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, code: true },
+    fallback: "deepseek-chat",
+    fallbackModel: "deepseek-chat",
+  },
+
+  // xAI Grok
+  {
+    id: "grok-2",
+    name: "Grok 2",
+    provider: "xai",
+    providerName: "xAI",
+    providerDisplayName: "xAI Grok",
+    category: "frontier",
+    description: "State-of-the-art frontier model with real-time knowledge and tool execution.",
+    contextWindow: "128k tokens",
+    inputCost: "$2.00",
+    outputCost: "$10.00",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$10.00",
+    tags: ["Streaming", "Tools"],
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "grok-2-mini",
+    fallbackModel: "grok-2-mini",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "grok-2-vision",
+    name: "Grok 2 Vision",
+    provider: "xai",
+    providerName: "xAI",
+    providerDisplayName: "xAI Grok",
+    category: "multimodal",
+    description: "Multimodal frontier model capable of visual reasoning, charts, and document parsing.",
+    contextWindow: "32k tokens",
+    inputCost: "$2.00",
+    outputCost: "$10.00",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$10.00",
+    tags: ["Vision", "Streaming"],
+    capabilities: { vision: true, reasoning: false, streaming: true },
+    fallback: "grok-2",
+    fallbackModel: "grok-2",
+  },
+  {
+    id: "grok-2-mini",
+    name: "Grok 2 Mini",
+    provider: "xai",
+    providerName: "xAI",
+    providerDisplayName: "xAI Grok",
+    category: "frontier",
+    description: "Lightweight, cost-efficient model optimized for high-speed agentic routing.",
+    contextWindow: "128k tokens",
+    inputCost: "$0.20",
+    outputCost: "$1.00",
+    inputCostPer1M: "$0.20",
+    outputCostPer1M: "$1.00",
+    tags: ["Streaming", "Fast"],
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
+  },
+  {
+    id: "grok-beta",
+    name: "Grok Beta",
+    provider: "xai",
+    providerName: "xAI",
+    providerDisplayName: "xAI Grok",
+    category: "frontier",
+    description: "High-speed preview model with real-time knowledge synthesis and conversational intelligence.",
+    contextWindow: "128k tokens",
+    inputCost: "$5.00",
+    outputCost: "$15.00",
+    inputCostPer1M: "$5.00",
+    outputCostPer1M: "$15.00",
+    tags: ["Preview", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "grok-2",
+    fallbackModel: "grok-2",
+  },
+
   // Embeddings
   {
     id: "text-embedding-3-large",
@@ -408,9 +552,11 @@ export default function IntegrationsPage() {
       if (activeFilter === "gemini" && m.provider !== "gemini") return false;
       if (activeFilter === "openai" && m.provider !== "openai") return false;
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
+      if (activeFilter === "deepseek" && m.provider !== "deepseek") return false;
+      if (activeFilter === "xai" && m.provider !== "xai") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
       if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
-      if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
+      if (activeFilter === "reasoning" && !m.capabilities?.reasoning) return false;
       if (activeFilter === "embeddings" && m.category !== "embeddings") return false;
 
       // Search query
@@ -418,7 +564,7 @@ export default function IntegrationsPage() {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = m.name.toLowerCase().includes(q);
         const matchesId = m.id.toLowerCase().includes(q);
-        const matchesProvider = m.providerDisplayName.toLowerCase().includes(q);
+        const matchesProvider = (m.providerName || m.providerDisplayName || "").toLowerCase().includes(q);
         const matchesDesc = m.description.toLowerCase().includes(q);
         if (!matchesName && !matchesId && !matchesProvider && !matchesDesc) {
           return false;
@@ -436,18 +582,22 @@ export default function IntegrationsPage() {
       gemini: CURATED_MODELS.filter((m) => m.provider === "gemini").length,
       openai: CURATED_MODELS.filter((m) => m.provider === "openai").length,
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
+      deepseek: CURATED_MODELS.filter((m) => m.provider === "deepseek").length,
+      xai: CURATED_MODELS.filter((m) => m.provider === "xai").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
       kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
-      reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
+      reasoning: CURATED_MODELS.filter((m) => m.capabilities?.reasoning).length,
       embeddings: CURATED_MODELS.filter((m) => m.category === "embeddings").length,
     };
   }, []);
 
   const filterTabs = [
     { id: "all", label: `All Models (${filterCounts.all})` },
-    { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "openai", label: `OpenAI (${filterCounts.openai})` },
     { id: "anthropic", label: `Anthropic (${filterCounts.anthropic})` },
+    { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
+    { id: "deepseek", label: `DeepSeek (${filterCounts.deepseek})` },
+    { id: "xai", label: `xAI Grok (${filterCounts.xai})` },
     { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
     { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
@@ -604,8 +754,8 @@ export default function IntegrationsPage() {
                         <div className="flex items-center gap-2.5">
                           <ModelProviderLogo provider={model.provider} modelId={model.id} size="md" />
                           <div>
-                            <div className="text-[11px] font-mono uppercase text-[#D4A362] tracking-wider">
-                              {model.providerDisplayName}
+                            <div className="text-[11px] font-mono uppercase text-[#DFB277] tracking-wider font-semibold">
+                              {model.providerName || (model.provider === "deepseek" ? "DeepSeek AI" : model.providerDisplayName)}
                             </div>
                             <h3 className="text-sm font-bold text-white group-hover:text-[#E5C38E] transition-colors">
                               {model.name}
@@ -625,7 +775,7 @@ export default function IntegrationsPage() {
                             </span>
                           )}
 
-                          {model.popular && (
+                          {(model.popular || model.isPopular) && (
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-bold bg-[#D4A362]/5 text-[#D4A362] border border-[#D4A362]/40">
                               POPULAR
                             </span>
@@ -652,31 +802,71 @@ export default function IntegrationsPage() {
                         <div className="p-2 rounded bg-[#0A0A0A] border border-[#161616]">
                           <div className="text-neutral-500 text-[10px]">Token Cost ($/1M)</div>
                           <div className="text-neutral-200 font-semibold mt-0.5">
-                            {model.inputCostPer1M} / {model.outputCostPer1M}
+                            {model.inputCost || model.inputCostPer1M} / {model.outputCost || model.outputCostPer1M}
                           </div>
                         </div>
                       </div>
 
                       {/* Capability Tags */}
                       <div className="flex flex-wrap gap-1">
-                        {model.capabilities.vision && (
+                        {model.id === "deepseek-reasoner" && (
+                          <>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                              Reasoning / R1
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                              CoT Thinking
+                            </span>
+                          </>
+                        )}
+                        {model.id === "deepseek-chat" && (
+                          <>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                              V3 Architecture
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                              Ultra-Low Cost
+                            </span>
+                          </>
+                        )}
+                        {model.provider === "xai" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                            xAI Grok
+                          </span>
+                        )}
+                        {model.tags && model.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
+                            {tag}
+                          </span>
+                        ))}
+                        {model.capabilities?.functionCalling && !model.tags && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                            Function Calling
+                          </span>
+                        )}
+                        {model.capabilities?.code && !model.tags && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                            Code
+                          </span>
+                        )}
+                        {model.capabilities?.vision && !model.tags?.includes("Vision") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
                             Vision
                           </span>
                         )}
-                        {model.capabilities.reasoning && (
+                        {model.capabilities?.reasoning && model.id !== "deepseek-reasoner" && !model.tags?.includes("Reasoning") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4A362]/10 text-[#D4A362] border border-[#D4A362]/40 font-semibold">
                             Reasoning
                           </span>
                         )}
-                        {model.capabilities.streaming && (
+                        {model.capabilities?.streaming && !model.tags?.includes("Streaming") && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-400 border border-[#161616]">
                             Streaming
                           </span>
                         )}
-                        {model.fallbackModel && (
+                        {(model.fallback || model.fallbackModel) && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-500 border border-[#161616]">
-                            Fallback: {model.fallbackModel}
+                            Fallback: {model.fallback || model.fallbackModel}
                           </span>
                         )}
                       </div>
