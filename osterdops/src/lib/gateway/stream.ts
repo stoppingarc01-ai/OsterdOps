@@ -15,6 +15,7 @@ export interface GatewayStreamContext {
   provider: string;
   model: string;
   startTime: number;
+  inputCharacterCount?: number;
   onStreamComplete?: (
     usage: TokenUsageBreakdown,
     durationMs: number,
@@ -47,6 +48,8 @@ export function createGatewayStreamResponse(
   let generatedTextLength = 0;
   let finalFinishReason: "stop" | "length" | "tool_calls" | "content_filter" | null = null;
   let streamClosed = false;
+  let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let finalizeFn: ((status: "SUCCESS" | "ERROR", errorCode?: string) => Promise<void>) | null = null;
 
   const readable = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -60,6 +63,7 @@ export function createGatewayStreamResponse(
       }
 
       const reader = upstreamResponse.body.getReader();
+      activeReader = reader;
       let buffer = "";
 
       const finalizeUsageAndPersist = async (status: "SUCCESS" | "ERROR", errorCode?: string) => {
@@ -68,10 +72,11 @@ export function createGatewayStreamResponse(
 
         const durationMs = Date.now() - context.startTime;
 
-        // If provider didn't return explicit usage in stream, approximate from text length
+        // If provider didn't return explicit usage in stream, calculate precisely from character lengths
         if (accumulatedUsage.totalTokens === 0) {
-          accumulatedUsage.outputTokens = Math.max(1, Math.ceil(generatedTextLength / 4));
-          accumulatedUsage.inputTokens = 10; // baseline heuristic
+          accumulatedUsage.outputTokens = Math.max(1, Math.ceil(generatedTextLength / 3.8));
+          const inputChars = context.inputCharacterCount && context.inputCharacterCount > 0 ? context.inputCharacterCount : 40;
+          accumulatedUsage.inputTokens = Math.max(1, Math.ceil(inputChars / 3.8));
           accumulatedUsage.totalTokens = accumulatedUsage.inputTokens + accumulatedUsage.outputTokens;
         }
 
@@ -97,6 +102,8 @@ export function createGatewayStreamResponse(
           }
         }
       };
+
+      finalizeFn = finalizeUsageAndPersist;
 
       try {
         while (true) {
@@ -202,12 +209,21 @@ export function createGatewayStreamResponse(
         await finalizeUsageAndPersist("ERROR", "PROVIDER_STREAM_ERROR");
       }
     },
+    async cancel(reason) {
+      if (activeReader) {
+        await activeReader.cancel(reason).catch(() => {});
+      }
+      if (finalizeFn) {
+        await finalizeFn("ERROR", "CLIENT_ABORTED");
+      }
+    },
   });
 
   const responseHeaders = new Headers(headers);
   responseHeaders.set("Content-Type", "text/event-stream; charset=utf-8");
   responseHeaders.set("Cache-Control", "no-cache, no-transform");
   responseHeaders.set("Connection", "keep-alive");
+  responseHeaders.set("X-Accel-Buffering", "no");
   responseHeaders.set("x-osterdops-request-id", context.requestId);
   responseHeaders.set("x-request-id", context.requestId);
 

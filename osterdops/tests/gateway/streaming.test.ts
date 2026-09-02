@@ -101,6 +101,7 @@ export async function runStreamingTests(): Promise<void> {
   assert(streamResponse.status === 200, "Stream response HTTP 200");
   assert(streamResponse.headers.get("Content-Type")?.includes("text/event-stream"), "Content-Type is text/event-stream");
   assert(streamResponse.headers.get("x-osterdops-request-id") === "gw_stream_test_1", "Correlation ID header attached");
+  assert(streamResponse.headers.get("X-Accel-Buffering") === "no", "X-Accel-Buffering: no attached for zero-buffering proxies");
 
   // Read transformed stream body
   const reader = streamResponse.body?.getReader();
@@ -122,4 +123,11 @@ export async function runStreamingTests(): Promise<void> {
   assert(fullOutput.includes("data: [DONE]"), "Transformed stream properly terminated with data: [DONE]");
 
   console.log("✔ AI Gateway Streaming & SSE Transformer Tests passed.");
+}
+
+if (process.argv[1]?.includes("streaming.test")) {
+  runStreamingTests().catch((err) => {
+    console.error("Streaming tests failed:", err);
+    process.exit(1);
+  });
 }

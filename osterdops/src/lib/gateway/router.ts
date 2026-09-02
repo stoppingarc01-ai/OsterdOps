@@ -21,6 +21,7 @@ import { getProviderAdapter, resolveProviderFromModel } from "@/lib/adapters/reg
 import { validateModelRequest } from "@/lib/adapters/models";
 import { recordGatewayUsage } from "@/lib/services/usage.service";
 import { checkBudgetEnforcement, evaluateBudgetsAfterSpend } from "@/lib/services/budget.service";
+import { invalidateBudgetPreflightCache } from "@/lib/cache/registry";
 import { recordAuditLog } from "@/lib/services/audit.service";
 import { validateGatewayRequest } from "./request-validator";
 import { createGatewayErrorResponse, normalizeGatewayError } from "./errors";
@@ -448,6 +449,7 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
           provider,
           model: payload.model,
           startTime,
+          inputCharacterCount: JSON.stringify(payload.messages).length,
           onStreamComplete: async (usage, durationMs, status, errorCode) => {
             recordGatewayUsage({
               requestId,
@@ -467,6 +469,7 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
               errorCode,
             })
               .then(() => {
+                invalidateBudgetPreflightCache(organization.id, project.id);
                 evaluateBudgetsAfterSpend(organization, project);
               })
               .catch((err) => console.error("[OsterdOps Stream] Failed to persist streaming usage record:", err));
@@ -708,6 +711,7 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     status: "SUCCESS",
   })
     .then(() => {
+      invalidateBudgetPreflightCache(organization.id, project.id);
       evaluateBudgetsAfterSpend(organization, project);
     })
     .catch((err) => console.error("[OsterdOps UsageRecorder] Failed to persist success usage record:", err));
