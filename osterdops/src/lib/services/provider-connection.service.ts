@@ -545,6 +545,15 @@ export async function resolveProviderCredentials(
     if (normalizedProvider === "groq" && process.env.GROQ_API_KEY) {
       return { apiKey: process.env.GROQ_API_KEY, baseUrl: "https://api.groq.com/openai/v1", provider: "groq" };
     }
+    if (normalizedProvider === "mistral" && process.env.MISTRAL_API_KEY) {
+      return { apiKey: process.env.MISTRAL_API_KEY, baseUrl: "https://api.mistral.ai/v1", provider: "mistral" };
+    }
+    if (normalizedProvider === "perplexity" && process.env.PERPLEXITY_API_KEY) {
+      return { apiKey: process.env.PERPLEXITY_API_KEY, baseUrl: "https://api.perplexity.ai", provider: "perplexity" };
+    }
+    if (normalizedProvider === "cohere" && process.env.COHERE_API_KEY) {
+      return { apiKey: process.env.COHERE_API_KEY, baseUrl: "https://api.cohere.com/v2", provider: "cohere" };
+    }
     if ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY)) {
       return {
         apiKey: process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "",

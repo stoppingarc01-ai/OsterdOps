@@ -70,10 +70,6 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
     return "bedrock";
   }
 
-  if (normalized.startsWith("llama") || normalized.startsWith("meta")) {
-    return "meta";
-  }
-
   if (
     normalized.startsWith("gpt") ||
     normalized.startsWith("o1") ||
@@ -100,8 +96,29 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
     return "perplexity";
   }
 
-  if (normalized.startsWith("command") || normalized.startsWith("cohere") || normalized.startsWith("embed-english")) {
+  if (
+    normalized.startsWith("mistral") ||
+    normalized.startsWith("codestral") ||
+    normalized.startsWith("ministral") ||
+    normalized.startsWith("pixtral")
+  ) {
+    return "mistral";
+  }
+
+  if (normalized.startsWith("command") || normalized.startsWith("cohere") || normalized.startsWith("embed-")) {
     return "cohere";
+  }
+
+  if (
+    normalized.includes("groq") ||
+    normalized.startsWith("llama-3.3-70b-versatile") ||
+    normalized.startsWith("llama-3.1-8b-instant")
+  ) {
+    return "groq";
+  }
+
+  if (normalized.startsWith("llama") || normalized.startsWith("meta")) {
+    return "meta";
   }
 
   // Default to OpenAI protocol for unknown / custom fine-tuned models

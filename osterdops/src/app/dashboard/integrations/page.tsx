@@ -210,72 +210,178 @@ const CURATED_MODELS: CatalogModel[] = [
     fallbackModel: "claude-3-5-sonnet-20241022",
   },
 
-  // Meta (LLaMA) & Groq
+  // Groq LPU (Ultra-Fast Inference >300 tps)
   {
     id: "llama-3.3-70b-versatile",
     name: "LLaMA 3.3 70B Versatile",
     provider: "groq",
-    providerDisplayName: "Meta / Groq",
+    providerName: "Groq (LPU)",
+    providerDisplayName: "Groq (LPU)",
     category: "open-weights",
     contextWindow: "128k tokens",
+    inputCost: "$0.59",
+    outputCost: "$0.79",
     inputCostPer1M: "$0.59",
     outputCostPer1M: "$0.79",
-    description: "Industry-leading 70B open model matching previous-gen 405B benchmark performance.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
+    description: "Ultra-fast LPU inference (>300 tps) with LLaMA 3.3 70B frontier intelligence.",
+    tags: ["Ultra-Low Latency (>300 tps)", "Streaming", "LPU Engine"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "llama-3.1-8b-instant",
     fallbackModel: "llama-3.1-8b-instant",
+    isPopular: true,
     popular: true,
-  },
-  {
-    id: "llama-3.1-405b-instruct",
-    name: "LLaMA 3.1 405B Instruct",
-    provider: "groq",
-    providerDisplayName: "Meta / Groq",
-    category: "open-weights",
-    contextWindow: "128k tokens",
-    inputCostPer1M: "$2.00",
-    outputCostPer1M: "$2.00",
-    description: "Flagship 405B open-weights model for synthetic data generation and complex logic.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "llama-3.3-70b-versatile",
   },
   {
     id: "llama-3.1-8b-instant",
     name: "LLaMA 3.1 8B Instant",
     provider: "groq",
-    providerDisplayName: "Meta / Groq",
+    providerName: "Groq (LPU)",
+    providerDisplayName: "Groq (LPU)",
     category: "open-weights",
     contextWindow: "128k tokens",
+    inputCost: "$0.05",
+    outputCost: "$0.08",
     inputCostPer1M: "$0.05",
     outputCostPer1M: "$0.08",
-    description: "Sub-second inference at negligible cost for classification and routing agents.",
+    description: "Sub-100ms ultra-low latency LPU model for high-throughput classification and agentic tasks.",
+    tags: ["Ultra-Low Latency (>300 tps)", "Streaming", "Sub-100ms"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
+  },
+
+  // Meta (LLaMA Open Weights)
+  {
+    id: "llama-3.1-405b-instruct",
+    name: "LLaMA 3.1 405B Instruct",
+    provider: "meta",
+    providerName: "Meta",
+    providerDisplayName: "Meta AI",
+    category: "open-weights",
+    contextWindow: "128k tokens",
+    inputCost: "$2.00",
+    outputCost: "$2.00",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$2.00",
+    description: "Flagship 405B open-weights model for synthetic data generation and complex logic.",
+    tags: ["Open Weights", "Flagship 405B", "Streaming"],
     capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "llama-3.2-3b",
+    fallback: "llama-3.3-70b-versatile",
+    fallbackModel: "llama-3.3-70b-versatile",
   },
   {
     id: "llama-3.2-90b-vision",
     name: "LLaMA 3.2 90B Vision",
-    provider: "groq",
-    providerDisplayName: "Meta / Groq",
+    provider: "meta",
+    providerName: "Meta",
+    providerDisplayName: "Meta AI",
     category: "multimodal",
     contextWindow: "128k tokens",
+    inputCost: "$0.90",
+    outputCost: "$0.90",
     inputCostPer1M: "$0.90",
     outputCostPer1M: "$0.90",
     description: "Multimodal visual reasoning for document parsing, charting, and image QA.",
+    tags: ["Vision", "Multimodal", "Streaming"],
     capabilities: { vision: true, reasoning: false, streaming: true },
+    fallback: "llama-3.3-70b-versatile",
+    fallbackModel: "llama-3.3-70b-versatile",
+  },
+  {
+    id: "llama-3.2-11b-vision",
+    name: "LLaMA 3.2 11B Vision",
+    provider: "meta",
+    providerName: "Meta",
+    providerDisplayName: "Meta AI",
+    category: "multimodal",
+    contextWindow: "128k tokens",
+    inputCost: "$0.18",
+    outputCost: "$0.18",
+    inputCostPer1M: "$0.18",
+    outputCostPer1M: "$0.18",
+    description: "Efficient vision-language model for image captioning and visual query answering.",
+    tags: ["Vision", "Compact", "Streaming"],
+    capabilities: { vision: true, reasoning: false, streaming: true },
+    fallback: "llama-3.2-3b",
+    fallbackModel: "llama-3.2-3b",
+  },
+  {
+    id: "llama-3.2-3b",
+    name: "LLaMA 3.2 3B",
+    provider: "meta",
+    providerName: "Meta",
+    providerDisplayName: "Meta AI",
+    category: "open-weights",
+    contextWindow: "128k tokens",
+    inputCost: "$0.04",
+    outputCost: "$0.04",
+    inputCostPer1M: "$0.04",
+    outputCostPer1M: "$0.04",
+    description: "Compact high-performance edge model for summarizing, rewriting, and on-device NLP.",
+    tags: ["Edge Model", "Ultra-Low Cost", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "llama-3.1-8b-instant",
+    fallbackModel: "llama-3.1-8b-instant",
   },
 
-  // Mistral AI
+  // Mistral AI (European Enterprise & Code)
   {
-    id: "mistral-large-latest",
-    name: "Mistral Large (2411)",
+    id: "mistral-large-2411",
+    name: "Mistral Large 2411",
     provider: "mistral",
+    providerName: "Mistral AI",
     providerDisplayName: "Mistral AI",
     category: "frontier",
     contextWindow: "128k tokens",
+    inputCost: "$2.00",
+    outputCost: "$6.00",
     inputCostPer1M: "$2.00",
     outputCostPer1M: "$6.00",
-    description: "Top-tier multilingual reasoning, function calling, and structured JSON output.",
+    description: "Flagship European enterprise frontier model with advanced reasoning, multilingual support, and native tool calling.",
+    tags: ["Tool Calling", "Multilingual", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "ministral-8b",
+    fallbackModel: "ministral-8b",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "codestral-2501",
+    name: "Codestral 2501",
+    provider: "mistral",
+    providerName: "Mistral AI",
+    providerDisplayName: "Mistral AI",
+    category: "frontier",
+    contextWindow: "256k tokens",
+    inputCost: "$0.30",
+    outputCost: "$0.90",
+    inputCostPer1M: "$0.30",
+    outputCostPer1M: "$0.90",
+    description: "State-of-the-art coding engine with massive 256k context window and fill-in-the-middle synthesis.",
+    tags: ["256k Code Window", "Coding", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, code: true },
+    fallback: "mistral-large-2411",
+    fallbackModel: "mistral-large-2411",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "ministral-8b",
+    name: "Ministral 8B",
+    provider: "mistral",
+    providerName: "Mistral AI",
+    providerDisplayName: "Mistral AI",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCost: "$0.10",
+    outputCost: "$0.10",
+    inputCostPer1M: "$0.10",
+    outputCostPer1M: "$0.10",
+    description: "Fast, power-efficient European edge model optimized for low latency and high-volume routing.",
+    tags: ["Fast Edge Model", "Low Latency", "Streaming"],
     capabilities: { vision: false, reasoning: false, streaming: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
   },
 
   // Moonshot AI (Kimi)
@@ -469,6 +575,156 @@ const CURATED_MODELS: CatalogModel[] = [
     fallbackModel: "grok-2",
   },
 
+  // Perplexity AI (Live Web Search & Reasoning)
+  {
+    id: "sonar-pro",
+    name: "Sonar Pro",
+    provider: "perplexity",
+    providerName: "Perplexity AI",
+    providerDisplayName: "Perplexity AI",
+    category: "frontier",
+    contextWindow: "200k tokens",
+    inputCost: "$3.00",
+    outputCost: "$15.00",
+    inputCostPer1M: "$3.00",
+    outputCostPer1M: "$15.00",
+    description: "Flagship online search model with multi-query synthesis, citations, and 200k context.",
+    tags: ["Live Web Search", "Citations", "Streaming"],
+    capabilities: { vision: false, reasoning: true, streaming: true, functionCalling: true },
+    fallback: "sonar",
+    fallbackModel: "sonar",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "sonar-reasoning",
+    name: "Sonar Reasoning",
+    provider: "perplexity",
+    providerName: "Perplexity AI",
+    providerDisplayName: "Perplexity AI",
+    category: "reasoning",
+    contextWindow: "128k tokens",
+    inputCost: "$1.00",
+    outputCost: "$5.00",
+    inputCostPer1M: "$1.00",
+    outputCostPer1M: "$5.00",
+    description: "Chain-of-thought web reasoning model with explicit verification and real-time citations.",
+    tags: ["Live Web Search", "Citations", "Reasoning"],
+    capabilities: { vision: false, reasoning: true, streaming: true, functionCalling: true },
+    fallback: "sonar",
+    fallbackModel: "sonar",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "sonar",
+    name: "Sonar",
+    provider: "perplexity",
+    providerName: "Perplexity AI",
+    providerDisplayName: "Perplexity AI",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCost: "$1.00",
+    outputCost: "$1.00",
+    inputCostPer1M: "$1.00",
+    outputCostPer1M: "$1.00",
+    description: "Fast, cost-efficient real-time web search integration with live citation grounding.",
+    tags: ["Live Web Search", "Citations", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
+  },
+  {
+    id: "sonar-reasoning-pro",
+    name: "Sonar Reasoning Pro",
+    provider: "perplexity",
+    providerName: "Perplexity AI",
+    providerDisplayName: "Perplexity AI",
+    category: "reasoning",
+    contextWindow: "128k tokens",
+    inputCost: "$2.00",
+    outputCost: "$8.00",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$8.00",
+    description: "Deep analytical web reasoning model with multi-source factual verification.",
+    tags: ["Live Web Search", "Citations", "Reasoning"],
+    capabilities: { vision: false, reasoning: true, streaming: true, functionCalling: true },
+    fallback: "sonar-pro",
+    fallbackModel: "sonar-pro",
+  },
+
+  // Cohere (Enterprise RAG & Embeddings)
+  {
+    id: "command-r-plus-08-2024",
+    name: "Command R+ (08-2024)",
+    provider: "cohere",
+    providerName: "Cohere",
+    providerDisplayName: "Cohere",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCost: "$2.50",
+    outputCost: "$10.00",
+    inputCostPer1M: "$2.50",
+    outputCostPer1M: "$10.00",
+    description: "Enterprise RAG powerhouse with multi-hop retrieval, citation grounding, and tool use.",
+    tags: ["Enterprise RAG", "Tool Use", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "command-r-08-2024",
+    fallbackModel: "command-r-08-2024",
+    isPopular: true,
+    popular: true,
+  },
+  {
+    id: "command-r-08-2024",
+    name: "Command R (08-2024)",
+    provider: "cohere",
+    providerName: "Cohere",
+    providerDisplayName: "Cohere",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCost: "$0.15",
+    outputCost: "$0.60",
+    inputCostPer1M: "$0.15",
+    outputCostPer1M: "$0.60",
+    description: "Scalable RAG and tool-use workhorse model with high accuracy citation grounding.",
+    tags: ["Enterprise RAG", "Cost Efficient", "Streaming"],
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
+    fallback: "gpt-4o-mini",
+    fallbackModel: "gpt-4o-mini",
+  },
+  {
+    id: "embed-multilingual-v3.0",
+    name: "Embed Multilingual v3.0",
+    provider: "cohere",
+    providerName: "Cohere",
+    providerDisplayName: "Cohere",
+    category: "embeddings",
+    contextWindow: "512 tokens",
+    inputCost: "$0.10",
+    outputCost: "$0.00",
+    inputCostPer1M: "$0.10",
+    outputCostPer1M: "$0.00",
+    description: "Enterprise multilingual semantic embeddings for cross-lingual enterprise search and RAG.",
+    tags: ["Embeddings", "Multilingual", "RAG"],
+    capabilities: { vision: false, reasoning: false, streaming: false },
+  },
+  {
+    id: "embed-english-v3.0",
+    name: "Embed English v3.0",
+    provider: "cohere",
+    providerName: "Cohere",
+    providerDisplayName: "Cohere",
+    category: "embeddings",
+    contextWindow: "512 tokens",
+    inputCost: "$0.10",
+    outputCost: "$0.00",
+    inputCostPer1M: "$0.10",
+    outputCostPer1M: "$0.00",
+    description: "High-dimensional vector embeddings for English enterprise semantic search and RAG.",
+    tags: ["Embeddings", "Semantic Search", "RAG"],
+    capabilities: { vision: false, reasoning: false, streaming: false },
+  },
+
   // Embeddings
   {
     id: "text-embedding-3-large",
@@ -549,13 +805,16 @@ export default function IntegrationsPage() {
   const filteredModels = useMemo(() => {
     return CURATED_MODELS.filter((m) => {
       // Filter tab
-      if (activeFilter === "gemini" && m.provider !== "gemini") return false;
+      if ((activeFilter === "google" || activeFilter === "gemini") && m.provider !== "gemini" && m.provider !== "google") return false;
       if (activeFilter === "openai" && m.provider !== "openai") return false;
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
       if (activeFilter === "deepseek" && m.provider !== "deepseek") return false;
       if (activeFilter === "xai" && m.provider !== "xai") return false;
-      if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
-      if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
+      if (activeFilter === "perplexity" && m.provider !== "perplexity") return false;
+      if (activeFilter === "groq" && m.provider !== "groq") return false;
+      if (activeFilter === "mistral" && m.provider !== "mistral") return false;
+      if (activeFilter === "cohere" && m.provider !== "cohere") return false;
+      if ((activeFilter === "moonshot" || activeFilter === "kimi") && m.provider !== "moonshot" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
       if (activeFilter === "reasoning" && !m.capabilities?.reasoning) return false;
       if (activeFilter === "embeddings" && m.category !== "embeddings") return false;
 
@@ -579,13 +838,16 @@ export default function IntegrationsPage() {
   const filterCounts = useMemo(() => {
     return {
       all: CURATED_MODELS.length,
-      gemini: CURATED_MODELS.filter((m) => m.provider === "gemini").length,
+      google: CURATED_MODELS.filter((m) => m.provider === "gemini" || m.provider === "google").length,
       openai: CURATED_MODELS.filter((m) => m.provider === "openai").length,
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
       deepseek: CURATED_MODELS.filter((m) => m.provider === "deepseek").length,
       xai: CURATED_MODELS.filter((m) => m.provider === "xai").length,
-      groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
-      kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
+      perplexity: CURATED_MODELS.filter((m) => m.provider === "perplexity").length,
+      groq: CURATED_MODELS.filter((m) => m.provider === "groq").length,
+      mistral: CURATED_MODELS.filter((m) => m.provider === "mistral").length,
+      cohere: CURATED_MODELS.filter((m) => m.provider === "cohere").length,
+      moonshot: CURATED_MODELS.filter((m) => m.provider === "moonshot" || m.provider === "kimi" || m.id.startsWith("moonshot")).length,
       reasoning: CURATED_MODELS.filter((m) => m.capabilities?.reasoning).length,
       embeddings: CURATED_MODELS.filter((m) => m.category === "embeddings").length,
     };
@@ -593,13 +855,16 @@ export default function IntegrationsPage() {
 
   const filterTabs = [
     { id: "all", label: `All Models (${filterCounts.all})` },
+    { id: "google", label: `Google Gemini (${filterCounts.google})` },
     { id: "openai", label: `OpenAI (${filterCounts.openai})` },
     { id: "anthropic", label: `Anthropic (${filterCounts.anthropic})` },
-    { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "deepseek", label: `DeepSeek (${filterCounts.deepseek})` },
-    { id: "xai", label: `xAI Grok (${filterCounts.xai})` },
-    { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
-    { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
+    { id: "xai", label: `xAI (Grok) (${filterCounts.xai})` },
+    { id: "perplexity", label: `Perplexity (${filterCounts.perplexity})` },
+    { id: "groq", label: `Groq (LPU) (${filterCounts.groq})` },
+    { id: "mistral", label: `Mistral (${filterCounts.mistral})` },
+    { id: "cohere", label: `Cohere (${filterCounts.cohere})` },
+    { id: "moonshot", label: `Moonshot / Kimi (${filterCounts.moonshot})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
     { id: "embeddings", label: `Embeddings (${filterCounts.embeddings})` },
   ];
@@ -834,11 +1099,28 @@ export default function IntegrationsPage() {
                             xAI Grok
                           </span>
                         )}
-                        {model.tags && model.tags.map((tag) => (
-                          <span key={tag} className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
-                            {tag}
-                          </span>
-                        ))}
+                        {model.tags && model.tags.map((tag) => {
+                          const isLiveSearch = tag.includes("Web Search") || tag === "Citations";
+                          const isFastLpu = tag.includes(">300 tps");
+                          const isCodeWindow = tag.includes("256k Code");
+
+                          return (
+                            <span
+                              key={tag}
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                                isLiveSearch
+                                  ? "bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30 font-semibold"
+                                  : isFastLpu
+                                  ? "bg-[#DFB277]/10 text-[#DFB277] border-[#DFB277]/40 font-semibold"
+                                  : isCodeWindow
+                                  ? "bg-[#3B82F6]/10 text-[#60A5FA] border-[#3B82F6]/30 font-semibold"
+                                  : "bg-[#0A0A0A] text-neutral-300 border-[#161616]"
+                              }`}
+                            >
+                              {tag}
+                            </span>
+                          );
+                        })}
                         {model.capabilities?.functionCalling && !model.tags && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
                             Function Calling

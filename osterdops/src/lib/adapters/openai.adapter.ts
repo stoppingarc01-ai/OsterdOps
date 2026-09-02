@@ -74,7 +74,24 @@ export class OpenAIAdapter implements AIProviderAdapter {
     if (prov === "perplexity" || mdl.startsWith("sonar")) {
       return "https://api.perplexity.ai";
     }
-    if (prov === "cohere" || mdl.startsWith("command") || mdl.startsWith("embed-english")) {
+    if (
+      prov === "groq" ||
+      mdl.startsWith("llama-3.3-70b-versatile") ||
+      mdl.startsWith("llama-3.1-8b-instant") ||
+      mdl.includes("groq")
+    ) {
+      return "https://api.groq.com/openai/v1";
+    }
+    if (
+      prov === "mistral" ||
+      mdl.startsWith("mistral") ||
+      mdl.startsWith("codestral") ||
+      mdl.startsWith("ministral") ||
+      mdl.startsWith("pixtral")
+    ) {
+      return "https://api.mistral.ai/v1";
+    }
+    if (prov === "cohere" || mdl.startsWith("command") || mdl.startsWith("embed-")) {
       return "https://api.cohere.com/v2";
     }
     return "https://api.openai.com/v1";

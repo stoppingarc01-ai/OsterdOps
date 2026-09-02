@@ -6,7 +6,22 @@
 
 import type { AIProvider } from "@/types";
 
-export type ProviderId = AIProvider | "meta" | "groq" | "moonshot" | "kimi" | "deepseek";
+export type ProviderId =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "gemini"
+  | "meta"
+  | "mistral"
+  | "moonshot"
+  | "kimi"
+  | "deepseek"
+  | "xai"
+  | "groq"
+  | "perplexity"
+  | "cohere"
+  | "azure"
+  | "bedrock";
 
 export interface ModelPricing {
   provider: ProviderId;
@@ -441,7 +456,7 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
   // 4. Meta (LLaMA 3, 3.1, 3.2 & 3.3)
   // ==========================================
   "llama-3.3-70b-versatile": createPricingEntry({
-    provider: "meta",
+    provider: "groq",
     model: "llama-3.3-70b-versatile",
     inputCostPer1M: 0.59,
     outputCostPer1M: 0.79,
@@ -450,7 +465,7 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     supportsVision: false,
     supportsFunctionCalling: true,
     fallbackModel: "llama-3.1-8b-instant",
-    description: "Industry-leading 70B open weights model rivaling previous-gen 405B capabilities",
+    description: "Groq LPU ultra-fast inference (>300 tps) with LLaMA 3.3 70B ($0.59 in / $0.79 out)",
   }),
   "llama-3.1-405b-instruct": createPricingEntry({
     provider: "meta",
@@ -477,7 +492,7 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     description: "High-accuracy multilingual instruction model with 128K context",
   }),
   "llama-3.1-8b-instant": createPricingEntry({
-    provider: "meta",
+    provider: "groq",
     model: "llama-3.1-8b-instant",
     inputCostPer1M: 0.05,
     outputCostPer1M: 0.08,
@@ -485,8 +500,8 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     supportsStreaming: true,
     supportsVision: false,
     supportsFunctionCalling: true,
-    fallbackModel: "llama-3.2-3b",
-    description: "Ultra-fast open weights 8B model with sub-second inference latency",
+    fallbackModel: "gpt-4o-mini",
+    description: "Groq LPU sub-100ms ultra-low latency model ($0.05 in / $0.08 out)",
   }),
   "llama-3.2-90b-vision": createPricingEntry({
     provider: "meta",
@@ -800,19 +815,31 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     contextWindow: 200000,
     supportsStreaming: true,
     supportsVision: false,
-    supportsFunctionCalling: false,
+    supportsFunctionCalling: true,
     fallbackModel: "sonar",
     description: "Perplexity Sonar Pro live internet reasoning ($3.00 in / $15.00 out)",
+  }),
+  "sonar-reasoning": createPricingEntry({
+    provider: "perplexity",
+    model: "sonar-reasoning",
+    inputCostPer1M: 1.0,
+    outputCostPer1M: 5.0,
+    contextWindow: 128000,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "sonar",
+    description: "Perplexity Sonar Reasoning chain-of-thought web reasoning ($1.00 in / $5.00 out)",
   }),
   "sonar": createPricingEntry({
     provider: "perplexity",
     model: "sonar",
     inputCostPer1M: 1.0,
     outputCostPer1M: 1.0,
-    contextWindow: 131072,
+    contextWindow: 128000,
     supportsStreaming: true,
     supportsVision: false,
-    supportsFunctionCalling: false,
+    supportsFunctionCalling: true,
     fallbackModel: "gpt-4o-mini",
     description: "Perplexity Sonar fast internet search model ($1.00 in / $1.00 out)",
   }),
@@ -824,20 +851,61 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     contextWindow: 131072,
     supportsStreaming: true,
     supportsVision: false,
-    supportsFunctionCalling: false,
+    supportsFunctionCalling: true,
     fallbackModel: "sonar-pro",
     description: "Perplexity Sonar Reasoning Pro chain-of-thought web reasoning ($2.00 in / $8.00 out)",
   }),
 
+
   // ==========================================
-  // 9. Cohere Models
+  // 10. Mistral AI Models
+  // ==========================================
+  "mistral-large-2411": createPricingEntry({
+    provider: "mistral",
+    model: "mistral-large-2411",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 6.0,
+    contextWindow: 128000,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "ministral-8b",
+    description: "Mistral Large flagship European enterprise frontier model ($2.00 in / $6.00 out)",
+  }),
+  "codestral-2501": createPricingEntry({
+    provider: "mistral",
+    model: "codestral-2501",
+    inputCostPer1M: 0.30,
+    outputCostPer1M: 0.90,
+    contextWindow: 256000,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "mistral-large-2411",
+    description: "Codestral SOTA coding model with 256k context window ($0.30 in / $0.90 out)",
+  }),
+  "ministral-8b": createPricingEntry({
+    provider: "mistral",
+    model: "ministral-8b",
+    inputCostPer1M: 0.10,
+    outputCostPer1M: 0.10,
+    contextWindow: 128000,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "gpt-4o-mini",
+    description: "Ministral 8B fast European edge model ($0.10 in / $0.10 out)",
+  }),
+
+  // ==========================================
+  // 11. Cohere Models
   // ==========================================
   "command-r-plus-08-2024": createPricingEntry({
     provider: "cohere",
     model: "command-r-plus-08-2024",
     inputCostPer1M: 2.5,
     outputCostPer1M: 10.0,
-    contextWindow: 131072,
+    contextWindow: 128000,
     supportsStreaming: true,
     supportsVision: false,
     supportsFunctionCalling: true,
@@ -849,12 +917,23 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     model: "command-r-08-2024",
     inputCostPer1M: 0.15,
     outputCostPer1M: 0.6,
-    contextWindow: 131072,
+    contextWindow: 128000,
     supportsStreaming: true,
     supportsVision: false,
     supportsFunctionCalling: true,
     fallbackModel: "gpt-4o-mini",
     description: "Cohere Command R enterprise workhorse ($0.15 in / $0.60 out)",
+  }),
+  "embed-multilingual-v3.0": createPricingEntry({
+    provider: "cohere",
+    model: "embed-multilingual-v3.0",
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.0,
+    contextWindow: 512,
+    supportsStreaming: false,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    description: "Cohere Embed Multilingual v3.0 semantic embeddings ($0.10 in / $0.00 out)",
   }),
   "embed-english-v3.0": createPricingEntry({
     provider: "cohere",

@@ -69,19 +69,35 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: "groq",
-    name: "Groq Cloud",
-    tagline: "Ultra-fast LPU inference (LLaMA 3.3, 3.1)",
+    name: "Groq (LPU)",
+    tagline: "Ultra-fast LPU inference (>300 tps)",
     defaultBaseUrl: "https://api.groq.com/openai/v1",
     keyPlaceholder: "gsk_...",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-3.2-90b-vision"],
+    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   },
   {
     id: "mistral",
     name: "Mistral AI",
-    tagline: "Mistral Large, Codestral, Pixtral",
+    tagline: "European enterprise frontier & coding models",
     defaultBaseUrl: "https://api.mistral.ai/v1",
     keyPlaceholder: "mis_...",
-    models: ["mistral-large-latest", "codestral-latest", "pixtral-large-latest"],
+    models: ["mistral-large-2411", "codestral-2501"],
+  },
+  {
+    id: "perplexity",
+    name: "Perplexity AI",
+    tagline: "Real-time web search LLMs with citations",
+    defaultBaseUrl: "https://api.perplexity.ai",
+    keyPlaceholder: "pplx-...",
+    models: ["sonar-pro", "sonar-reasoning", "sonar"],
+  },
+  {
+    id: "cohere",
+    name: "Cohere",
+    tagline: "Enterprise RAG powerhouse & embeddings",
+    defaultBaseUrl: "https://api.cohere.com/v2",
+    keyPlaceholder: "...",
+    models: ["command-r-plus-08-2024", "embed-multilingual-v3.0"],
   },
   {
     id: "bedrock",
@@ -121,22 +137,6 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultBaseUrl: "https://api.x.ai/v1",
     keyPlaceholder: "xai-...",
     models: ["grok-2", "grok-2-vision", "grok-2-mini", "grok-beta"],
-  },
-  {
-    id: "perplexity",
-    name: "Perplexity AI",
-    tagline: "Sonar Pro, Sonar Reasoning Pro, Sonar",
-    defaultBaseUrl: "https://api.perplexity.ai",
-    keyPlaceholder: "pplx-...",
-    models: ["sonar-pro", "sonar", "sonar-reasoning-pro"],
-  },
-  {
-    id: "cohere",
-    name: "Cohere",
-    tagline: "Command R+, Command R, Embed English v3.0",
-    defaultBaseUrl: "https://api.cohere.com/v2",
-    keyPlaceholder: "...",
-    models: ["command-r-plus-08-2024", "command-r-08-2024", "embed-english-v3.0"],
   },
   {
     id: "custom",
@@ -594,7 +594,7 @@ main().catch(console.error);`,
                         </div>
                         <div className="text-xs text-neutral-400 line-clamp-1 mt-0.5">{preset.tagline}</div>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {preset.models.slice(0, 2).map((m) => (
+                          {preset.models.slice(0, 3).map((m) => (
                             <span
                               key={m}
                               className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0a0a0a] border border-[#2a2a2a] text-neutral-400"
@@ -602,9 +602,9 @@ main().catch(console.error);`,
                               {m.replace(/^models\//, "")}
                             </span>
                           ))}
-                          {preset.models.length > 2 && (
+                          {preset.models.length > 3 && (
                             <span className="text-[10px] text-neutral-500 self-center">
-                              +{preset.models.length - 2} more
+                              +{preset.models.length - 3} more
                             </span>
                           )}
                         </div>
