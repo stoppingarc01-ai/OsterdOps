@@ -613,9 +613,14 @@ export function SignUpCard() {
 
               {/* Phone Number */}
               <div className="space-y-1">
-                <label className="block text-[11.5px] font-semibold text-[#2d313f]">
-                  Admin phone number
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11.5px] font-semibold text-[#2d313f]">
+                    Admin phone number
+                  </label>
+                  <span className="text-[10px] font-mono text-[#b8860b] uppercase tracking-wider bg-[#f3ede0] px-2 py-0.5 rounded-md border border-[#e5dfd2]">
+                    Hardware OTP // E.164
+                  </span>
+                </div>
                 <div className="relative flex items-center">
                   <Smartphone className="absolute left-3 h-3.5 w-3.5 text-[#989cb0] pointer-events-none" />
                   <input
@@ -628,7 +633,7 @@ export function SignUpCard() {
                     }}
                     placeholder="+1 555 019 9234"
                     disabled={phoneLoading}
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#e1dcd0] rounded-xl text-[12.5px] text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#e1dcd0] rounded-xl text-[12.5px] font-mono text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
                   />
                 </div>
                 <p className="text-[10px] text-[#7a7f92]">
@@ -675,20 +680,28 @@ export function SignUpCard() {
             </form>
           ) : (
             <div className="space-y-4">
-              <div className="p-3 bg-[#f3ede0] border border-[#e4dcce] rounded-xl space-y-1 text-[11.5px]">
+              <div className="p-3 bg-[#f3ede0] border border-[#e4dcce] rounded-xl space-y-1.5 text-[11.5px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-[#b8860b] uppercase tracking-wider">
+                    Provisioning Scope
+                  </span>
+                  <span className="text-[10px] font-mono text-[#555a6d] bg-white px-1.5 py-0.5 rounded border border-[#dfd7c7]">
+                    OWNER Privileges
+                  </span>
+                </div>
                 <div className="flex items-center justify-between text-[#6e7385]">
                   <span>Organization</span>
                   <span className="font-semibold text-[#14161f]">{companyName}</span>
                 </div>
                 <div className="flex items-center justify-between text-[#6e7385]">
-                  <span>Phone Target</span>
-                  <span className="font-semibold text-[#b8860b]">{phoneNumber}</span>
+                  <span>Authorized Target</span>
+                  <span className="font-mono font-semibold text-[#b8860b]">{phoneNumber}</span>
                 </div>
               </div>
 
               <div className="text-center">
                 <p className="text-[12px] text-[#6e7385]">
-                  Enter the 6-digit verification code sent to your phone
+                  Enter the 6-digit attestation code sent to your phone
                 </p>
               </div>
 
@@ -713,13 +726,13 @@ export function SignUpCard() {
               >
                 {phoneLoading ? (
                   <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#dfba82]" />
                     <span>Provisioning Tenant...</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span>Verify & Create Account</span>
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#dfba82]" />
+                    <span>Verify & Provision Workspace</span>
                   </>
                 )}
               </button>
@@ -733,13 +746,15 @@ export function SignUpCard() {
                     setFormError(null);
                   }}
                   disabled={phoneLoading}
-                  className="text-[#6e7385] hover:text-[#14161f] transition-colors cursor-pointer"
+                  className="text-[#6e7385] hover:text-[#14161f] transition-colors cursor-pointer font-medium"
                 >
                   ← Edit details
                 </button>
 
                 {countdown > 0 ? (
-                  <span className="text-[#8e93a6]">Resend in {countdown}s</span>
+                  <span className="font-mono text-[11px] text-[#8e93a6] bg-[#f0e9dc] px-2 py-0.5 rounded-md">
+                    Resend in {countdown}s
+                  </span>
                 ) : (
                   <button
                     type="button"

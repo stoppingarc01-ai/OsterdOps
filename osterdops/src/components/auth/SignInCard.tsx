@@ -423,11 +423,18 @@ export function SignInCard() {
           {phoneStep === "phone" ? (
             <form onSubmit={handleSendPhoneOtp} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-[12px] font-semibold text-[#2d313f]">
-                  Phone number
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[12px] font-semibold text-[#2d313f]">
+                    Administrative Phone
+                  </label>
+                  <span className="text-[10px] font-mono text-[#b8860b] uppercase tracking-wider bg-[#f3ede0] px-2 py-0.5 rounded-md border border-[#e5dfd2]">
+                    Hardware SMS // E.164
+                  </span>
+                </div>
                 <div className="relative flex items-center">
-                  <Smartphone className="absolute left-3.5 h-4 w-4 text-[#989cb0] pointer-events-none" />
+                  <div className="absolute left-3 flex items-center gap-1 text-[#989cb0] pointer-events-none">
+                    <Smartphone className="h-4 w-4" />
+                  </div>
                   <input
                     type="tel"
                     required
@@ -438,12 +445,13 @@ export function SignInCard() {
                     }}
                     placeholder="+1 555 019 2834"
                     disabled={phoneLoading}
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#e1dcd0] rounded-xl text-[13px] text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-white border border-[#e1dcd0] rounded-xl text-[13px] font-mono text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[10.5px] text-[#7a7f92]">
-                  Include international dialing code (e.g. +1 555 0100)
-                </p>
+                <div className="flex items-center justify-between text-[10.5px] text-[#7a7f92]">
+                  <span>Include country dialing code</span>
+                  <span className="font-mono text-[#989cb0]">+1 / +44 / +91</span>
+                </div>
               </div>
 
               <button
@@ -451,17 +459,29 @@ export function SignInCard() {
                 disabled={phoneLoading || !phoneNumber.trim()}
                 className="group w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#101218] hover:bg-[#1c1f2a] text-[#fbf7ee] text-[13.5px] font-semibold rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.25)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-all duration-200 cursor-pointer disabled:opacity-75"
               >
-                <span>{phoneLoading ? "Sending Code..." : "Send Verification Code"}</span>
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                {phoneLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin text-[#dfba82]" />
+                    <span>Dispatching Token...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send Verification Code</span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </button>
             </form>
           ) : (
             <div className="space-y-4">
-              <div className="text-center pt-1">
-                <p className="text-[12.5px] text-[#6e7385]">
-                  Enter the 6-digit verification code sent to
+              <div className="p-3 bg-[#f3ede0] border border-[#e4dcce] rounded-xl text-center space-y-0.5">
+                <span className="text-[10px] font-mono text-[#b8860b] uppercase tracking-wider">
+                  Security Attestation Challenge
+                </span>
+                <p className="text-[12.5px] text-[#494e60]">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-mono font-bold text-[#14161f]">{phoneNumber}</span>
                 </p>
-                <p className="text-[13px] font-bold text-[#14161f] mt-0.5">{phoneNumber}</p>
               </div>
 
               <div className="py-1">
@@ -485,13 +505,13 @@ export function SignInCard() {
               >
                 {phoneLoading ? (
                   <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>Verifying Code...</span>
+                    <RefreshCw className="h-4 w-4 animate-spin text-[#dfba82]" />
+                    <span>Validating Attestation...</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="h-4 w-4" />
-                    <span>Verify & Log in</span>
+                    <ShieldCheck className="h-4 w-4 text-[#dfba82]" />
+                    <span>Verify & Authenticate</span>
                   </>
                 )}
               </button>
@@ -505,13 +525,15 @@ export function SignInCard() {
                     setFormError(null);
                   }}
                   disabled={phoneLoading}
-                  className="text-[#6e7385] hover:text-[#14161f] transition-colors cursor-pointer"
+                  className="text-[#6e7385] hover:text-[#14161f] transition-colors cursor-pointer font-medium"
                 >
-                  ← Edit phone number
+                  ← Change number
                 </button>
 
                 {countdown > 0 ? (
-                  <span className="text-[#8e93a6]">Resend in {countdown}s</span>
+                  <span className="font-mono text-[11px] text-[#8e93a6] bg-[#f0e9dc] px-2 py-0.5 rounded-md">
+                    Resend in {countdown}s
+                  </span>
                 ) : (
                   <button
                     type="button"
@@ -520,7 +542,7 @@ export function SignInCard() {
                     className="text-[#b8860b] hover:text-[#8f6807] font-semibold transition-colors cursor-pointer flex items-center gap-1"
                   >
                     <RefreshCw className="h-3 w-3" />
-                    <span>Resend code</span>
+                    <span>Resend OTP</span>
                   </button>
                 )}
               </div>
