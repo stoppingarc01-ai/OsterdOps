@@ -119,6 +119,7 @@ export type AIProvider =
   | "mistral"
   | "kimi"
   | "moonshot"
+  | "deepseek"
   | "custom";
 
 export type ProviderConnectionStatus =

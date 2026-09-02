@@ -107,6 +107,14 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "kimi-k1.5"],
   },
   {
+    id: "deepseek",
+    name: "DeepSeek",
+    tagline: "DeepSeek-V3 MoE, DeepSeek-R1 CoT, Coder",
+    defaultBaseUrl: "https://api.deepseek.com/v1",
+    keyPlaceholder: "sk-...",
+    models: ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
+  },
+  {
     id: "custom",
     name: "Custom OpenAI-Compatible",
     tagline: "vLLM, Ollama, Together, OpenRouter, LocalAI",

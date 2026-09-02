@@ -115,8 +115,20 @@ export function createGatewayStreamResponse(
             const parsedDeltas = adapter.parseStreamChunk(chunkText, context.model);
 
             for (const delta of parsedDeltas) {
-              if (delta.deltaText) {
-                generatedTextLength += delta.deltaText.length;
+              if (delta.deltaText !== undefined || delta.reasoningText !== undefined) {
+                if (delta.deltaText) {
+                  generatedTextLength += delta.deltaText.length;
+                }
+                const deltaObj: Record<string, unknown> = {
+                  role: "assistant",
+                };
+                if (delta.deltaText !== undefined) {
+                  deltaObj.content = delta.deltaText;
+                }
+                if (delta.reasoningText !== undefined) {
+                  deltaObj.reasoning_content = delta.reasoningText;
+                }
+
                 const chunkPayload = {
                   id: context.requestId,
                   object: "chat.completion.chunk",
@@ -125,10 +137,7 @@ export function createGatewayStreamResponse(
                   choices: [
                     {
                       index: 0,
-                      delta: {
-                        role: "assistant",
-                        content: delta.deltaText,
-                      },
+                      delta: deltaObj,
                       finish_reason: delta.finishReason || null,
                     },
                   ],

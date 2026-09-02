@@ -6,7 +6,7 @@
 
 import type { AIProvider } from "@/types";
 
-export type ProviderId = AIProvider | "meta" | "groq" | "moonshot" | "kimi";
+export type ProviderId = AIProvider | "meta" | "groq" | "moonshot" | "kimi" | "deepseek";
 
 export interface ModelPricing {
   provider: ProviderId;
@@ -668,6 +668,49 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     supportsFunctionCalling: true,
     fallbackModel: "moonshot-v1-8k",
     description: "Points dynamically to Kimi's most capable frontier reasoning and multimodal release",
+  }),
+
+  // ==========================================
+  // 6. DeepSeek AI Models (V3 & R1)
+  // ==========================================
+  "deepseek-chat": createPricingEntry({
+    provider: "deepseek",
+    model: "deepseek-chat",
+    inputCostPer1M: 0.14,
+    outputCostPer1M: 0.28,
+    contextWindow: 65536,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "gpt-4o-mini",
+    cachedInputPerMillionUsd: 0.014,
+    description: "DeepSeek-V3 flagship MoE model with ultra-low token economics ($0.14 in / $0.28 out)",
+  }),
+  "deepseek-reasoner": createPricingEntry({
+    provider: "deepseek",
+    model: "deepseek-reasoner",
+    inputCostPer1M: 0.55,
+    outputCostPer1M: 2.19,
+    contextWindow: 65536,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    fallbackModel: "deepseek-chat",
+    cachedInputPerMillionUsd: 0.14,
+    reasoningPerMillionUsd: 2.19,
+    description: "DeepSeek-R1 frontier reasoning model with verifiable Chain-of-Thought ($0.55 in / $2.19 out)",
+  }),
+  "deepseek-coder": createPricingEntry({
+    provider: "deepseek",
+    model: "deepseek-coder",
+    inputCostPer1M: 0.14,
+    outputCostPer1M: 0.28,
+    contextWindow: 16384,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "deepseek-chat",
+    description: "DeepSeek Coder model optimized for code generation and refactoring ($0.14 in / $0.28 out)",
   }),
 };
 

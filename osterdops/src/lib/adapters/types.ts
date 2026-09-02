@@ -88,6 +88,7 @@ export interface NormalizedProviderError {
 
 export interface ParsedStreamChunk {
   deltaText?: string;
+  reasoningText?: string;
   finishReason?: "stop" | "length" | "tool_calls" | "content_filter" | null;
   usage?: TokenUsageBreakdown;
   rawJson?: unknown;

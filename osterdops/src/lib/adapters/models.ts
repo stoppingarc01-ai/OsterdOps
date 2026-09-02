@@ -648,6 +648,72 @@ export const MODEL_CAPABILITIES_REGISTRY: Record<string, ModelCapabilities> = {
     fallbackModel: "moonshot-v1-8k",
     description: "Points dynamically to Kimi's most capable frontier reasoning and multimodal release",
   },
+
+  // ==========================================
+  // 6. DeepSeek AI Models (V3 & R1)
+  // ==========================================
+  "deepseek-chat": {
+    provider: "deepseek",
+    model: "deepseek-chat",
+    displayName: "DeepSeek Chat (V3)",
+    contextWindow: 65536,
+    maxOutputTokens: 8192,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsPromptCaching: true,
+    supportedParameters: [
+      "temperature",
+      "top_p",
+      "max_tokens",
+      "presence_penalty",
+      "frequency_penalty",
+      "stop",
+      "stream",
+    ],
+    fallbackModel: "gpt-4o-mini",
+    description: "DeepSeek-V3 frontier MoE architecture with ultra-low token economics and high-throughput inference",
+  },
+  "deepseek-reasoner": {
+    provider: "deepseek",
+    model: "deepseek-reasoner",
+    displayName: "DeepSeek Reasoner (R1)",
+    contextWindow: 65536,
+    maxOutputTokens: 8192,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsReasoning: true,
+    supportsPromptCaching: true,
+    supportedParameters: [
+      "temperature",
+      "top_p",
+      "max_tokens",
+      "stop",
+      "stream",
+    ],
+    fallbackModel: "deepseek-chat",
+    description: "DeepSeek-R1 frontier reasoning model with verifiable Chain-of-Thought (CoT) and code/math superiority",
+  },
+  "deepseek-coder": {
+    provider: "deepseek",
+    model: "deepseek-coder",
+    displayName: "DeepSeek Coder",
+    contextWindow: 16384,
+    maxOutputTokens: 4096,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsPromptCaching: true,
+    supportedParameters: [
+      "temperature",
+      "top_p",
+      "max_tokens",
+      "stop",
+      "stream",
+    ],
+    fallbackModel: "deepseek-chat",
+    description: "Dedicated code generation, refactoring, and fill-in-the-middle repository synthesis model",
+  },
 };
 
 const MODEL_LOOKUP_CACHE = new Map<string, ModelCapabilities>();

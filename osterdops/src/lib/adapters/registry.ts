@@ -21,6 +21,7 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   mistral: new OpenAIAdapter(),
   kimi: new OpenAIAdapter(),
   moonshot: new OpenAIAdapter(),
+  deepseek: new OpenAIAdapter(),
   custom: new OpenAIAdapter(),
 };
 
@@ -82,6 +83,10 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
 
   if (normalized.startsWith("moonshot") || normalized.startsWith("kimi")) {
     return "moonshot";
+  }
+
+  if (normalized.startsWith("deepseek")) {
+    return "deepseek";
   }
 
   // Default to OpenAI protocol for unknown / custom fine-tuned models

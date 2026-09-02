@@ -325,6 +325,49 @@ const CURATED_MODELS: CatalogModel[] = [
     popular: true,
   },
 
+  // DeepSeek AI (V3 & R1)
+  {
+    id: "deepseek-chat",
+    name: "DeepSeek Chat (V3)",
+    provider: "deepseek",
+    providerDisplayName: "DEEPSEEK AI",
+    category: "frontier",
+    contextWindow: "65,536 tokens",
+    inputCostPer1M: "$0.14",
+    outputCostPer1M: "$0.28",
+    description: "DeepSeek-V3 MoE frontier flagship model with ultra-low token economics and high-throughput inference.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "gpt-4o-mini",
+    popular: true,
+  },
+  {
+    id: "deepseek-reasoner",
+    name: "DeepSeek Reasoner (R1)",
+    provider: "deepseek",
+    providerDisplayName: "DEEPSEEK AI",
+    category: "reasoning",
+    contextWindow: "65,536 tokens",
+    inputCostPer1M: "$0.55",
+    outputCostPer1M: "$2.19",
+    description: "DeepSeek-R1 frontier reasoning model with verifiable Chain-of-Thought (CoT) and code/math superiority.",
+    capabilities: { vision: false, reasoning: true, streaming: true },
+    fallbackModel: "deepseek-chat",
+    popular: true,
+  },
+  {
+    id: "deepseek-coder",
+    name: "DeepSeek Coder",
+    provider: "deepseek",
+    providerDisplayName: "DEEPSEEK AI",
+    category: "frontier",
+    contextWindow: "16,384 tokens",
+    inputCostPer1M: "$0.14",
+    outputCostPer1M: "$0.28",
+    description: "Dedicated code generation, refactoring, and fill-in-the-middle repository synthesis model.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "deepseek-chat",
+  },
+
   // Embeddings
   {
     id: "text-embedding-3-large",
@@ -408,6 +451,7 @@ export default function DashboardModelsPage() {
       if (activeFilter === "gemini" && m.provider !== "gemini") return false;
       if (activeFilter === "openai" && m.provider !== "openai") return false;
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
+      if (activeFilter === "deepseek" && m.provider !== "deepseek") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
       if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
       if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
@@ -436,6 +480,7 @@ export default function DashboardModelsPage() {
       gemini: CURATED_MODELS.filter((m) => m.provider === "gemini").length,
       openai: CURATED_MODELS.filter((m) => m.provider === "openai").length,
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
+      deepseek: CURATED_MODELS.filter((m) => m.provider === "deepseek").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
       kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
       reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
@@ -448,6 +493,7 @@ export default function DashboardModelsPage() {
     { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "openai", label: `OpenAI (${filterCounts.openai})` },
     { id: "anthropic", label: `Anthropic (${filterCounts.anthropic})` },
+    { id: "deepseek", label: `DeepSeek (${filterCounts.deepseek})` },
     { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
     { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
@@ -604,8 +650,8 @@ export default function DashboardModelsPage() {
                         <div className="flex items-center gap-2.5">
                           <ModelProviderLogo provider={model.provider} modelId={model.id} size="md" />
                           <div>
-                            <div className="text-[11px] font-mono uppercase text-[#D4A362] tracking-wider">
-                              {model.providerDisplayName}
+                            <div className="text-[11px] font-mono uppercase text-[#DFB277] tracking-wider font-semibold">
+                              {model.provider === "deepseek" ? "DEEPSEEK AI" : model.providerDisplayName}
                             </div>
                             <h3 className="text-sm font-bold text-white group-hover:text-[#E5C38E] transition-colors">
                               {model.name}
@@ -659,12 +705,32 @@ export default function DashboardModelsPage() {
 
                       {/* Capability Tags */}
                       <div className="flex flex-wrap gap-1">
+                        {model.id === "deepseek-reasoner" && (
+                          <>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                              Reasoning / R1
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                              CoT Thinking
+                            </span>
+                          </>
+                        )}
+                        {model.id === "deepseek-chat" && (
+                          <>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                              V3 Architecture
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                              Ultra-Low Cost
+                            </span>
+                          </>
+                        )}
                         {model.capabilities.vision && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
                             Vision
                           </span>
                         )}
-                        {model.capabilities.reasoning && (
+                        {model.capabilities.reasoning && model.id !== "deepseek-reasoner" && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4A362]/10 text-[#D4A362] border border-[#D4A362]/40 font-semibold">
                             Reasoning
                           </span>

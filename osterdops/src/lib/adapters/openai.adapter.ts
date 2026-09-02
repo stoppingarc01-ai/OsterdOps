@@ -20,10 +20,12 @@ interface OpenAIChoice {
   message?: {
     role?: string;
     content?: string;
+    reasoning_content?: string;
   };
   delta?: {
     role?: string;
     content?: string;
+    reasoning_content?: string;
   };
   finish_reason?: "stop" | "length" | "tool_calls" | "content_filter" | null;
 }
@@ -62,6 +64,9 @@ export class OpenAIAdapter implements AIProviderAdapter {
     const mdl = (model || "").toLowerCase();
     if (prov === "moonshot" || prov === "kimi" || mdl.startsWith("moonshot") || mdl.startsWith("kimi")) {
       return "https://api.moonshot.cn/v1";
+    }
+    if (prov === "deepseek" || mdl.startsWith("deepseek")) {
+      return "https://api.deepseek.com/v1";
     }
     return "https://api.openai.com/v1";
   }
@@ -204,6 +209,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
           const parsed = JSON.parse(jsonStr) as OpenAIResponseBody;
           const choice = parsed.choices?.[0];
           const deltaText = choice?.delta?.content || "";
+          const reasoningText = choice?.delta?.reasoning_content || "";
           const finishReason = choice?.finish_reason || null;
 
           let usage: TokenUsageBreakdown | undefined;
@@ -213,6 +219,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
 
           results.push({
             deltaText,
+            reasoningText: reasoningText || undefined,
             finishReason,
             usage,
             rawJson: parsed,
@@ -258,6 +265,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
         message: {
           role: "assistant" as const,
           content: c.message?.content || "",
+          reasoning_content: c.message?.reasoning_content,
         },
         finish_reason: c.finish_reason || "stop",
       })),

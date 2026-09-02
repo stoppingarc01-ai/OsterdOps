@@ -174,6 +174,25 @@ export function CustomEndpointLogo({ className = "w-4 h-4", size = 16 }: LogoPro
   );
 }
 
+export function DeepSeekLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4.5 16.5c1.5 1.26 3.5 2 5.5 2 4.5 0 8.5-3.5 10-8.5-1.5 2-4 3.5-7 3.5-2 0-3.5-.5-5-2-1.5-1.5-2-3-2-5 0-1.5.5-3 1.5-4C5 4 3 6.5 3 9.5c0 2.5 1 5 1.5 7z" />
+      <circle cx="8" cy="9" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export interface ModelProviderLogoProps {
   provider?: string;
   modelId?: string;
@@ -261,6 +280,15 @@ export function ModelProviderLogo({
     return (
       <div className={baseContainer} title="Moonshot AI (Kimi)">
         <KimiLogo size={iconSizes} className="w-full h-full text-[#D4A362]" />
+      </div>
+    );
+  }
+
+  // 7. DeepSeek AI
+  if (p === "deepseek" || m.startsWith("deepseek")) {
+    return (
+      <div className={baseContainer} title="DeepSeek AI">
+        <DeepSeekLogo size={iconSizes} className="w-full h-full text-[#DFB277]" />
       </div>
     );
   }
