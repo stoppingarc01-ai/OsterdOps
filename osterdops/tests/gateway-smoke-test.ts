@@ -89,7 +89,7 @@ async function main() {
       outputTokens: 500,
     });
     console.log(
-      `  ✔ ${item.model.padEnd(26)}: $${pricing.inputCostPer1M.toFixed(2)} in / $${pricing.outputCostPer1M.toFixed(2)} out (1M) | 1.5k tok cost: $${cost.totalCostUsd.toFixed(6)} | Fallback: ${pricing.fallbackModel || "none"}`
+      `  ✔ ${item.model.padEnd(26)}: $${pricing.inputCostPer1M.toFixed(2)} in / $${pricing.outputCostPer1M.toFixed(2)} out (1M) | 1.5k tok cost: $${(cost.totalCostUsd ?? 0).toFixed(6)} | Fallback: ${pricing.fallbackModel || "none"}`
     );
   }
 

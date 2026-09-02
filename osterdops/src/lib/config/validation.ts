@@ -29,7 +29,11 @@ export function validateConfiguration(
   }
 
   // 2. Encryption Key for Provider Credentials
-  const hasKey = Boolean(envMap.ENCRYPTION_KEY || envMap.PROVIDER_ENCRYPTION_SECRET);
+  const hasKey = Boolean(
+    envMap.ENCRYPTION_KEY ||
+    envMap.PROVIDER_ENCRYPTION_SECRET ||
+    envMap.OSTERDOPS_ENCRYPTION_KEY
+  );
   if (isProd && !hasKey) {
     errors.push("ENCRYPTION_KEY is required in production for secure AES-256-GCM credential storage.");
     details["ENCRYPTION_KEY"] = { status: "MISSING", category: "Security" };

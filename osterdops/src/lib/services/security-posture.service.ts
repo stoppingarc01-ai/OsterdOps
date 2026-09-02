@@ -95,7 +95,11 @@ export async function evaluateSecurityPosture(
   );
 
   // 10. Provider Encryption
-  const hasKey = Boolean(process.env.ENCRYPTION_KEY || process.env.PROVIDER_ENCRYPTION_SECRET);
+  const hasKey = Boolean(
+    process.env.ENCRYPTION_KEY ||
+    process.env.PROVIDER_ENCRYPTION_SECRET ||
+    process.env.OSTERDOPS_ENCRYPTION_KEY
+  );
   addCheck(
     "AES-256-GCM Provider Encryption",
     "Cryptography",
