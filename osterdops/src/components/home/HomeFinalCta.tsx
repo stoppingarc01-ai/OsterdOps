@@ -20,21 +20,16 @@ export function HomeFinalCta() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-[#DFB277]/10 blur-[130px] pointer-events-none" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="rounded-3xl bg-[#0E0E0E] border-2 border-[#DFB277]/40 p-8 sm:p-12 lg:p-16 text-center space-y-8 shadow-[0_0_80px_rgba(223,178,119,0.08)]">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>ACTIVE PERIMETER READY</span>
-          </div>
-
+        <div className="rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] p-8 sm:p-12 text-center space-y-7">
           <div className="space-y-3 max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-              Deploy Your AI Perimeter in{" "}
-              <span className="bg-gradient-to-r from-[#DFB277] via-[#F3D7A8] to-[#DFB277] bg-clip-text text-transparent">
-                60 Seconds.
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              Start Guarding Your{" "}
+              <span className="text-[#DFB277]">
+                LLM Fleet.
               </span>
             </h2>
             <p className="text-sm sm:text-base text-neutral-400">
-              One proxy URL. Zero code rewrite. Stop rogue agent bills, enforce pre-flight hard limits, and sleep soundly.
+              Point your base URL to OsterdOps to enforce hard budgets, prevent runaway loops, and monitor traffic in real time.
             </p>
           </div>
 

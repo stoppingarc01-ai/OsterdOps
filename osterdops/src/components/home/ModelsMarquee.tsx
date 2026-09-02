@@ -155,13 +155,12 @@ export function ModelsMarquee() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Header & Filter Pills */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-[#1A1A1A]">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>UNIFIED MODEL CATALOG</span>
+          <div className="space-y-1.5 max-w-xl">
+            <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+              Catalog
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              50+ Models. One Standard Perimeter.
+              Supported Models
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
               Route between OpenAI, Anthropic, Gemini, Moonshot Kimi, and open-source models with zero adapter changes.

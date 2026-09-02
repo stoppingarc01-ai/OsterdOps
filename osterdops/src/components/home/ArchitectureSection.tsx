@@ -8,18 +8,17 @@ export function ArchitectureSection() {
     <section className="py-20 bg-[#0A0A0A] border-y border-[#1A1A1A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-            <Network className="w-3.5 h-3.5" />
-            <span>ENTERPRISE TOPOLOGY</span>
+        <div className="text-center max-w-3xl mx-auto space-y-2">
+          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+            Deployment
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Deploy in Our Cloud or Inside Your VPC
+            Cloud or Private VPC
           </h2>
 
           <p className="text-sm text-neutral-400">
-            Choose between globally distributed Anycast edge routing or a 100% air-gapped self-hosted data plane in your AWS, GCP, or Azure VPC.
+            Deploy through our globally distributed edge or run self-hosted containers inside your AWS, GCP, or Azure VPC.
           </p>
         </div>
 

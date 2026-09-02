@@ -26,10 +26,9 @@ export function PiiSanitizerDemo() {
     <section className="py-20 bg-[#0A0A0A] border-y border-[#1A1A1A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-            <Lock className="w-3.5 h-3.5" />
-            <span>ZERO-EGRESS SECURITY PERIMETER</span>
+        <div className="text-center max-w-3xl mx-auto space-y-2">
+          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+            Security
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
@@ -37,7 +36,7 @@ export function PiiSanitizerDemo() {
           </h2>
 
           <p className="text-sm text-neutral-400">
-            Never leak customer SSNs, credit cards, or internal API keys to third-party model providers. OsterdOps scrubs sensitive tokens at wire speed before transmission.
+            Scrub credit cards, social security numbers, and internal secrets at wire speed before requests reach model providers.
           </p>
         </div>
 

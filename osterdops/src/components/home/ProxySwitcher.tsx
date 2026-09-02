@@ -78,19 +78,18 @@ console.log(res.content);`,
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
           {/* Left Explanatory Column */}
-          <div className="space-y-6 lg:max-w-md">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>ZERO SDK LOCK-IN</span>
+          <div className="space-y-5 lg:max-w-md">
+            <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+              Integration
             </div>
 
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              1-Minute Drop-in Proxy. <br />
-              <span className="text-[#DFB277]">Zero Code Rewrite.</span>
+              Drop-in Proxy. <br />
+              <span className="text-[#DFB277]">One Line of Code.</span>
             </h2>
 
             <p className="text-sm text-neutral-400 leading-relaxed">
-              Don&apos;t install proprietary vendor wrappers that break your test suites. OsterdOps exposes a standard OpenAI-compatible API format. Just point your existing SDK&apos;s <code className="text-[#DFB277] bg-[#141414] px-1.5 py-0.5 rounded font-mono text-xs">base_url</code> to our gateway perimeter.
+              OsterdOps is fully OpenAI-compatible. Point your existing SDK or HTTP client to our base URL to enforce budgets, cache responses, and route traffic without SDK lock-in.
             </p>
 
             <div className="space-y-3 pt-2">

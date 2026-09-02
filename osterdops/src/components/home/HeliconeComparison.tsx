@@ -47,18 +47,17 @@ export function HeliconeComparison() {
     <section className="py-20 bg-[#080808]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-            <Zap className="w-3.5 h-3.5" />
-            <span>ARCHITECTURAL ADVANTAGE</span>
+        <div className="text-center max-w-3xl mx-auto space-y-2">
+          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+            Comparison
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Active Perimeter vs. Passive Logging
+            Active Enforcement vs Passive Logging
           </h2>
 
           <p className="text-sm text-neutral-400">
-            Why leading AI engineering and FinOps teams choose OsterdOps over passive observability tools like Helicone, Langfuse, and Portkey.
+            Passive tools record metrics after money is already spent. OsterdOps enforces hard limits inline before requests reach the provider.
           </p>
         </div>
 

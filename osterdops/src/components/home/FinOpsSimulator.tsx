@@ -108,18 +108,17 @@ export function FinOpsSimulator() {
     <section id="simulator" className="py-20 bg-[#0A0A0A] border-y border-[#1A1A1A]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/30 text-xs font-mono text-[#DFB277]">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>INTERACTIVE PERIMETER SANDBOX</span>
+        <div className="text-center max-w-3xl mx-auto space-y-2">
+          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+            Simulator
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            See Active Governance in Action
+            Active Governance Simulator
           </h2>
 
           <p className="text-sm text-neutral-400">
-            Helicone watches your money burn after the fact. OsterdOps actively intercepts requests inline. Test dynamic auto-downgrade routing and the 30-second runaway loop breaker below.
+            Test pre-flight auto-downgrade routing and the 30-second runaway loop breaker in real time.
           </p>
         </div>
 
