@@ -106,7 +106,7 @@ export function SignInCard() {
                 setEmail(e.target.value);
                 if (formError) setFormError(null);
               }}
-              placeholder="you@acmecorp.com"
+              placeholder="you@company.com"
               className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#e1dcd0] rounded-xl text-[13px] text-[#1a1c24] placeholder-[#9ca1b3] focus:outline-none focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
             />
           </div>
@@ -259,7 +259,7 @@ export function SignInCard() {
                     required
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="you@acmecorp.com"
+                    placeholder="you@company.com"
                     className="w-full px-3.5 py-2 bg-[#141622] border border-[#232738] rounded-xl text-[13px] text-white placeholder-[#686d80] focus:outline-none focus:border-[#dfba82]"
                   />
                 </div>

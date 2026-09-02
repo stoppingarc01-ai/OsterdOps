@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface AdminSidebarProps {
   activeSection?: string;
@@ -28,7 +29,11 @@ export function AdminSidebar({
   onSelectSection,
   onLogout,
 }: AdminSidebarProps) {
+  const { user } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Administrator";
+  const initials = (user?.displayName || user?.email || "AD").slice(0, 2).toUpperCase();
 
   const handleNavClick = (sectionId: string) => {
     if (onSelectSection) {
@@ -227,11 +232,11 @@ export function AdminSidebar({
         >
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-full bg-[#dfba82]/20 border border-[#dfba82]/40 text-[#dfba82] flex items-center justify-center font-bold text-[12px]">
-              AP
+              {initials}
             </div>
             <div>
-              <div className="text-[12.5px] font-semibold text-white group-hover:text-[#dfba82] transition-colors">
-                Admin Prasad
+              <div className="text-[12.5px] font-semibold text-white group-hover:text-[#dfba82] transition-colors truncate max-w-[130px]">
+                {displayName}
               </div>
               <div className="text-[10.5px] text-[#717688]">Administrator</div>
             </div>

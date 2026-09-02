@@ -2,14 +2,16 @@
 
 import React, { useState } from "react";
 import { Calendar, ChevronDown, RotateCw, Bell, Building2, UserPlus } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface TeamsHeaderProps {
   onOpenInvite: () => void;
 }
 
 export function TeamsHeader({ onOpenInvite }: TeamsHeaderProps) {
-  const [selectedWorkspace, setSelectedWorkspace] = useState("Acme Corp / All Projects");
-  const [selectedDate, setSelectedDate] = useState("May 10 – May 16, 2025");
+  const { currentOrg } = useAuth();
+  const selectedWorkspace = `${currentOrg?.name || "Workspace"} / All Projects`;
+  const selectedDate = "Last 30 Days";
 
   return (
     <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#161824]">
@@ -48,41 +50,28 @@ export function TeamsHeader({ onOpenInvite }: TeamsHeaderProps) {
           >
             <Calendar className="w-3.5 h-3.5 text-[#dfba82]" />
             <span>{selectedDate}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#73788c]" />
           </button>
         </div>
 
         {/* Refresh Icon */}
         <button
           type="button"
+          onClick={() => window.location.reload()}
           className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
           title="Refresh Data"
         >
-          <RotateCw className="w-4 h-4" />
+          <RotateCw className="w-3.5 h-3.5" />
         </button>
 
-        {/* Invite Member Primary Gold Button */}
+        {/* Invite Member Primary CTA */}
         <button
           type="button"
           onClick={onOpenInvite}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
         >
           <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Invite Member</span>
+          <span>Invite Developer</span>
         </button>
-
-        {/* Bell Icon */}
-        <div className="relative">
-          <button
-            type="button"
-            className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors relative cursor-pointer"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#b8860b] text-[#07080c] font-bold text-[9.5px] flex items-center justify-center border border-[#07080c]">
-              3
-            </span>
-          </button>
-        </div>
       </div>
     </header>
   );

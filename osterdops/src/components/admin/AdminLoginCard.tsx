@@ -13,9 +13,7 @@ import {
   Mail,
   RefreshCw,
   Shield,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { OsterdOpsLogo } from "@/components/layout/OsterdOpsLogo";
 
@@ -24,9 +22,9 @@ interface AdminLoginCardProps {
 }
 
 export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
-  const [adminId, setAdminId] = useState("admin@osterdops.com");
-  const [password, setPassword] = useState("admin123");
-  const [securityToken, setSecurityToken] = useState("849201");
+  const [adminId, setAdminId] = useState("");
+  const [password, setPassword] = useState("");
+  const [securityToken, setSecurityToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -37,29 +35,18 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
     setIsLoading(true);
 
     setTimeout(() => {
-      // Validate credentials (support default demo or valid strings)
-      if (
-        (adminId.toLowerCase().includes("admin") || adminId.toLowerCase().includes("osterdops")) &&
-        password.length >= 4
-      ) {
+      if (adminId.trim() && password.length >= 6) {
         setIsLoading(false);
         onLoginSuccess({
-          name: "Admin Prasad",
+          name: adminId.split("@")[0],
           email: adminId,
           role: "SUPERADMIN",
         });
       } else {
         setIsLoading(false);
-        setErrorMessage("Invalid Administrative ID or Security Token. Use default credentials.");
+        setErrorMessage("Invalid Administrative credentials or password too short.");
       }
-    }, 750);
-  };
-
-  const handleFillDemo = () => {
-    setAdminId("admin@osterdops.com");
-    setPassword("admin123");
-    setSecurityToken("849201");
-    setErrorMessage("");
+    }, 600);
   };
 
   return (
@@ -93,20 +80,6 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
           </p>
         </div>
 
-        {/* 1-Click Demo Fill Badge */}
-        <div
-          onClick={handleFillDemo}
-          className="bg-[#121622] border border-[#1e2638] hover:border-[#dfba82]/40 rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all group"
-        >
-          <div className="flex items-center gap-2 text-[11.5px] text-[#c5c8d4]">
-            <Sparkles className="h-3.5 w-3.5 text-[#dfba82]" />
-            <span>Click here for <strong>Instant Demo Credentials</strong></span>
-          </div>
-          <span className="text-[10.5px] text-[#dfba82] font-semibold group-hover:underline">
-            Auto-fill
-          </span>
-        </div>
-
         {/* Error Alert */}
         {errorMessage && (
           <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl flex items-center gap-2.5 text-[12px] text-red-400">
@@ -125,11 +98,11 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
             <div className="relative flex items-center">
               <Mail className="h-4 w-4 text-[#555a6d] absolute left-3.5 pointer-events-none" />
               <input
-                type="text"
+                type="email"
                 required
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
-                placeholder="admin@osterdops.com"
+                placeholder="admin@workspace.com"
                 className="w-full bg-[#131722] border border-[#22283a] focus:border-[#dfba82] text-white text-[13px] rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none transition-colors"
               />
             </div>
@@ -138,17 +111,17 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
           {/* Master Password */}
           <div>
             <label className="block text-[11.5px] font-semibold text-[#8e94a8] uppercase tracking-wider mb-1.5">
-              Master Password
+              Password
             </label>
             <div className="relative flex items-center">
-              <Lock className="h-4 w-4 text-[#555a6d] absolute left-3.5 pointer-events-none" />
+              <Key className="h-4 w-4 text-[#555a6d] absolute left-3.5 pointer-events-none" />
               <input
                 type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-[#131722] border border-[#22283a] focus:border-[#dfba82] text-white text-[13px] rounded-xl pl-10 pr-10 py-2.5 focus:outline-none transition-colors font-mono"
+                className="w-full bg-[#131722] border border-[#22283a] focus:border-[#dfba82] text-white text-[13px] rounded-xl pl-10 pr-10 py-2.5 focus:outline-none transition-colors"
               />
               <button
                 type="button"
@@ -160,23 +133,20 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
             </div>
           </div>
 
-          {/* 2FA Security Key */}
+          {/* 2FA Token */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11.5px] font-semibold text-[#8e94a8] uppercase tracking-wider">
-                Security Key / 2FA Token
-              </label>
-              <span className="text-[10px] text-[#22c55e] font-mono font-bold">HARDWARE SYNCED</span>
-            </div>
+            <label className="block text-[11.5px] font-semibold text-[#8e94a8] uppercase tracking-wider mb-1.5">
+              2FA Security Token (Optional)
+            </label>
             <div className="relative flex items-center">
-              <Key className="h-4 w-4 text-[#dfba82] absolute left-3.5 pointer-events-none" />
+              <Lock className="h-4 w-4 text-[#555a6d] absolute left-3.5 pointer-events-none" />
               <input
                 type="text"
-                required
                 value={securityToken}
                 onChange={(e) => setSecurityToken(e.target.value)}
-                placeholder="849201"
-                className="w-full bg-[#131722] border border-[#22283a] focus:border-[#dfba82] text-[#dfba82] font-mono text-[13px] rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none transition-colors tracking-widest"
+                placeholder="6-digit authenticator code"
+                maxLength={6}
+                className="w-full bg-[#131722] border border-[#22283a] focus:border-[#dfba82] text-white text-[13px] font-mono rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -185,28 +155,29 @@ export function AdminLoginCard({ onLoginSuccess }: AdminLoginCardProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#dfba82] hover:bg-[#ebd2a9] text-[#07080c] font-bold text-[13px] rounded-xl transition-all shadow-[0_2px_16px_rgba(223,186,130,0.25)] hover:shadow-[0_4px_24px_rgba(223,186,130,0.4)] disabled:opacity-50 cursor-pointer"
+            className="w-full bg-[#dfba82] hover:bg-[#ebd2a9] text-[#07080c] font-bold text-[13.5px] py-3 rounded-xl transition-all shadow-[0_2px_16px_rgba(223,186,130,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
           >
             {isLoading ? (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Verifying Hardware Clearance...</span>
+                <span>Authenticating...</span>
               </>
             ) : (
               <>
-                <span>Authenticate &amp; Onboard to Console</span>
-                <ArrowRight className="h-4 w-4" />
+                <span>Access Admin Console</span>
+                <ArrowRight className="h-4 w-4 stroke-[2.5]" />
               </>
             )}
           </button>
         </form>
 
-        {/* Footer info & Return Home */}
-        <div className="pt-2 border-t border-[#171b26] flex items-center justify-between text-[11px] text-[#555a6d]">
-          <Link href="/" className="hover:text-[#dfba82] transition-colors">
-            &larr; Return to OsterdOps Home
+        <div className="text-center pt-2">
+          <Link
+            href="/dashboard"
+            className="text-[11.5px] text-[#717688] hover:text-[#dfba82] transition-colors"
+          >
+            ← Return to Standard Workspace Dashboard
           </Link>
-          <span>SOC 2 Type II Protected</span>
         </div>
       </div>
     </div>

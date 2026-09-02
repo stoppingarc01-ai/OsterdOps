@@ -14,8 +14,10 @@ import { AuditLogsCard } from "@/components/settings/AuditLogsCard";
 import { NotificationSettingsCard } from "@/components/settings/NotificationSettingsCard";
 import { GenerateApiKeyModal } from "@/components/settings/GenerateApiKeyModal";
 import { ContentTransition } from "@/components/layout/ContentTransition";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
+  const { currentOrg } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTabId>("organization");
   const [isGenerateKeyOpen, setIsGenerateKeyOpen] = useState(false);
 
@@ -58,7 +60,7 @@ export default function SettingsPage() {
                     {/* Quick Link or Embedded Member list */}
                     <div className="p-4 bg-[#121522] border border-[#23273a] rounded-xl flex items-center justify-between">
                       <div className="text-xs text-[#c5c9d6]">
-                        24 active members in <span className="text-[#dfba82] font-semibold">Acme Corporation</span>
+                        Members and roles configured in <span className="text-[#dfba82] font-semibold">{currentOrg?.name || "your workspace"}</span>
                       </div>
                       <a
                         href="/teams"

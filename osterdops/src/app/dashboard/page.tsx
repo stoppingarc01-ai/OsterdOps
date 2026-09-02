@@ -18,10 +18,12 @@ import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
 import { CommandPaletteModal } from "@/components/dashboard/CommandPaletteModal";
 import { CostSimulatorDrawer } from "@/components/dashboard/CostSimulatorDrawer";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-
 import { ContentTransition } from "@/components/layout/ContentTransition";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
+  const { user, userProfile } = useAuth();
+  const displayName = userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Lead");
   const [activeTab, setActiveTab] = useState("overview");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
@@ -47,7 +49,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {/* Top Header */}
               <DashboardHeader
-                userName="Shaan"
+                userName={displayName}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 onOpenSimulator={() => setIsSimulatorOpen(true)}
               />

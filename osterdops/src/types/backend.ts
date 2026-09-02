@@ -31,6 +31,7 @@ export interface Organization {
   slug: string;
   ownerId: string;
   plan: OrganizationPlan;
+  planTier?: string;
   status: OrganizationStatus;
   spendLimitUsd?: number;
   currentPeriodSpendUsd: number;
@@ -87,6 +88,7 @@ export interface ApiKey {
   environment: ApiKeyEnvironment;
   status: ApiKeyStatus;
   scopes?: string[]; // Fine-grained API key scopes
+  permissions?: string[]; // Phase 12 alias
   createdBy: string;
   createdAt: Timestamp | string;
   updatedAt?: Timestamp | string;
@@ -173,7 +175,11 @@ export interface Budget {
   description?: string;
   amountUsd: number;
   limitUsd?: number; // Phase 12 alias to amountUsd
+  monthlyCap?: number; // UI alias
+  limitAmount?: number; // UI alias
   currentSpendUsd?: number;
+  currentSpend?: number; // UI alias
+  scope?: string; // UI alias
   currency?: string; // Default: "USD"
   period: BudgetPeriod;
   periodStart?: string; // ISO 8601

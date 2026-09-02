@@ -19,7 +19,7 @@ export interface IntegrationItem {
   connectionId?: string;
 }
 
-const INITIAL_CATALOG: IntegrationItem[] = [
+const INTEGRATION_TEMPLATES: IntegrationItem[] = [
   {
     id: "openai",
     backendProviderId: "openai",
@@ -155,7 +155,7 @@ export function IntegrationsGridCard({ onOpenConnect }: IntegrationsGridCardProp
   const { currentOrg, getIdToken } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("All");
-  const [items, setItems] = useState<IntegrationItem[]>(INITIAL_CATALOG);
+  const [items, setItems] = useState<IntegrationItem[]>(INTEGRATION_TEMPLATES);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

@@ -5,7 +5,7 @@
 
 import { requireAuth } from "@/lib/auth/server";
 import { syncUserRecord } from "@/lib/services/user.service";
-import { getUserOrganizations } from "@/lib/services/organization.service";
+import { getUserOrganizations, createOrganization } from "@/lib/services/organization.service";
 import { apiSuccess } from "@/lib/api/response";
 
 export async function GET(request: Request) {
@@ -24,7 +24,16 @@ export async function GET(request: Request) {
   });
 
   // Fetch active memberships
-  const organizations = await getUserOrganizations(user.uid);
+  let organizations = await getUserOrganizations(user.uid);
+
+  // Auto-provision initial workspace if user has none yet (e.g. initial Google sign-in)
+  if (organizations.length === 0) {
+    const companyName = `${profile.name || "My"}'s Workspace`;
+    const created = await createOrganization(user.uid, user.email, profile.name, {
+      name: companyName,
+    });
+    organizations = [{ organization: created.organization, membership: created.member }];
+  }
 
   return apiSuccess({
     user: profile,

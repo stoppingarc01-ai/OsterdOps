@@ -1,17 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Building, ShieldCheck, Lock, Upload } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export function GeneralSettingsCard() {
-  const [orgName, setOrgName] = useState("Acme Corp Inc.");
-  const [slug, setSlug] = useState("acme-corp");
-  const [email, setEmail] = useState("billing@acmecorp.com");
+  const { currentOrg, user } = useAuth();
+  const [orgName, setOrgName] = useState(currentOrg?.name || "");
+  const [slug, setSlug] = useState(currentOrg?.slug || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [currency, setCurrency] = useState("USD ($)");
   const [timezone, setTimezone] = useState("America/Los_Angeles (UTC-07:00)");
   const [retention, setRetention] = useState("90");
   const [piiScrubbing, setPiiScrubbing] = useState(true);
   const [ipAnonymization, setIpAnonymization] = useState(true);
+
+  useEffect(() => {
+    if (currentOrg) {
+      setOrgName(currentOrg.name || "");
+      setSlug(currentOrg.slug || "");
+    }
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [currentOrg, user]);
+
+  const monogram = (orgName || "O").slice(0, 2).toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -25,7 +39,7 @@ export function GeneralSettingsCard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
           {/* Logo Badge */}
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#dfba82]/20 to-[#b8860b]/30 border border-[#dfba82]/40 flex items-center justify-center text-[#dfba82] font-extrabold text-xl shrink-0 shadow-[0_0_15px_rgba(223,186,130,0.2)]">
-            AC
+            {monogram}
           </div>
           <div className="space-y-1">
             <div className="text-sm font-semibold text-white">Workspace Brand Monogram</div>

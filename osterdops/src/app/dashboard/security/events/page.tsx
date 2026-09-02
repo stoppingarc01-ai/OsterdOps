@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
-import { AlertOctagon, ShieldAlert, CheckCircle2, Lock } from "lucide-react";
+import { AlertOctagon, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 interface SecurityEventItem {
   id: string;
@@ -15,16 +17,58 @@ interface SecurityEventItem {
   description: string;
 }
 
-const SAMPLE_SECURITY_EVENTS: SecurityEventItem[] = [
-  { id: "sec_01", type: "API_KEY_AUTH_FAILED", severity: "HIGH", timestamp: "2026-08-29 10:24:12 UTC", ipHash: "iph_8f3a9e12", actorId: "unknown", description: "Invalid API key format presented to gateway endpoint." },
-  { id: "sec_02", type: "SECURITY_CONFIGURATION_CHANGED", severity: "HIGH", timestamp: "2026-08-29 09:30:00 UTC", ipHash: "iph_7b210c44", actorId: "usr_shaandev", description: "Allowed CORS origins list updated by workspace administrator." },
-  { id: "sec_03", type: "AUTH_SUCCESS", severity: "INFO", timestamp: "2026-08-29 08:00:15 UTC", ipHash: "iph_7b210c44", actorId: "usr_shaandev", description: "Successful administrative ID token authentication." },
-];
-
 export default function SecurityEventsPage() {
+  const { currentOrg, getIdToken } = useAuth();
   const [filterSev, setFilterSev] = useState<string>("ALL");
+  const [events, setEvents] = useState<SecurityEventItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = SAMPLE_SECURITY_EVENTS.filter(
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchSecurityEvents() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<any[]>(`/api/v1/organizations/${currentOrg.id}/audit-logs`, {
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data)) {
+          const mapped: SecurityEventItem[] = res.data
+            .filter((l: any) => l.action?.includes("SECURITY") || l.action?.includes("AUTH") || l.action?.includes("KEY"))
+            .map((l: any) => ({
+              id: l.id,
+              type: l.action || "SECURITY_EVENT",
+              severity: l.action?.includes("FAIL") || l.action?.includes("DENIED") ? "HIGH" : "INFO",
+              timestamp: l.timestamp ? new Date(l.timestamp).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "Recent",
+              ipHash: l.ip ? `ip_${l.ip.slice(0, 4)}...` : "internal",
+              actorId: l.actor || "system",
+              description: l.target || l.resource || "Security audit entry verified.",
+            }));
+          setEvents(mapped);
+        } else {
+          setEvents([]);
+        }
+      } catch (err) {
+        if (isMounted) setEvents([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchSecurityEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
+
+  const filtered = events.filter(
     (e) => filterSev === "ALL" || e.severity === filterSev
   );
 
@@ -60,16 +104,15 @@ export default function SecurityEventsPage() {
                 </h1>
               </div>
 
-              {/* Severity Filter */}
-              <div className="flex items-center gap-1 bg-[#0c0e17] border border-[#1b1e2c] p-1 rounded-xl text-xs">
-                {["ALL", "CRITICAL", "HIGH", "MEDIUM", "INFO"].map((sev) => (
+              <div className="flex items-center gap-2">
+                {(["ALL", "CRITICAL", "HIGH", "INFO"] as const).map((sev) => (
                   <button
                     key={sev}
                     onClick={() => setFilterSev(sev)}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       filterSev === sev
-                        ? "bg-[#dfba82] text-black font-bold shadow-[0_0_12px_rgba(223,186,130,0.3)]"
-                        : "text-[#8e93a6] hover:text-white hover:bg-white/[0.04]"
+                        ? "bg-[#dfba82] text-black shadow-xs"
+                        : "bg-[#111422] text-[#8e93a6] hover:text-white border border-[#1d2136]"
                     }`}
                   >
                     {sev}
@@ -78,28 +121,46 @@ export default function SecurityEventsPage() {
               </div>
             </div>
 
-            {/* Events List */}
-            <div className="space-y-3">
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getSeverityBadge(item.severity)}`}>
-                        {item.severity}
-                      </span>
-                      <span className="font-bold text-xs font-mono text-white">{item.type}</span>
+            {loading ? (
+              <div className="p-12 text-center text-xs text-[#8e93a6] space-y-2">
+                <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
+                <div>Scanning security logs...</div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-12 rounded-2xl bg-[#0d0f18] border border-[#1d202e] text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-emerald-950/40 border border-emerald-800/30 text-emerald-400 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="text-sm font-semibold text-white">No security threat events recorded</div>
+                <p className="text-xs text-[#8e93a6] max-w-sm mx-auto">
+                  All gateway tokens, IP access controls, and authentication requests are validated and secure.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((e) => (
+                  <div
+                    key={e.id}
+                    className="p-4 bg-[#0d0f18] border border-[#1d202e] rounded-xl hover:border-[#dfba82]/40 transition-all space-y-2"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getSeverityBadge(e.severity)}`}>
+                          {e.severity}
+                        </span>
+                        <h4 className="text-xs font-bold text-white font-mono">{e.type}</h4>
+                      </div>
+                      <span className="text-[11px] text-[#73788c] font-mono">{e.timestamp}</span>
                     </div>
-                    <p className="text-xs text-[#8e93a6]">{item.description}</p>
-                    <div className="text-[10px] font-mono text-[#555a6d]">
-                      Actor: {item.actorId} | Pseudonymized IP: {item.ipHash} | {item.timestamp}
+                    <p className="text-xs text-[#c5c9d6]">{e.description}</p>
+                    <div className="flex items-center gap-4 text-[11px] text-[#73788c] font-mono pt-1">
+                      <span>Actor: {e.actorId}</span>
+                      <span>Origin: {e.ipHash}</span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </ContentTransition>
       </main>

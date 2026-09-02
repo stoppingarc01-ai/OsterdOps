@@ -5,6 +5,7 @@
 
 import "server-only";
 import { getAdminAuth } from "@/lib/firebase/admin";
+import { getFirebaseAdminConfig } from "@/lib/firebase/config";
 import { ApiErrors } from "@/lib/api/response";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { NextResponse } from "next/server";
@@ -54,7 +55,10 @@ export function extractAuthToken(request: Request): string | null {
 export async function verifyUserToken(idToken: string): Promise<DecodedIdToken | null> {
   try {
     const adminAuth = getAdminAuth();
-    return await adminAuth.verifyIdToken(idToken, true);
+    // Only check revocation when service account credentials are provided.
+    // When running locally without a service account, verify token signature cryptographically against Google's public certs.
+    const hasAdminCredentials = Boolean(getFirebaseAdminConfig());
+    return await adminAuth.verifyIdToken(idToken, hasAdminCredentials);
   } catch (err) {
     console.error("[OsterdOps Auth] Token verification failed:", (err as Error).message);
     return null;

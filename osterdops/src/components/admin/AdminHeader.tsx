@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Bell, ChevronDown, LogOut, Search, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface AdminHeaderProps {
   breadcrumb?: string;
@@ -14,7 +15,11 @@ export function AdminHeader({
   onOpenCommandPalette,
   onLogout,
 }: AdminHeaderProps) {
+  const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Administrator";
+  const initials = (user?.displayName || user?.email || "AD").slice(0, 2).toUpperCase();
 
   return (
     <header className="h-16 border-b border-[#171b26] bg-[#07080d]/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 font-sans">
@@ -50,9 +55,6 @@ export function AdminHeader({
           className="relative p-2 rounded-xl text-[#8e94a8] hover:text-white hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[#dfba82] text-[#07080c] font-bold text-[10px] flex items-center justify-center shadow-[0_0_8px_rgba(223,186,130,0.5)]">
-            7
-          </span>
         </button>
 
         <div className="h-5 w-px bg-[#1d2232]" />
@@ -64,13 +66,13 @@ export function AdminHeader({
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer group"
           >
             <div className="h-8 w-8 rounded-full bg-[#dfba82]/20 border border-[#dfba82]/40 text-[#dfba82] flex items-center justify-center font-bold text-[11.5px]">
-              AP
+              {initials}
             </div>
             <div className="hidden sm:block text-left">
               <div className="text-[12.5px] font-semibold text-white group-hover:text-[#dfba82] transition-colors">
-                Admin Prasad
+                {displayName}
               </div>
-              <div className="text-[10px] text-[#717688]">Administrator</div>
+              <div className="text-[10px] text-[#717688]">Platform Admin</div>
             </div>
             <ChevronDown className="h-3.5 w-3.5 text-[#555a6d] group-hover:text-white transition-colors ml-0.5" />
           </div>

@@ -1,99 +1,110 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
+import { Layers, Loader2 } from "lucide-react";
+
+interface ProviderUsage {
+  provider: string;
+  spendUsd: number;
+  percentageOfSpend: number;
+  requests: number;
+}
+
+const PROVIDER_COLORS: Record<string, string> = {
+  openai: "#dfba82",
+  anthropic: "#b8860b",
+  gemini: "#9da1b2",
+  other: "#3b82f6",
+};
 
 export function SpendByProviderCard() {
-  const providers = [
-    { name: "OpenAI", spend: "$2,450.21", percentage: "56.6%", color: "#dfba82" },
-    { name: "Anthropic", spend: "$1,210.43", percentage: "28.0%", color: "#b8860b" },
-    { name: "Google Gemini", spend: "$412.32", percentage: "9.5%", color: "#9da1b2" },
-    { name: "Other Models", spend: "$164.34", percentage: "4.5%", color: "#3b82f6" },
-  ];
+  const { currentOrg, getIdToken } = useAuth();
+  const [providers, setProviders] = useState<ProviderUsage[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchProviderSpend() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<any>("/api/v1/analytics/overview", {
+          params: { organizationId: currentOrg.id, timeRange: "30d" },
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data.byProvider) && res.data.byProvider.length > 0) {
+          setProviders(res.data.byProvider);
+        } else {
+          setProviders([]);
+        }
+      } catch (err) {
+        if (isMounted) setProviders([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchProviderSpend();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
 
   return (
     <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
       <h3 className="text-base font-semibold text-[#f4efe6]">Spend by Provider</h3>
 
-      <div className="flex flex-col sm:flex-row items-center gap-6">
-        {/* SVG Donut Chart */}
-        <div className="relative w-36 h-36 flex items-center justify-center shrink-0">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-            {/* OpenAI Arc (56.6%) */}
-            <circle
-              cx="50"
-              cy="50"
-              r="38"
-              fill="none"
-              stroke="#dfba82"
-              strokeWidth="14"
-              strokeDasharray="135 238"
-              strokeDashoffset="0"
-            />
-            {/* Anthropic Arc (28.0%) */}
-            <circle
-              cx="50"
-              cy="50"
-              r="38"
-              fill="none"
-              stroke="#b8860b"
-              strokeWidth="14"
-              strokeDasharray="67 238"
-              strokeDashoffset="-137"
-            />
-            {/* Google Gemini Arc (9.5%) */}
-            <circle
-              cx="50"
-              cy="50"
-              r="38"
-              fill="none"
-              stroke="#9da1b2"
-              strokeWidth="14"
-              strokeDasharray="23 238"
-              strokeDashoffset="-206"
-            />
-            {/* Other Models Arc (4.5%) */}
-            <circle
-              cx="50"
-              cy="50"
-              r="38"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="14"
-              strokeDasharray="11 238"
-              strokeDashoffset="-230"
-            />
-          </svg>
-
-          {/* Center Text overlay */}
-          <div className="absolute text-center">
-            <div className="text-[13px] font-bold text-white leading-none">
-              $4,328.64
-            </div>
-            <div className="text-[9.5px] text-[#73788c] mt-0.5">Total</div>
+      {loading ? (
+        <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
+          <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
+          <div>Aggregating provider metrics...</div>
+        </div>
+      ) : providers.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#090b12] border border-[#171a27] text-center space-y-2">
+          <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 border border-[#dfba82]/20 text-[#dfba82] flex items-center justify-center mx-auto">
+            <Layers className="w-4 h-4" />
           </div>
+          <div className="text-xs font-semibold text-white">No provider usage recorded</div>
+          <p className="text-[11px] text-[#73788c]">
+            Provider spend breakdown will appear once gateway proxy requests are made.
+          </p>
         </div>
-
-        {/* Legend List */}
-        <div className="flex-1 space-y-2.5 w-full">
-          {providers.map((p) => (
-            <div key={p.name} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: p.color }}
-                />
-                <span className="text-[#c5c9d6] font-medium">{p.name}</span>
+      ) : (
+        <div className="space-y-3">
+          {providers.map((p) => {
+            const color = PROVIDER_COLORS[p.provider.toLowerCase()] || "#38bdf8";
+            return (
+              <div key={p.provider} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="font-medium text-[#c5c9d6] capitalize">{p.provider}</span>
+                  </div>
+                  <span className="font-mono font-bold text-white">${p.spendUsd.toFixed(2)}</span>
+                </div>
+                <div className="w-full h-1.5 bg-[#141724] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, p.percentageOfSpend)}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">{p.spend}</span>
-                <span className="text-[10.5px] text-[#73788c] w-9 text-right font-mono">
-                  {p.percentage}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

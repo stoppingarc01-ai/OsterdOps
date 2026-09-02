@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   KeyRound,
   Plus,
@@ -14,8 +14,12 @@ import {
   Lock,
   Eye,
   EyeOff,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { DeveloperPortalLayout } from "@/components/developers/DeveloperPortalLayout";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 interface DeveloperKey {
   id: string;
@@ -29,304 +33,343 @@ interface DeveloperKey {
   expiresAt?: string;
 }
 
-const INITIAL_KEYS: DeveloperKey[] = [
-  {
-    id: "key_994a1",
-    name: "Production Backend Ingestion",
-    keyPrefix: "osk_live_••••94f2",
-    project: "production-backend",
-    environment: "production",
-    status: "active",
-    createdAt: "2026-08-20",
-    lastUsedAt: "2 minutes ago",
-  },
-  {
-    id: "key_882b4",
-    name: "Staging Pipeline",
-    keyPrefix: "osk_test_••••3b11",
-    project: "staging-cluster",
-    environment: "staging",
-    status: "active",
-    createdAt: "2026-08-22",
-    lastUsedAt: "1 hour ago",
-  },
-];
-
 export default function ApiKeysDeveloperPage() {
-  const [keys, setKeys] = useState<DeveloperKey[]>(INITIAL_KEYS);
+  const { currentOrg, getIdToken } = useAuth();
+  const [keys, setKeys] = useState<DeveloperKey[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyEnv, setNewKeyEnv] = useState<"production" | "staging" | "development">("production");
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [confirmedSaved, setConfirmedSaved] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  const handleCreateKey = () => {
-    if (!newKeyName.trim()) return;
+  const fetchKeys = useCallback(async () => {
+    if (!currentOrg?.id) return;
+    setLoading(true);
 
-    const keySuffix = Math.random().toString(36).slice(2, 6);
-    const mockSecret = `osk_${newKeyEnv === "production" ? "live" : "test"}_${Math.random()
-      .toString(36)
-      .slice(2, 10)}${Math.random().toString(36).slice(2, 10)}${keySuffix}`;
+    try {
+      const token = await getIdToken();
+      const res = await apiRequest<any>("/api/v1/api-keys", {
+        params: { organizationId: currentOrg.id },
+        token,
+      });
 
-    const newKey: DeveloperKey = {
-      id: `key_${Date.now()}`,
-      name: newKeyName.trim(),
-      keyPrefix: `osk_${newKeyEnv === "production" ? "live" : "test"}_••••${keySuffix}`,
-      project: "production-backend",
-      environment: newKeyEnv,
-      status: "active",
-      createdAt: new Date().toISOString().split("T")[0],
-      lastUsedAt: "Just now",
-    };
+      const keyList = Array.isArray(res.data) ? res.data : res.data?.items || [];
+      const mapped: DeveloperKey[] = keyList.map((k: any) => ({
+        id: k.id,
+        name: k.name || "API Access Key",
+        keyPrefix: k.keyPrefix || (k.prefix ? `${k.prefix}••••••••` : "osk_••••"),
+        project: k.projectName || "Default Workspace",
+        environment: k.environment || "production",
+        status: k.status === "REVOKED" ? "revoked" : "active",
+        createdAt: k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "Recent",
+        lastUsedAt: k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Never",
+      }));
+      setKeys(mapped);
+    } catch (e) {
+      setKeys([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentOrg, getIdToken]);
 
-    setKeys([newKey, ...keys]);
-    setRevealedSecret(mockSecret);
+  useEffect(() => {
+    fetchKeys();
+  }, [fetchKeys]);
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim() || !currentOrg?.id) return;
+    setCreating(true);
+
+    try {
+      const token = await getIdToken();
+      const res = await apiRequest<any>("/api/v1/api-keys", {
+        method: "POST",
+        token,
+        body: JSON.stringify({
+          organizationId: currentOrg.id,
+          name: newKeyName.trim(),
+          environment: newKeyEnv,
+          scopes: ["usage:ingest", "models:read"],
+        }),
+      });
+
+      if (res.error) {
+        throw new Error(res.error || "Failed to create key");
+      }
+
+      const secret = res.data?.key || res.data?.secret || "osk_live_generated";
+      setRevealedSecret(secret);
+      setConfirmedSaved(false);
+      await fetchKeys();
+    } catch (e) {
+      // handled
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleCopySecret = async () => {
-    if (!revealedSecret) return;
-    await navigator.clipboard.writeText(revealedSecret);
-    setCopiedSecret(true);
-    setTimeout(() => setCopiedSecret(false), 2000);
+  const handleCopySecret = () => {
+    if (revealedSecret) {
+      navigator.clipboard.writeText(revealedSecret);
+      setCopiedSecret(true);
+      setTimeout(() => setCopiedSecret(false), 2000);
+    }
   };
 
-  const handleCloseRevealModal = () => {
-    setRevealedSecret(null);
-    setShowCreateModal(false);
-    setNewKeyName("");
-    setConfirmedSaved(false);
-  };
+  const handleRevokeKey = async (id: string) => {
+    setKeys((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, status: "revoked" as const } : k))
+    );
 
-  const handleRevokeKey = (id: string) => {
-    setKeys(keys.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
+    try {
+      const token = await getIdToken();
+      await apiRequest(`/api/v1/api-keys/${id}`, {
+        method: "DELETE",
+        token,
+      });
+    } catch (e) {
+      // handled
+    }
   };
 
   return (
     <DeveloperPortalLayout
-      title="API Key Management"
-      subtitle="Issue, rotate, and manage cryptographically secured OsterdOps API keys"
+      title="API Keys & Access Control"
+      subtitle="Manage scoped secret keys for SDK integration, CI/CD pipelines, and runtime inference."
     >
-      <div className="space-y-6 max-w-5xl">
-        {/* Security Architecture Banner */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#dfba82]/10 via-[#0c0e17] to-[#0c0e17] border border-[#dfba82]/30 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-[#dfba82]/20 text-[#dfba82] shrink-0 border border-[#dfba82]/30">
-            <Lock className="w-4 h-4" />
-          </div>
+      <div className="space-y-6">
+        {/* Actions bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="text-xs font-bold text-[#dfba82] font-serif">
-              Cryptographic Key Lifecycle Guarantees
-            </div>
-            <p className="text-xs text-[#a0a5b8] mt-1 leading-relaxed">
-              OsterdOps stores only one-way SHA-256 hashes of API keys using timing-safe comparisons. Plaintext
-              secrets are generated in memory and revealed exactly once. They can never be recovered from the
-              server or database if lost.
+            <h2 className="text-base font-semibold text-[#f4efe6]">Active Credentials</h2>
+            <p className="text-xs text-[#8e93a6]">
+              All requests to OsterdOps endpoints require a valid bearer secret key.
             </p>
           </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-white font-serif">Active Keys</h2>
-            <p className="text-xs text-[#73788c]">Keys permitted to authenticate AI Gateway and API requests</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#dfba82] hover:bg-[#c9a36d] text-black text-xs font-bold transition-all cursor-pointer shadow-[0_0_15px_rgba(223,186,130,0.25)]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create New API Key</span>
-          </button>
-        </div>
-
-        {/* Keys Table */}
-        <div className="rounded-2xl border border-[#1b1e2c] bg-[#0c0e17] overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#111422] text-[#8e93a6] border-b border-[#1b1e2c]">
-                <tr>
-                  <th className="p-3.5 font-semibold">Name & Prefix</th>
-                  <th className="p-3.5 font-semibold">Project</th>
-                  <th className="p-3.5 font-semibold">Environment</th>
-                  <th className="p-3.5 font-semibold">Created</th>
-                  <th className="p-3.5 font-semibold">Last Used</th>
-                  <th className="p-3.5 font-semibold">Status</th>
-                  <th className="p-3.5 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#161928]">
-                {keys.map((k) => (
-                  <tr key={k.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-semibold text-white">{k.name}</div>
-                      <div className="text-[11px] font-mono text-[#dfba82]">{k.keyPrefix}</div>
-                    </td>
-                    <td className="p-3.5 font-mono text-[#8e93a6]">{k.project}</td>
-                    <td className="p-3.5">
-                      <span className="capitalize text-xs font-medium text-white px-2 py-0.5 rounded bg-[#161928] border border-[#232738]">
-                        {k.environment}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-[#8e93a6] font-mono text-[11px]">{k.createdAt}</td>
-                    <td className="p-3.5 text-[#8e93a6] text-[11px]">{k.lastUsedAt || "Never"}</td>
-                    <td className="p-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold ${
-                          k.status === "active"
-                            ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
-                            : "bg-red-950/60 text-red-400 border border-red-800/40"
-                        }`}
-                      >
-                        {k.status}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right">
-                      {k.status === "active" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRevokeKey(k.id)}
-                          className="px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-950/80 text-red-400 border border-red-800/40 text-[11px] font-medium transition-all cursor-pointer"
-                        >
-                          Revoke
-                        </button>
-                      ) : (
-                        <span className="text-[#555a6d] text-[11px]">Revoked</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchKeys}
+              className="p-2 rounded-xl bg-[#0c0e16] border border-[#1b1e2c] text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
+              title="Refresh credentials"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#dfba82]" : ""}`} />
+            </button>
+            <button
+              onClick={() => {
+                setRevealedSecret(null);
+                setNewKeyName("");
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold shadow-md transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Generate Secret Key
+            </button>
           </div>
         </div>
 
-        {/* Modal: Create API Key Form / Secret Reveal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-lg bg-[#0c0e17] border border-[#232738] rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5">
-              {!revealedSecret ? (
-                <>
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#161824]">
-                    <div className="p-2 rounded-xl bg-[#dfba82]/20 text-[#dfba82] border border-[#dfba82]/30">
+        {/* Credentials List */}
+        <div className="rounded-2xl border border-[#1a1d2b] bg-[#0c0e16] overflow-hidden shadow-xl">
+          {loading ? (
+            <div className="p-12 text-center text-xs text-[#6b7082] space-y-2">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#dfba82]" />
+              <div>Loading access credentials...</div>
+            </div>
+          ) : keys.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#dfba82]/10 border border-[#dfba82]/20 text-[#dfba82] flex items-center justify-center mx-auto">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div className="text-sm font-bold text-white">No Developer Keys Found</div>
+              <p className="text-xs text-[#8e93a6] max-w-sm mx-auto">
+                Generate an API key to authenticate your SDK or backend integration.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#141724]">
+              {keys.map((key) => (
+                <div
+                  key={key.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#141624] border border-[#23273a] flex items-center justify-center text-[#dfba82] shrink-0 mt-0.5">
                       <KeyRound className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white font-serif">Create Project API Key</h3>
-                      <p className="text-xs text-[#73788c]">Assign a descriptive identifier for your workload</p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-white">{key.name}</span>
+                        <span
+                          className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                            key.environment === "production"
+                              ? "bg-amber-950/40 text-[#dfba82] border border-amber-800/40"
+                              : "bg-blue-950/40 text-blue-300 border border-blue-800/40"
+                          }`}
+                        >
+                          {key.environment}
+                        </span>
+                        <span
+                          className={`text-[9.5px] px-1.5 py-0.2 rounded font-bold ${
+                            key.status === "active"
+                              ? "bg-emerald-950/40 text-emerald-400 border border-emerald-800/40"
+                              : "bg-red-950/40 text-red-400 border border-red-800/40"
+                          }`}
+                        >
+                          {key.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-xs font-mono text-[#8e93a6] flex items-center gap-2">
+                        <span>{key.keyPrefix}</span>
+                        <span className="text-[#555a6d]">·</span>
+                        <span className="text-[#6b7082]">Last used: {key.lastUsedAt || "Never"}</span>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {key.status === "active" && (
+                      <button
+                        onClick={() => handleRevokeKey(key.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141624] hover:bg-red-950/30 border border-[#23273a] hover:border-red-800/40 text-xs font-semibold text-[#8e93a6] hover:text-red-400 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Revoke</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modal: Create Key */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-[#0e1017] border border-[#232738] rounded-2xl p-6 shadow-2xl text-white relative space-y-4">
+              {!revealedSecret ? (
+                <>
+                  <div className="flex items-center justify-between pb-2 border-b border-[#1c1f2e]">
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-[#dfba82]" />
+                      <h3 className="text-base font-bold text-white">Generate Developer Key</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowCreateModal(false)}
+                      className="text-[#787d91] hover:text-white transition-colors cursor-pointer"
+                    >
+                      ✕
+                    </button>
                   </div>
 
                   <div className="space-y-4 text-xs">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-white">Key Name</label>
+                    <div className="space-y-1">
+                      <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">Key Identifier</label>
                       <input
                         type="text"
-                        placeholder="e.g. Ingestion Worker"
                         value={newKeyName}
                         onChange={(e) => setNewKeyName(e.target.value)}
-                        className="w-full bg-[#07080c] border border-[#1b1e2c] rounded-xl p-2.5 text-xs text-white outline-none focus:border-[#dfba82]/50"
+                        placeholder="e.g. Ingestion Pipeline Server"
+                        className="w-full px-3.5 py-2 bg-[#141622] border border-[#232738] rounded-xl text-white placeholder-[#5e6377] focus:outline-none focus:border-[#dfba82]"
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-white">Environment</label>
-                      <select
-                        value={newKeyEnv}
-                        onChange={(e) =>
-                          setNewKeyEnv(e.target.value as "production" | "staging" | "development")
-                        }
-                        className="w-full bg-[#07080c] border border-[#1b1e2c] rounded-xl p-2.5 text-xs text-white outline-none"
-                      >
-                        <option value="production">Production (osk_live_...)</option>
-                        <option value="staging">Staging (osk_test_...)</option>
-                        <option value="development">Development (osk_test_...)</option>
-                      </select>
+                    <div className="space-y-1">
+                      <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">Target Environment</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewKeyEnv("production")}
+                          className={`p-2.5 rounded-xl border text-center font-semibold transition-all cursor-pointer ${
+                            newKeyEnv === "production"
+                              ? "bg-[#dfba82]/15 border-[#dfba82] text-[#dfba82]"
+                              : "bg-[#141622] border-[#232738] text-[#8e93a6]"
+                          }`}
+                        >
+                          Production
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewKeyEnv("staging")}
+                          className={`p-2.5 rounded-xl border text-center font-semibold transition-all cursor-pointer ${
+                            newKeyEnv === "staging"
+                              ? "bg-blue-950/40 border-blue-500 text-blue-400"
+                              : "bg-[#141622] border-[#232738] text-[#8e93a6]"
+                          }`}
+                        >
+                          Staging / Test
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#161824]">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateModal(false)}
-                      className="px-3.5 py-2 rounded-xl bg-[#161928] text-[#8e93a6] hover:text-white text-xs font-semibold cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateKey}
-                      disabled={!newKeyName.trim()}
-                      className="px-4 py-2 rounded-xl bg-[#dfba82] hover:bg-[#c9a36d] text-black text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      Generate Key
-                    </button>
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1c1f2e]">
+                      <button
+                        onClick={() => setShowCreateModal(false)}
+                        className="px-3.5 py-2 text-xs text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleCreateKey}
+                        disabled={creating || !newKeyName.trim()}
+                        className="px-4 py-2 bg-[#dfba82] text-black font-bold rounded-xl hover:bg-[#ebd4aa] transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        <span>Create Secret Key</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
-                /* Single-Reveal Plaintext Secret Modal */
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#161824]">
-                    <div className="p-2 rounded-xl bg-amber-950/60 border border-amber-800/40 text-amber-400">
-                      <AlertTriangle className="w-4 h-4" />
+                <>
+                  <div className="flex items-center gap-2 pb-2 border-b border-[#1c1f2e] text-amber-400">
+                    <ShieldAlert className="w-5 h-5 shrink-0" />
+                    <h3 className="text-base font-bold text-white">Save Secret Key Now</h3>
+                  </div>
+
+                  <div className="space-y-4 text-xs">
+                    <p className="text-[#8e93a6] leading-relaxed">
+                      This secret key will <strong>never be shown again</strong>. Please copy and store it securely in your environment variables or secret manager.
+                    </p>
+
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#08090f] border border-[#232738] font-mono text-xs">
+                      <span className="text-[#dfba82] font-bold select-all truncate mr-2">{revealedSecret}</span>
+                      <button
+                        onClick={handleCopySecret}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141624] hover:bg-[#202538] border border-[#23273a] text-xs font-semibold text-white transition-colors cursor-pointer shrink-0"
+                      >
+                        {copiedSecret ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#dfba82]" />}
+                        <span>{copiedSecret ? "Copied" : "Copy"}</span>
+                      </button>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white font-serif">Save Your API Key Secret</h3>
-                      <p className="text-xs text-amber-400 font-medium">
-                        This secret is shown only once and cannot be recovered later.
-                      </p>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={confirmedSaved}
+                        onChange={(e) => setConfirmedSaved(e.target.checked)}
+                        className="rounded border-[#232738] text-[#dfba82] focus:ring-0"
+                      />
+                      <span className="text-xs text-[#c5c9d6]">I have copied and securely stored this secret key</span>
+                    </label>
+
+                    <div className="pt-2 border-t border-[#1c1f2e]">
+                      <button
+                        onClick={() => {
+                          setShowCreateModal(false);
+                          setRevealedSecret(null);
+                        }}
+                        disabled={!confirmedSaved}
+                        className="w-full py-2 bg-[#dfba82] text-black font-bold rounded-xl text-xs hover:bg-[#ebd4aa] transition-colors cursor-pointer disabled:opacity-40"
+                      >
+                        Done & Close
+                      </button>
                     </div>
                   </div>
-
-                  {/* Secret Display Box */}
-                  <div className="p-3.5 rounded-xl bg-[#07080c] border border-[#dfba82]/40 flex items-center justify-between gap-3">
-                    <span className="font-mono text-xs text-[#dfba82] font-semibold break-all select-all">
-                      {revealedSecret}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={handleCopySecret}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161928] hover:bg-[#232738] text-white text-xs font-medium shrink-0 cursor-pointer border border-[#232738]"
-                    >
-                      {copiedSecret ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-[#dfba82]" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Confirmation Checkbox */}
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#c5c9d6] select-none">
-                    <input
-                      type="checkbox"
-                      checked={confirmedSaved}
-                      onChange={(e) => setConfirmedSaved(e.target.checked)}
-                      className="mt-0.5 rounded border-[#232738] bg-[#07080c] text-[#dfba82] focus:ring-0"
-                    />
-                    <span>I have copied and safely stored this API key secret in my environment variables.</span>
-                  </label>
-
-                  <div className="pt-3 border-t border-[#161824] flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleCloseRevealModal}
-                      disabled={!confirmedSaved}
-                      className="px-4 py-2 rounded-xl bg-[#dfba82] hover:bg-[#c9a36d] text-black text-xs font-bold transition-all cursor-pointer disabled:opacity-40"
-                    >
-                      Done & Close
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </div>

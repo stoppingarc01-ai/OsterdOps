@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -20,9 +20,78 @@ import {
   CheckCircle2,
   Shield,
   Zap,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
+import type { Budget, Alert } from "@/types";
 
 export function AdminOverviewView() {
+  const { currentOrg, getIdToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const [monthlySpend, setMonthlySpend] = useState(0);
+  const [totalRequests, setTotalRequests] = useState(0);
+  const [avgLatency, setAvgLatency] = useState(0);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAdminData() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const [analyticsRes, budgetsRes, alertsRes] = await Promise.all([
+          apiRequest<any>("/api/v1/analytics/overview", {
+            params: { organizationId: currentOrg.id, timeRange: "30d" },
+            token,
+          }),
+          apiRequest<Budget[]>("/api/v1/budgets", {
+            params: { organizationId: currentOrg.id },
+            token,
+          }),
+          apiRequest<Alert[]>("/api/v1/alerts", {
+            params: { organizationId: currentOrg.id },
+            token,
+          }),
+        ]);
+
+        if (!isMounted) return;
+
+        if (analyticsRes.data?.kpis) {
+          const k = analyticsRes.data.kpis;
+          setMonthlySpend(k.totalSpendUsd ?? 0);
+          setTotalRequests(k.totalRequests ?? 0);
+          setAvgLatency(Math.round(k.averageLatencyMs ?? 0));
+        }
+        if (Array.isArray(budgetsRes.data)) {
+          setBudgets(budgetsRes.data);
+        }
+        if (Array.isArray(alertsRes.data)) {
+          setAlerts(alertsRes.data);
+        }
+      } catch (err) {
+        // fallback to 0
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadAdminData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
+
+  const totalCap = budgets.reduce((acc, b) => acc + (b.monthlyCap || b.limitAmount || 0), 0);
+  const budgetUtil = totalCap > 0 ? Math.min(100, (monthlySpend / totalCap) * 100) : 0;
+  const criticalAlerts = alerts.filter((a) => a.severity === "CRITICAL" || a.status === "ACTIVE").length;
+
   return (
     <div className="space-y-6">
       {/* Executive KPI Metric Grid */}
@@ -34,16 +103,22 @@ export function AdminOverviewView() {
             <Coins className="w-4 h-4 text-[#dfba82]" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-2xl font-bold text-white font-mono">$1,842.20</div>
-            <div className="text-xs text-[#8e93a6] font-mono">/ $2,500.00</div>
+            <div className="text-2xl font-bold text-white font-mono">
+              ${monthlySpend.toFixed(2)}
+            </div>
+            <div className="text-xs text-[#8e93a6] font-mono">
+              / {totalCap > 0 ? `$${totalCap.toFixed(2)}` : "No limit"}
+            </div>
           </div>
           <div className="mt-3">
             <div className="flex items-center justify-between text-[11px] text-[#8e93a6] mb-1">
               <span>Budget Utilization</span>
-              <span className="font-mono text-amber-400 font-semibold">73.7%</span>
+              <span className="font-mono text-amber-400 font-semibold">
+                {totalCap > 0 ? `${budgetUtil.toFixed(1)}%` : "—"}
+              </span>
             </div>
             <div className="w-full bg-[#1b202e] h-1.5 rounded-full overflow-hidden">
-              <div className="bg-amber-400 h-full rounded-full" style={{ width: "73.7%" }} />
+              <div className="bg-amber-400 h-full rounded-full" style={{ width: `${budgetUtil}%` }} />
             </div>
           </div>
         </div>
@@ -55,48 +130,51 @@ export function AdminOverviewView() {
             <Activity className="w-4 h-4 text-sky-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-2xl font-bold text-white font-mono">148,290</div>
+            <div className="text-2xl font-bold text-white font-mono">
+              {totalRequests.toLocaleString()}
+            </div>
             <div className="text-xs text-emerald-400 flex items-center font-medium">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +14.2%
+              <span>Metered</span>
             </div>
           </div>
           <div className="mt-3 text-[11px] text-[#8e93a6] flex items-center justify-between">
             <span>Avg Latency (p50)</span>
-            <span className="font-mono text-white">142 ms</span>
+            <span className="font-mono text-white">{avgLatency} ms</span>
           </div>
         </div>
 
-        {/* Security Posture */}
+        {/* Active Alerts */}
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5 hover:border-[#dfba82]/40 transition-all">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>Security Posture</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Active Incidents</span>
+            <BellRing className="w-4 h-4 text-rose-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-2xl font-bold text-emerald-400 font-mono">100 / 100</div>
+            <div className="text-2xl font-bold text-white font-mono">
+              {criticalAlerts}
+            </div>
             <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/40">
-              GRADE A+
+              {criticalAlerts === 0 ? "SECURE" : "ATTENTION"}
             </span>
           </div>
           <div className="mt-3 text-[11px] text-[#8e93a6] flex items-center justify-between">
-            <span>Audit Integrity</span>
-            <span className="text-emerald-400 font-semibold">100% SHA-256 Valid</span>
+            <span>Total Alerts</span>
+            <span className="text-[#c5c9d6] font-semibold">{alerts.length} registered</span>
           </div>
         </div>
 
         {/* System Probes */}
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5 hover:border-[#dfba82]/40 transition-all">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>System Health</span>
+            <span>Gateway Health</span>
             <Server className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <div className="text-2xl font-bold text-white font-mono">8 / 8</div>
-            <span className="text-xs text-emerald-400 font-semibold">OPERATIONAL</span>
+            <div className="text-2xl font-bold text-emerald-400 font-mono">ONLINE</div>
           </div>
           <div className="mt-3 text-[11px] text-[#8e93a6] flex items-center justify-between">
-            <span>Active Outages</span>
-            <span className="text-emerald-400 font-semibold">0 incidents</span>
+            <span>Proxy Status</span>
+            <span className="text-emerald-400 font-semibold">Operational</span>
           </div>
         </div>
       </div>
@@ -191,50 +269,31 @@ export function AdminOverviewView() {
             <ArrowUpRight className="w-4 h-4 text-[#717688] group-hover:text-[#dfba82] transition-colors" />
           </div>
           <h3 className="text-sm font-bold text-white mt-4 group-hover:text-[#dfba82] transition-colors">
-            Budgets &amp; Enforcement
+            FinOps &amp; Budgets
           </h3>
           <p className="text-xs text-[#8e93a6] mt-1">
-            Set hard spending caps, pause/resume limits, and configure proactive thresholds.
+            Enforce spending limits, manage alerts, and set automated circuit-breaker guardrails.
           </p>
         </Link>
 
-        {/* Security & Audit Card */}
+        {/* Audit Logs Card */}
         <Link
-          href="/admin/security"
+          href="/admin/audit-logs"
           className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5 hover:border-[#dfba82]/50 hover:bg-[#0f121b] transition-all group"
         >
           <div className="flex items-center justify-between">
             <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-              <ShieldCheck className="w-5 h-5" />
+              <FileText className="w-5 h-5" />
             </div>
             <ArrowUpRight className="w-4 h-4 text-[#717688] group-hover:text-[#dfba82] transition-colors" />
           </div>
           <h3 className="text-sm font-bold text-white mt-4 group-hover:text-[#dfba82] transition-colors">
-            Security &amp; Audit Center
+            Tamper-Proof Audit Trail
           </h3>
           <p className="text-xs text-[#8e93a6] mt-1">
-            Audit logs with SHA-256 hash chains, security posture evaluations, and retention rules.
+            Inspect cryptographic, append-only logs for all security and administration actions.
           </p>
         </Link>
-      </div>
-
-      {/* Privacy and Multi-Tenant Isolation Seal */}
-      <div className="p-4 rounded-2xl bg-[#090b10] border border-[#171b26] flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Shield className="w-5 h-5 text-[#dfba82]" />
-          <div>
-            <div className="text-xs font-semibold text-white">
-              Enterprise Governance &amp; Multi-Tenant Privacy Shield
-            </div>
-            <div className="text-[11px] text-[#8e93a6]">
-              Tenant boundary enforced at database query layer. Zero prompt or plaintext key retention in system telemetry.
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>Server Authorization Active</span>
-        </div>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ export function DashboardHeader({
   onOpenSimulator,
 }: DashboardHeaderProps) {
   const { user, userProfile } = useAuth();
-  const activeUserName = userName || userProfile?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Shaan";
+  const activeUserName = userName || userProfile?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || (user?.email ? user.email.split("@")[0] : "Commander");
 
   const [selectedDateRange, setSelectedDateRange] = useState("May 10 – May 16, 2025");
   const [selectedProject, setSelectedProject] = useState("All Projects");

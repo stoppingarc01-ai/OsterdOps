@@ -86,7 +86,7 @@ export function EditOrganizationModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-[#121522] border border-[#23273a] focus:border-[#dfba82] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#555b70] focus:outline-none transition-colors"
-                placeholder="e.g. Acme Corporation"
+                placeholder="e.g. Workspace Name"
               />
             </div>
           </div>
@@ -104,7 +104,7 @@ export function EditOrganizationModal({
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 className="bg-transparent focus:outline-none flex-1 font-mono text-xs text-white placeholder-[#555b70]"
-                placeholder="acme-corp.osterdops.com"
+                placeholder="workspace.osterdops.com"
               />
             </div>
           </div>
@@ -122,7 +122,7 @@ export function EditOrganizationModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-transparent focus:outline-none flex-1 text-xs text-white placeholder-[#555b70]"
-                placeholder="billing@acme.com"
+                placeholder="billing@company.com"
               />
             </div>
           </div>

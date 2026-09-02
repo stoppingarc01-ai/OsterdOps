@@ -90,7 +90,7 @@ export function StepOrganization({
               required
               value={data.orgName}
               onChange={(e) => onChange({ orgName: e.target.value })}
-              placeholder="e.g. Acme Corporation"
+              placeholder="e.g. Acme AI or Global Tech"
               className="w-full bg-[#0d0f18] border border-[#1d202e] focus:border-[#dfba82] rounded-xl px-4 py-2.5 text-[13.5px] text-white placeholder-[#52576b] focus:outline-none focus:ring-2 focus:ring-[#dfba82]/20 transition-all"
             />
           </div>

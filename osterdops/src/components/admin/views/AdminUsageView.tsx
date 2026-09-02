@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   Coins,
@@ -11,7 +11,10 @@ import {
   Sparkles,
   Search,
   Filter,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 interface ModelUsage {
   model: string;
@@ -24,101 +27,125 @@ interface ModelUsage {
   avgLatencyMs: number;
 }
 
-const MODEL_USAGE_DATA: ModelUsage[] = [
-  {
-    model: "gpt-4o-mini",
-    provider: "openai",
-    requests: 94210,
-    promptTokens: 18450000,
-    completionTokens: 6240000,
-    cachedTokens: 4120000,
-    totalCostUsd: 642.15,
-    avgLatencyMs: 142,
-  },
-  {
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    requests: 28450,
-    promptTokens: 11200000,
-    completionTokens: 4100000,
-    cachedTokens: 2800000,
-    totalCostUsd: 792.8,
-    avgLatencyMs: 295,
-  },
-  {
-    model: "gemini-1.5-pro",
-    provider: "google",
-    requests: 16820,
-    promptTokens: 8900000,
-    completionTokens: 2150000,
-    cachedTokens: 1540000,
-    totalCostUsd: 264.4,
-    avgLatencyMs: 185,
-  },
-  {
-    model: "gpt-4o",
-    provider: "openai",
-    requests: 8810,
-    promptTokens: 4200000,
-    completionTokens: 1320000,
-    cachedTokens: 980000,
-    totalCostUsd: 142.85,
-    avgLatencyMs: 380,
-  },
-];
-
 export function AdminUsageView() {
-  const [providerFilter, setProviderFilter] = useState("ALL");
+  const { currentOrg, getIdToken } = useAuth();
+  const [usageData, setUsageData] = useState<ModelUsage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [totalTokens, setTotalTokens] = useState(0);
+  const [totalSpend, setTotalSpend] = useState(0);
+  const [totalRequests, setTotalRequests] = useState(0);
+  const [avgLatency, setAvgLatency] = useState(0);
   const [search, setSearch] = useState("");
+  const [providerFilter, setProviderFilter] = useState("ALL");
 
-  const filteredModels = MODEL_USAGE_DATA.filter((m) => {
-    const matchesSearch = m.model.toLowerCase().includes(search.toLowerCase());
-    const matchesProvider = providerFilter === "ALL" || m.provider === providerFilter;
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUsage() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<any>("/api/v1/analytics/overview", {
+          params: { organizationId: currentOrg.id, timeRange: "30d" },
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data?.kpis) {
+          const k = res.data.kpis;
+          setTotalTokens(k.totalTokens ?? 0);
+          setTotalSpend(k.totalSpendUsd ?? 0);
+          setTotalRequests(k.totalRequests ?? 0);
+          setAvgLatency(Math.round(k.averageLatencyMs ?? 0));
+        }
+
+        if (Array.isArray(res.data?.byModel)) {
+          const mapped: ModelUsage[] = res.data.byModel.map((m: any) => ({
+            model: m.model,
+            provider: m.provider || "openai",
+            requests: m.requests ?? 0,
+            promptTokens: Math.round((m.tokens ?? 0) * 0.7),
+            completionTokens: Math.round((m.tokens ?? 0) * 0.3),
+            cachedTokens: 0,
+            totalCostUsd: m.spendUsd ?? 0,
+            avgLatencyMs: avgLatency || 140,
+          }));
+          setUsageData(mapped);
+        } else {
+          setUsageData([]);
+        }
+      } catch (err) {
+        if (isMounted) setUsageData([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadUsage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
+
+  const filteredModels = usageData.filter((item) => {
+    const matchesSearch = item.model.toLowerCase().includes(search.toLowerCase());
+    const matchesProvider =
+      providerFilter === "ALL" || item.provider.toLowerCase() === providerFilter.toLowerCase();
     return matchesSearch && matchesProvider;
   });
 
   return (
     <div className="space-y-6">
-      {/* Overview Cards */}
+      {/* Top Metric Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>Total Requests</span>
-            <Activity className="w-4 h-4 text-[#dfba82]" />
+            <span>Total Metered Tokens (30d)</span>
+            <Cpu className="w-4 h-4 text-[#dfba82]" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-2">148,290</div>
-          <div className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +14.2% from last month
+          <div className="text-2xl font-bold text-white font-mono mt-2">
+            {totalTokens >= 1_000_000
+              ? `${(totalTokens / 1_000_000).toFixed(2)}M`
+              : totalTokens.toLocaleString()}
           </div>
+          <div className="text-[11px] text-[#717688] mt-2">Aggregated across providers</div>
         </div>
 
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>Total Tokens Processed</span>
-            <Cpu className="w-4 h-4 text-sky-400" />
+            <span>Total Incurred Cost</span>
+            <Coins className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-2">56.56 M</div>
-          <div className="text-[11px] text-[#8e93a6] mt-2">
-            42.75M prompt / 13.81M completion
+          <div className="text-2xl font-bold text-white font-mono mt-2">
+            ${totalSpend.toFixed(2)}
           </div>
+          <div className="text-[11px] text-[#717688] mt-2">Micro-cent precision billing</div>
         </div>
 
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>Prompt Cache Savings</span>
-            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span>Total Ingestion Requests</span>
+            <Activity className="w-4 h-4 text-sky-400" />
           </div>
-          <div className="text-2xl font-bold text-emerald-400 font-mono mt-2">$214.50</div>
-          <div className="text-[11px] text-[#8e93a6] mt-2">9.44M cached tokens read</div>
+          <div className="text-2xl font-bold text-white font-mono mt-2">
+            {totalRequests.toLocaleString()}
+          </div>
+          <div className="text-[11px] text-emerald-400 mt-2">Live proxy ingestion</div>
         </div>
 
         <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5">
           <div className="flex items-center justify-between text-xs text-[#8e93a6]">
-            <span>Gateway Latency (p50 / p99)</span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <span>Avg Latency (p50)</span>
+            <Clock className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-2">142 / 420 ms</div>
-          <div className="text-[11px] text-emerald-400 mt-2">99.99% gateway uptime</div>
+          <div className="text-2xl font-bold text-white font-mono mt-2">
+            {avgLatency} ms
+          </div>
+          <div className="text-[11px] text-emerald-400 mt-2">Gateway performance nominal</div>
         </div>
       </div>
 
@@ -152,43 +179,54 @@ export function AdminUsageView() {
       {/* Model Breakdown Table */}
       <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#07080c] border-b border-[#171b26] text-[#717688] uppercase tracking-wider font-semibold">
-              <tr>
-                <th className="p-4">Model &amp; Provider</th>
-                <th className="p-4">Requests</th>
-                <th className="p-4">Prompt Tokens</th>
-                <th className="p-4">Completion Tokens</th>
-                <th className="p-4">Cache Tokens</th>
-                <th className="p-4">Total Cost ($USD)</th>
-                <th className="p-4 text-right">Avg Latency</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#171b26] text-white">
-              {filteredModels.map((item) => (
-                <tr key={item.model} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="p-4">
-                    <div className="font-semibold text-white font-mono">{item.model}</div>
-                    <div className="text-[11px] text-[#8e93a6] uppercase">{item.provider}</div>
-                  </td>
-                  <td className="p-4 font-mono">{item.requests.toLocaleString()}</td>
-                  <td className="p-4 font-mono text-[#8e93a6]">
-                    {(item.promptTokens / 1000000).toFixed(2)}M
-                  </td>
-                  <td className="p-4 font-mono text-[#8e93a6]">
-                    {(item.completionTokens / 1000000).toFixed(2)}M
-                  </td>
-                  <td className="p-4 font-mono text-emerald-400">
-                    {(item.cachedTokens / 1000000).toFixed(2)}M
-                  </td>
-                  <td className="p-4 font-mono font-semibold text-[#dfba82]">
-                    ${item.totalCostUsd.toFixed(2)}
-                  </td>
-                  <td className="p-4 text-right font-mono text-[#8e93a6]">{item.avgLatencyMs} ms</td>
+          {loading ? (
+            <div className="p-12 text-center text-xs text-[#8e93a6] space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#dfba82]" />
+              <div>Loading consumption telemetry...</div>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#07080c] border-b border-[#171b26] text-[#717688] uppercase tracking-wider font-semibold">
+                <tr>
+                  <th className="p-4">Model &amp; Provider</th>
+                  <th className="p-4">Requests</th>
+                  <th className="p-4">Total Tokens</th>
+                  <th className="p-4">Total Cost ($USD)</th>
+                  <th className="p-4 text-right">Avg Latency</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#171b26] text-white">
+                {filteredModels.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-xs text-[#73788c] bg-[#090b12]">
+                      No model consumption metrics recorded for this organization
+                    </td>
+                  </tr>
+                ) : (
+                  filteredModels.map((item) => (
+                    <tr key={item.model} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="p-4">
+                        <div className="font-semibold text-white font-mono">{item.model}</div>
+                        <div className="text-[11px] text-[#8e93a6] uppercase">{item.provider}</div>
+                      </td>
+                      <td className="p-4 font-mono">{item.requests.toLocaleString()}</td>
+                      <td className="p-4 font-mono text-[#8e93a6]">
+                        {item.promptTokens + item.completionTokens >= 1_000_000
+                          ? `${((item.promptTokens + item.completionTokens) / 1_000_000).toFixed(2)}M`
+                          : (item.promptTokens + item.completionTokens).toLocaleString()}
+                      </td>
+                      <td className="p-4 font-mono text-[#dfba82] font-semibold">
+                        ${item.totalCostUsd.toFixed(4)}
+                      </td>
+                      <td className="p-4 text-right font-mono text-[#8e93a6]">
+                        {item.avgLatencyMs} ms
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

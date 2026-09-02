@@ -19,6 +19,7 @@ import {
   LogOut,
   ArrowLeft
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const navigationGroups = [
   {
@@ -27,14 +28,14 @@ const navigationGroups = [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { title: "Projects", href: "/dashboard/projects", icon: FolderKanban },
       { title: "Usage", href: "/dashboard/usage", icon: Activity },
-      { title: "Optimization", href: "/dashboard/optimization", icon: Sparkles, badge: "Save 34%" },
+      { title: "Optimization", href: "/dashboard/optimization", icon: Sparkles },
     ],
   },
   {
     label: "Governance",
     items: [
       { title: "Budgets", href: "/dashboard/budgets", icon: Wallet },
-      { title: "Alerts", href: "/dashboard/alerts", icon: Bell, badge: "3" },
+      { title: "Alerts", href: "/dashboard/alerts", icon: Bell },
       { title: "Integrations", href: "/dashboard/integrations", icon: Plug },
     ],
   },
@@ -57,6 +58,7 @@ const navigationGroups = [
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
+  const { currentOrg } = useAuth();
 
   return (
     <aside
@@ -115,7 +117,7 @@ export function Sidebar({ className }: { className?: string }) {
                         <Icon className={cn("w-4 h-4", isActive ? "stroke-[2.2]" : "stroke-[1.75]")} />
                         <span>{item.title}</span>
                       </div>
-                      {item.badge && (
+                      {(item as any).badge && (
                         <span
                           className={cn(
                             "px-1.5 py-0.2 rounded-full text-[9px] font-mono",
@@ -124,7 +126,7 @@ export function Sidebar({ className }: { className?: string }) {
                               : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           )}
                         >
-                          {item.badge}
+                          {(item as any).badge}
                         </span>
                       )}
                     </Link>
@@ -140,16 +142,20 @@ export function Sidebar({ className }: { className?: string }) {
       <div className="p-4 border-t border-slate-200 dark:border-white/[0.08]">
         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">
-              A
+            <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold font-mono">
+              {(currentOrg?.name || "W")[0].toUpperCase()}
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Acme Corp</span>
-              <span className="text-[10px] text-slate-500">Enterprise Plan</span>
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
+                {currentOrg?.name || "Workspace"}
+              </span>
+              <span className="text-[10px] text-slate-500">
+                {currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} Plan` : "Free Plan"}
+              </span>
             </div>
           </div>
 
-          <Link href="/" title="Logout" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <Link href="/login" title="Logout" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <LogOut className="w-3.5 h-3.5" />
           </Link>
         </div>

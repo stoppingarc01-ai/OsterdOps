@@ -8,6 +8,7 @@ import { requireAuth, type AuthenticatedUser } from "./server";
 import { ApiErrors } from "@/lib/api/response";
 import { hasMinimumRole, ROLE_HIERARCHY } from "./rbac-rules";
 import { hasPermission, type Permission, ROLE_PERMISSIONS } from "./permissions";
+import { getOrganizationById, getOrganizationMembers } from "@/lib/services/organization.service";
 import type { OrganizationRole, OrganizationMember, Organization, Project } from "@/types";
 import type { NextResponse } from "next/server";
 
@@ -48,27 +49,38 @@ export async function requireOrganizationMember(
   const orgDocRef = db.collection("organizations").doc(orgId);
   const orgSnap = await orgDocRef.get();
 
-  if (!orgSnap.exists) {
-    return { errorResponse: ApiErrors.notFound(`Organization '${orgId}' does not exist.`) };
+  let org: Organization | null = null;
+  if (orgSnap.exists) {
+    org = { id: orgSnap.id, ...orgSnap.data() } as Organization;
+  } else {
+    org = await getOrganizationById(orgId);
   }
 
-  const org = { id: orgSnap.id, ...orgSnap.data() } as Organization;
+  if (!org) {
+    return { errorResponse: ApiErrors.notFound(`Organization '${orgId}' does not exist.`) };
+  }
 
   if (org.status === "suspended") {
     return { errorResponse: ApiErrors.forbidden("This organization has been suspended.") };
   }
 
-  // 2. Fetch membership document directly from Firestore
+  // 2. Fetch membership document directly from Firestore or simulated membership
   const memberDocRef = orgDocRef.collection("members").doc(user.uid);
   const memberSnap = await memberDocRef.get();
 
-  if (!memberSnap.exists) {
+  let member: OrganizationMember | null = null;
+  if (memberSnap.exists) {
+    member = memberSnap.data() as OrganizationMember;
+  } else {
+    const allMembers = await getOrganizationMembers(orgId);
+    member = allMembers.find((m) => m.userId === user.uid) || null;
+  }
+
+  if (!member) {
     return {
       errorResponse: ApiErrors.forbidden("You are not a member of this organization."),
     };
   }
-
-  const member = memberSnap.data() as OrganizationMember;
 
   if (member.status !== "active") {
     return {

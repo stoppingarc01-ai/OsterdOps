@@ -1,19 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Coins,
   Plus,
-  Play,
-  Pause,
+  Search,
+  AlertTriangle,
+  CheckCircle2,
+  Shield,
   Edit2,
   Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  Shield,
+  Pause,
+  Play,
   X,
-  Search,
+  Zap,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
+import type { Budget } from "@/types";
 
 interface AdminBudget {
   id: string;
@@ -28,59 +33,10 @@ interface AdminBudget {
   billingPeriod: string;
 }
 
-const INITIAL_BUDGETS: AdminBudget[] = [
-  {
-    id: "bg_org_main",
-    name: "Organization Master Budget",
-    scopeType: "ORGANIZATION",
-    targetName: "Acme Enterprises",
-    budgetAmountUsd: 2500,
-    currentSpendUsd: 1842.2,
-    enforceHardLimit: true,
-    thresholds: [50, 80, 100],
-    status: "ACTIVE",
-    billingPeriod: "Monthly (May 2025)",
-  },
-  {
-    id: "bg_proj_prod",
-    name: "Production Gateway Limit",
-    scopeType: "PROJECT",
-    targetName: "Production Gateway",
-    budgetAmountUsd: 1500,
-    currentSpendUsd: 1140.5,
-    enforceHardLimit: true,
-    thresholds: [80, 100],
-    status: "ACTIVE",
-    billingPeriod: "Monthly (May 2025)",
-  },
-  {
-    id: "bg_proj_stg",
-    name: "Staging Pipeline Cap",
-    scopeType: "PROJECT",
-    targetName: "Staging LLM Pipeline",
-    budgetAmountUsd: 600,
-    currentSpendUsd: 412.2,
-    enforceHardLimit: false,
-    thresholds: [50, 90],
-    status: "ACTIVE",
-    billingPeriod: "Monthly (May 2025)",
-  },
-  {
-    id: "bg_proj_rag",
-    name: "RAG Indexer Budget",
-    scopeType: "PROJECT",
-    targetName: "RAG Knowledge Indexer",
-    budgetAmountUsd: 400,
-    currentSpendUsd: 289.5,
-    enforceHardLimit: true,
-    thresholds: [75, 100],
-    status: "ACTIVE",
-    billingPeriod: "Monthly (May 2025)",
-  },
-];
-
 export function AdminBudgetsView() {
-  const [budgets, setBudgets] = useState<AdminBudget[]>(INITIAL_BUDGETS);
+  const { currentOrg, getIdToken } = useAuth();
+  const [budgets, setBudgets] = useState<AdminBudget[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newBudgetName, setNewBudgetName] = useState("");
@@ -90,26 +46,59 @@ export function AdminBudgetsView() {
   const [newBudgetHardLimit, setNewBudgetHardLimit] = useState(true);
   const [editingBudget, setEditingBudget] = useState<AdminBudget | null>(null);
 
-  const filteredBudgets = budgets.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.targetName.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    let isMounted = true;
 
-  const handleTogglePause = (budget: AdminBudget) => {
-    setBudgets(
-      budgets.map((b) =>
-        b.id === budget.id
-          ? { ...b, status: b.status === "ACTIVE" ? "PAUSED" : "ACTIVE" }
-          : b
-      )
-    );
-  };
+    async function loadBudgets() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
 
-  const handleDeleteBudget = (budgetId: string) => {
-    if (confirm("Delete this budget constraint?")) {
-      setBudgets(budgets.filter((b) => b.id !== budgetId));
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<Budget[]>("/api/v1/budgets", {
+          params: { organizationId: currentOrg.id },
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data)) {
+          const mapped: AdminBudget[] = res.data.map((b: any) => ({
+            id: b.id,
+            name: b.name || "Spending Limit",
+            scopeType: b.scope === "project" ? "PROJECT" : "ORGANIZATION",
+            targetName: b.resourceName || currentOrg.name || "Workspace",
+            budgetAmountUsd: b.monthlyCap || b.limitAmount || 500,
+            currentSpendUsd: b.currentSpend ?? 0,
+            enforceHardLimit: b.policyAction === "hard_stop",
+            thresholds: b.alertThresholds || [80, 100],
+            status: b.status === "paused" ? "PAUSED" : "ACTIVE",
+            billingPeriod: "Monthly",
+          }));
+          setBudgets(mapped);
+        } else {
+          setBudgets([]);
+        }
+      } catch (err) {
+        if (isMounted) setBudgets([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
-  };
+
+    loadBudgets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
+
+  const filteredBudgets = budgets.filter((b) => {
+    return (
+      b.name.toLowerCase().includes(search.toLowerCase()) ||
+      b.targetName.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +114,7 @@ export function AdminBudgetsView() {
       enforceHardLimit: newBudgetHardLimit,
       thresholds: [80, 100],
       status: "ACTIVE",
-      billingPeriod: "Monthly (May 2025)",
+      billingPeriod: "Monthly",
     };
 
     setBudgets([newBg, ...budgets]);
@@ -133,9 +122,24 @@ export function AdminBudgetsView() {
     setIsCreateModalOpen(false);
   };
 
-  const handleUpdateSubmit = (e: React.FormEvent) => {
+  const handleTogglePause = (budget: AdminBudget) => {
+    setBudgets(
+      budgets.map((b) =>
+        b.id === budget.id
+          ? { ...b, status: b.status === "ACTIVE" ? "PAUSED" : "ACTIVE" }
+          : b
+      )
+    );
+  };
+
+  const handleDeleteBudget = (budgetId: string) => {
+    setBudgets(budgets.filter((b) => b.id !== budgetId));
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBudget) return;
+
     setBudgets(
       budgets.map((b) => (b.id === editingBudget.id ? editingBudget : b))
     );
@@ -144,16 +148,16 @@ export function AdminBudgetsView() {
 
   return (
     <div className="space-y-6">
-      {/* Top Search & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative">
+      {/* Top Controls Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-[#717688] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search budgets..."
+            placeholder="Search budgets or targets..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3.5 py-2 bg-[#0c0f16] border border-[#171b26] rounded-xl text-xs text-white placeholder:text-[#555a6d] focus:outline-none focus:border-[#dfba82] w-64"
+            className="w-full bg-[#0c0f16] border border-[#171b26] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
           />
         </div>
 
@@ -166,193 +170,211 @@ export function AdminBudgetsView() {
         </button>
       </div>
 
-      {/* Budgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredBudgets.map((budget) => {
-          const utilPct = Math.min(
-            100,
-            Math.round((budget.currentSpendUsd / budget.budgetAmountUsd) * 100)
-          );
+      {/* Budgets Grid / Empty State */}
+      {loading ? (
+        <div className="p-12 text-center text-xs text-[#8e93a6] space-y-2">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#dfba82]" />
+          <div>Loading budget caps...</div>
+        </div>
+      ) : filteredBudgets.length === 0 ? (
+        <div className="p-12 text-center text-xs text-[#73788c] bg-[#0c0f16] rounded-2xl border border-[#171b26] space-y-2">
+          <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 text-[#dfba82] flex items-center justify-center mx-auto">
+            <Coins className="w-4 h-4" />
+          </div>
+          <div className="text-sm font-semibold text-white">No budget limits configured</div>
+          <p className="text-[11px] text-[#73788c] max-w-sm mx-auto">
+            Set up organizational spending limits to trigger alerts or automatically halt inference when capacity is exceeded.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredBudgets.map((budget) => {
+            const utilPct = Math.min(
+              100,
+              Math.round((budget.currentSpendUsd / (budget.budgetAmountUsd || 1)) * 100)
+            );
 
-          return (
-            <div
-              key={budget.id}
-              className={`bg-[#0c0f16] border rounded-2xl p-5 transition-all flex flex-col justify-between ${
-                budget.status === "ACTIVE"
-                  ? "border-[#171b26] hover:border-[#dfba82]/40"
-                  : "border-[#171b26]/60 opacity-60"
-              }`}
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-sm text-white font-serif">{budget.name}</h3>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                          budget.status === "ACTIVE"
-                            ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
-                            : "bg-amber-950/60 text-amber-400 border-amber-800/40"
-                        }`}
+            return (
+              <div
+                key={budget.id}
+                className="bg-[#0c0f16] border border-[#171b26] hover:border-[#dfba82]/40 rounded-2xl p-5 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-white font-serif">{budget.name}</h3>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            budget.status === "ACTIVE"
+                              ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
+                              : "bg-amber-950/60 text-amber-400 border-amber-800/40"
+                          }`}
+                        >
+                          {budget.status}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#717688] font-mono mt-0.5">
+                        {budget.scopeType}: {budget.targetName}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleTogglePause(budget)}
+                        className="p-1.5 hover:bg-[#1b202e] rounded-lg text-[#8e93a6] hover:text-[#dfba82] transition-colors cursor-pointer"
+                        title={budget.status === "ACTIVE" ? "Pause Enforcement" : "Resume Enforcement"}
                       >
-                        {budget.status}
+                        {budget.status === "ACTIVE" ? (
+                          <Pause className="w-3.5 h-3.5" />
+                        ) : (
+                          <Play className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setEditingBudget(budget)}
+                        className="p-1.5 hover:bg-[#1b202e] rounded-lg text-[#8e93a6] hover:text-[#dfba82] transition-colors cursor-pointer"
+                        title="Edit Budget"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBudget(budget.id)}
+                        className="p-1.5 hover:bg-rose-950/40 rounded-lg text-[#8e93a6] hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Delete Budget"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Utilization Gauge */}
+                  <div className="mt-4 p-4 rounded-xl bg-[#07080c] border border-[#171b26] space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#8e93a6]">Current Spend</span>
+                      <span className="font-mono text-white font-semibold">
+                        ${budget.currentSpendUsd.toFixed(2)}{" "}
+                        <span className="text-[#717688]">/ ${budget.budgetAmountUsd.toLocaleString()}</span>
                       </span>
                     </div>
-                    <div className="text-[11px] text-[#717688] font-mono mt-0.5">
-                      {budget.scopeType}: {budget.targetName}
+
+                    <div className="w-full bg-[#1b202e] h-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          utilPct > 90 ? "bg-rose-500" : utilPct > 70 ? "bg-amber-400" : "bg-emerald-400"
+                        }`}
+                        style={{ width: `${utilPct}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#8e93a6]">
+                      <span>{utilPct}% consumed</span>
+                      <span>
+                        ${Math.max(0, budget.budgetAmountUsd - budget.currentSpendUsd).toFixed(2)} headroom
+                      </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleTogglePause(budget)}
-                      className="p-1.5 hover:bg-[#1b202e] rounded-lg text-[#8e93a6] hover:text-[#dfba82] transition-colors cursor-pointer"
-                      title={budget.status === "ACTIVE" ? "Pause Enforcement" : "Resume Enforcement"}
-                    >
-                      {budget.status === "ACTIVE" ? (
-                        <Pause className="w-3.5 h-3.5" />
-                      ) : (
-                        <Play className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setEditingBudget(budget)}
-                      className="p-1.5 hover:bg-[#1b202e] rounded-lg text-[#8e93a6] hover:text-[#dfba82] transition-colors cursor-pointer"
-                      title="Edit Budget"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteBudget(budget.id)}
-                      className="p-1.5 hover:bg-rose-950/40 rounded-lg text-[#8e93a6] hover:text-rose-400 transition-colors cursor-pointer"
-                      title="Delete Budget"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
                 </div>
 
-                {/* Utilization Gauge */}
-                <div className="mt-4 p-4 rounded-xl bg-[#07080c] border border-[#171b26] space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#8e93a6]">Current Spend</span>
-                    <span className="font-mono text-white font-semibold">
-                      ${budget.currentSpendUsd.toFixed(2)}{" "}
-                      <span className="text-[#717688]">/ ${budget.budgetAmountUsd.toFixed(2)}</span>
-                    </span>
-                  </div>
-
-                  <div className="w-full bg-[#1b202e] h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        utilPct >= 100
-                          ? "bg-rose-500"
-                          : utilPct >= 80
-                          ? "bg-amber-400"
-                          : "bg-emerald-400"
+                <div className="mt-4 pt-3 border-t border-[#171b26] flex items-center justify-between text-[11px] text-[#8e93a6]">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        budget.enforceHardLimit ? "bg-rose-400" : "bg-amber-400"
                       }`}
-                      style={{ width: `${utilPct}%` }}
                     />
+                    <span>{budget.enforceHardLimit ? "Hard Cap (Throttled)" : "Soft Alert (Warn Only)"}</span>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-[#717688]">
-                    <span>Utilization: <strong className="text-white">{utilPct}%</strong></span>
-                    <span>Mode: <strong className={budget.enforceHardLimit ? "text-amber-400" : "text-[#8e93a6]"}>{budget.enforceHardLimit ? "Hard Block (429)" : "Soft Alert"}</strong></span>
-                  </div>
+                  <span>{budget.billingPeriod}</span>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <div className="mt-4 pt-3 border-t border-[#171b26] flex items-center justify-between text-[11px] text-[#8e93a6]">
-                <span>Thresholds: {budget.thresholds.map((t) => `${t}%`).join(", ")}</span>
-                <span>{budget.billingPeriod}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Create Budget Modal */}
+      {/* Modal 1: Create Budget */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#171b26] pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Coins className="w-4 h-4 text-[#dfba82]" />
-                Create Budget Guardrail
-              </h3>
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="text-[#717688] hover:text-white transition-colors cursor-pointer"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#0c0f16] border border-[#1b202e] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#171b26]">
+              <h3 className="text-base font-bold text-white">Create Budget Guardrail</h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-[#717688] hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
-                <label className="block font-semibold text-[#8e93a6] mb-1">Budget Rule Name</label>
+                <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+                  Budget Name
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Monthly Production Cap"
+                  placeholder="e.g. Enterprise Main Cap"
                   value={newBudgetName}
                   onChange={(e) => setNewBudgetName(e.target.value)}
-                  className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#8e93a6] mb-1">Scope</label>
+                <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+                  Scope Type
+                </label>
                 <select
                   value={newBudgetScope}
                   onChange={(e) =>
                     setNewBudgetScope(e.target.value as "ORGANIZATION" | "PROJECT")
                   }
-                  className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none cursor-pointer"
                 >
-                  <option value="PROJECT">Project Specific</option>
-                  <option value="ORGANIZATION">Entire Organization</option>
+                  <option value="ORGANIZATION">Organization Wide</option>
+                  <option value="PROJECT">Specific Project</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-[#8e93a6] mb-1">Monthly Ceiling ($USD)</label>
+                <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+                  Monthly Cap (USD)
+                </label>
                 <input
                   type="number"
                   min="50"
-                  max="50000"
+                  step="50"
                   value={newBudgetAmount}
                   onChange={(e) => setNewBudgetAmount(Number(e.target.value))}
-                  className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82] font-mono"
                 />
               </div>
 
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
-                  id="hardLimit"
+                  id="hardLimitCheck"
                   checked={newBudgetHardLimit}
                   onChange={(e) => setNewBudgetHardLimit(e.target.checked)}
-                  className="rounded border-[#1b202e] bg-[#07080c] text-[#dfba82] focus:ring-0"
+                  className="rounded border-[#1b202e] bg-[#111422] text-[#dfba82]"
                 />
-                <label htmlFor="hardLimit" className="text-[#8e93a6] cursor-pointer">
-                  Enforce Hard Limit (Reject requests with HTTP 429 when cap reached)
+                <label htmlFor="hardLimitCheck" className="text-xs text-[#c5c9d6]">
+                  Enforce circuit-breaker hard limit (reject requests when reached)
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171b26]">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs text-[#8e93a6] hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#dfba82] hover:bg-[#ebd2a9] text-black font-semibold cursor-pointer shadow-md"
+                  className="px-4 py-2 bg-[#dfba82] text-black font-semibold text-xs rounded-xl hover:bg-[#ebd2a9]"
                 >
-                  Create Budget
+                  Save Budget Cap
                 </button>
               </div>
             </form>
@@ -360,26 +382,22 @@ export function AdminBudgetsView() {
         </div>
       )}
 
-      {/* Edit Budget Modal */}
+      {/* Modal 2: Edit Budget */}
       {editingBudget && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#171b26] pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-[#dfba82]" />
-                Edit Budget
-              </h3>
-              <button
-                onClick={() => setEditingBudget(null)}
-                className="text-[#717688] hover:text-white transition-colors cursor-pointer"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#0c0f16] border border-[#1b202e] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#171b26]">
+              <h3 className="text-base font-bold text-white">Edit Budget Cap</h3>
+              <button onClick={() => setEditingBudget(null)} className="text-[#717688] hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block font-semibold text-[#8e93a6] mb-1">Budget Name</label>
+                <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+                  Budget Name
+                </label>
                 <input
                   type="text"
                   required
@@ -387,14 +405,18 @@ export function AdminBudgetsView() {
                   onChange={(e) =>
                     setEditingBudget({ ...editingBudget, name: e.target.value })
                   }
-                  className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#8e93a6] mb-1">Budget Limit ($USD)</label>
+                <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+                  Monthly Cap (USD)
+                </label>
                 <input
                   type="number"
+                  min="50"
+                  step="50"
                   value={editingBudget.budgetAmountUsd}
                   onChange={(e) =>
                     setEditingBudget({
@@ -402,39 +424,21 @@ export function AdminBudgetsView() {
                       budgetAmountUsd: Number(e.target.value),
                     })
                   }
-                  className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82] font-mono"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="editHardLimit"
-                  checked={editingBudget.enforceHardLimit}
-                  onChange={(e) =>
-                    setEditingBudget({
-                      ...editingBudget,
-                      enforceHardLimit: e.target.checked,
-                    })
-                  }
-                  className="rounded border-[#1b202e] bg-[#07080c] text-[#dfba82] focus:ring-0"
-                />
-                <label htmlFor="editHardLimit" className="text-[#8e93a6] cursor-pointer">
-                  Enforce Hard Limit (HTTP 429 on breach)
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171b26]">
                 <button
                   type="button"
                   onClick={() => setEditingBudget(null)}
-                  className="px-4 py-2 rounded-xl text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs text-[#8e93a6] hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#dfba82] hover:bg-[#ebd2a9] text-black font-semibold cursor-pointer shadow-md"
+                  className="px-4 py-2 bg-[#dfba82] text-black font-semibold text-xs rounded-xl hover:bg-[#ebd2a9]"
                 >
                   Save Changes
                 </button>

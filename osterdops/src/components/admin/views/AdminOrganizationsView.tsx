@@ -1,18 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Building2,
-  DollarSign,
-  FolderKanban,
-  Key,
-  MoreHorizontal,
-  Plus,
-  Search,
-  ShieldCheck,
   Users,
+  FolderKanban,
+  Search,
+  Plus,
+  ArrowUpRight,
+  ShieldAlert,
+  Coins,
   X,
+  Check,
+  ChevronDown,
+  MoreHorizontal,
+  ExternalLink,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 interface OrganizationDetail {
   id: string;
@@ -28,63 +33,9 @@ interface OrganizationDetail {
   projects: string[];
 }
 
-const INITIAL_ORGS: OrganizationDetail[] = [
-  {
-    id: "org_acme",
-    name: "Acme Enterprises",
-    owner: "sarah@acme.com",
-    projectsCount: 6,
-    membersCount: 14,
-    monthlyBudget: "$2,500",
-    currentSpend: "$1,842.20",
-    status: "ACTIVE",
-    createdDate: "Jan 12, 2025",
-    tier: "Enterprise",
-    projects: ["Production Gateway", "Staging LLM", "RAG Pipeline", "Customer Support Bot"],
-  },
-  {
-    id: "org_nova",
-    name: "Nova Labs",
-    owner: "alex@novalabs.ai",
-    projectsCount: 4,
-    membersCount: 8,
-    monthlyBudget: "$1,200",
-    currentSpend: "$784.50",
-    status: "ACTIVE",
-    createdDate: "Feb 04, 2025",
-    tier: "Scale",
-    projects: ["Core API", "Search Engine", "Summarizer Pro"],
-  },
-  {
-    id: "org_vertex",
-    name: "Vertex Systems",
-    owner: "dev@vertex.io",
-    projectsCount: 12,
-    membersCount: 38,
-    monthlyBudget: "$10,000",
-    currentSpend: "$6,920.80",
-    status: "ACTIVE",
-    createdDate: "Nov 20, 2024",
-    tier: "Enterprise",
-    projects: ["Autonomous Agents", "Code Assistant", "Data Ingestion", "Analytics Service"],
-  },
-  {
-    id: "org_orion",
-    name: "Orion Research",
-    owner: "billing@orion.dev",
-    projectsCount: 2,
-    membersCount: 4,
-    monthlyBudget: "$500",
-    currentSpend: "$310.15",
-    status: "TRIAL",
-    createdDate: "Apr 28, 2025",
-    tier: "Growth",
-    projects: ["Research Sandbox", "Benchmarking"],
-  },
-];
-
 export function AdminOrganizationsView() {
-  const [orgs, setOrgs] = useState<OrganizationDetail[]>(INITIAL_ORGS);
+  const { currentOrg, userOrganizations, user, getIdToken } = useAuth();
+  const [orgs, setOrgs] = useState<OrganizationDetail[]>([]);
   const [search, setSearch] = useState("");
   const [selectedOrg, setSelectedOrg] = useState<OrganizationDetail | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -93,70 +44,128 @@ export function AdminOrganizationsView() {
   const [name, setName] = useState("");
   const [owner, setOwner] = useState("");
   const [budget, setBudget] = useState("1000");
+  const [tier, setTier] = useState("Growth");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOrgs() {
+      const orgList = userOrganizations.length > 0 ? userOrganizations : currentOrg ? [currentOrg] : [];
+      if (orgList.length === 0) {
+        setOrgs([]);
+        return;
+      }
+
+      try {
+        const token = await getIdToken();
+        const mapped: OrganizationDetail[] = await Promise.all(
+          orgList.map(async (o) => {
+            let projects: string[] = [];
+            let spend = "$0.00";
+
+            try {
+              const [projRes, analyticsRes] = await Promise.all([
+                apiRequest<any[]>("/api/v1/projects", { params: { organizationId: o.id }, token }),
+                apiRequest<any>("/api/v1/analytics/overview", { params: { organizationId: o.id, timeRange: "30d" }, token }),
+              ]);
+              if (Array.isArray(projRes.data)) {
+                projects = projRes.data.map((p) => p.name);
+              }
+              if (analyticsRes.data?.kpis?.totalSpendUsd != null) {
+                spend = `$${analyticsRes.data.kpis.totalSpendUsd.toFixed(2)}`;
+              }
+            } catch (e) {
+              // ignore
+            }
+
+            return {
+              id: o.id,
+              name: o.name || "Workspace",
+              owner: user?.email || "owner@tenant.io",
+              projectsCount: projects.length,
+              membersCount: 1,
+              monthlyBudget: "$1,000",
+              currentSpend: spend,
+              status: "ACTIVE",
+              createdDate: "Recent",
+              tier: o.planTier ? `${o.planTier.toUpperCase()}` : "STARTER",
+              projects,
+            };
+          })
+        );
+
+        if (isMounted) {
+          setOrgs(mapped);
+        }
+      } catch (err) {
+        if (isMounted) setOrgs([]);
+      }
+    }
+
+    loadOrgs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg, userOrganizations, user, getIdToken]);
+
+  const filteredOrgs = orgs.filter(
+    (org) =>
+      org.name.toLowerCase().includes(search.toLowerCase()) ||
+      org.owner.toLowerCase().includes(search.toLowerCase()) ||
+      org.tier.toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleCreateOrg = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !owner) return;
+    if (!name) return;
 
     const newOrg: OrganizationDetail = {
       id: `org_${Date.now()}`,
       name,
-      owner,
+      owner: owner || "admin@workspace.com",
       projectsCount: 1,
       membersCount: 1,
-      monthlyBudget: `$${budget}`,
+      monthlyBudget: `$${Number(budget).toLocaleString()}`,
       currentSpend: "$0.00",
       status: "ACTIVE",
       createdDate: "Just now",
-      tier: "Scale",
+      tier,
       projects: ["Default Project"],
     };
 
     setOrgs([newOrg, ...orgs]);
-    setIsAddModalOpen(false);
     setName("");
     setOwner("");
+    setIsAddModalOpen(false);
   };
 
-  const filteredOrgs = orgs.filter(
-    (o) =>
-      o.name.toLowerCase().includes(search.toLowerCase()) ||
-      o.owner.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
-    <div className="space-y-6 font-sans animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-[22px] font-bold text-[#f4efe6] tracking-tight">
-            Organizations &amp; Workspaces
-          </h2>
-          <p className="text-[12.5px] text-[#717688] mt-0.5">
-            Multi-tenant organization boundary manager, project quotas, and organization-level budgets.
-          </p>
+    <div className="space-y-6 font-sans">
+      {/* Top Controls Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="h-4 w-4 text-[#555a6d] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search organizations or owners..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#0c0f16] border border-[#171b26] rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
+          />
         </div>
 
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#dfba82] hover:bg-[#ebd2a9] text-[#07080c] font-bold text-[12.5px] rounded-xl transition-all shadow-[0_2px_12px_rgba(223,186,130,0.25)] cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#dfba82] hover:bg-[#ebd4aa] text-black text-xs font-bold transition-all shadow-md cursor-pointer"
         >
-          <Plus className="h-4 w-4" />
-          <span>New Organization</span>
+          <Plus className="h-4 w-4 stroke-[2.5]" />
+          <span>Add Organization</span>
         </button>
       </div>
 
-      <div className="bg-[#0c0f16] border border-[#1b202e] rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center gap-2 bg-[#131722] border border-[#22283a] focus-within:border-[#dfba82] rounded-xl px-3 py-1.5 w-72 mb-5 transition-colors">
-          <Search className="h-3.5 w-3.5 text-[#6c7285]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search organizations..."
-            className="bg-transparent text-[12px] text-white focus:outline-none w-full"
-          />
-        </div>
-
+      {/* Organizations Table Card */}
+      <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-5 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[12.5px]">
             <thead className="text-[10.5px] uppercase font-bold tracking-[0.1em] text-[#555a6d] border-b border-[#171b26] pb-3">
@@ -173,40 +182,48 @@ export function AdminOrganizationsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#151924] text-[#c5c8d4]">
-              {filteredOrgs.map((org) => (
-                <tr
-                  key={org.id}
-                  onClick={() => setSelectedOrg(org)}
-                  className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
-                >
-                  <td className="py-4 font-bold text-[#f4efe6] group-hover:text-[#dfba82] transition-colors flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-[#dfba82]" />
-                    <span>{org.name}</span>
-                  </td>
-                  <td className="py-4 text-[#8e94a8]">{org.owner}</td>
-                  <td className="py-4 font-mono text-[#f4efe6]">{org.projectsCount} projects</td>
-                  <td className="py-4 font-mono text-[#f4efe6]">{org.membersCount} seats</td>
-                  <td className="py-4 font-mono text-[#717688]">{org.monthlyBudget}</td>
-                  <td className="py-4 font-mono text-[#dfba82] font-semibold">{org.currentSpend}</td>
-                  <td className="py-4 text-white">{org.tier}</td>
-                  <td className="py-4">
-                    <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30">
-                      {org.status}
-                    </span>
-                  </td>
-                  <td className="py-4 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedOrg(org);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-white/10 text-[#555a6d] hover:text-white"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
+              {filteredOrgs.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-xs text-[#73788c] bg-[#090b12]">
+                    No organizations found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredOrgs.map((org) => (
+                  <tr
+                    key={org.id}
+                    onClick={() => setSelectedOrg(org)}
+                    className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                  >
+                    <td className="py-4 font-bold text-[#f4efe6] group-hover:text-[#dfba82] transition-colors flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-[#dfba82]" />
+                      <span>{org.name}</span>
+                    </td>
+                    <td className="py-4 text-[#8e94a8]">{org.owner}</td>
+                    <td className="py-4 font-mono text-[#f4efe6]">{org.projectsCount} projects</td>
+                    <td className="py-4 font-mono text-[#f4efe6]">{org.membersCount} seats</td>
+                    <td className="py-4 font-mono text-[#717688]">{org.monthlyBudget}</td>
+                    <td className="py-4 font-mono text-[#dfba82] font-semibold">{org.currentSpend}</td>
+                    <td className="py-4 text-white">{org.tier}</td>
+                    <td className="py-4">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30">
+                        {org.status}
+                      </span>
+                    </td>
+                    <td className="py-4 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOrg(org);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-[#555a6d] hover:text-white"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -220,62 +237,59 @@ export function AdminOrganizationsView() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-[#1c2232]">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#dfba82]/10 border border-[#dfba82]/25 text-[#dfba82] flex items-center justify-center">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-[17px] font-bold text-white">{selectedOrg.name}</h3>
-                    <span className="text-[11px] text-[#717688] font-mono">{selectedOrg.id}</span>
-                  </div>
+              <div className="flex items-center justify-between pb-4 border-b border-[#171b26]">
+                <div>
+                  <h2 className="text-base font-bold text-[#f4efe6] flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-[#dfba82]" />
+                    {selectedOrg.name}
+                  </h2>
+                  <p className="text-xs text-[#717688] font-mono mt-0.5">ID: {selectedOrg.id}</p>
                 </div>
                 <button
                   onClick={() => setSelectedOrg(null)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-[#6c7285] hover:text-white"
+                  className="p-1 text-[#717688] hover:text-white rounded-lg hover:bg-white/5"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Spend & Limits Card */}
-              <div className="bg-[#121622] border border-[#1e2536] p-4 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[#717688]">Monthly Budget Cap:</span>
-                  <span className="font-bold text-white font-mono">{selectedOrg.monthlyBudget}</span>
+              {/* Quick Info Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-[#07080c] border border-[#171b26] rounded-xl">
+                  <span className="text-[10.5px] uppercase font-bold text-[#555a6d]">Subscription</span>
+                  <div className="text-sm font-bold text-white mt-1">{selectedOrg.tier} Tier</div>
                 </div>
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[#717688]">Current Month Spend:</span>
-                  <span className="font-bold text-[#dfba82] font-mono">{selectedOrg.currentSpend}</span>
+                <div className="p-3 bg-[#07080c] border border-[#171b26] rounded-xl">
+                  <span className="text-[10.5px] uppercase font-bold text-[#555a6d]">Current Spend</span>
+                  <div className="text-sm font-bold text-[#dfba82] font-mono mt-1">
+                    {selectedOrg.currentSpend}
+                  </div>
                 </div>
               </div>
 
-              {/* Active Projects in Org */}
-              <div>
-                <div className="text-[12px] font-bold uppercase tracking-wider text-[#717688] mb-2">
-                  Active Projects ({selectedOrg.projects.length})
-                </div>
+              {/* Projects List */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#717688]">
+                  Active Workspaces ({selectedOrg.projects.length})
+                </h4>
                 <div className="space-y-1.5">
-                  {selectedOrg.projects.map((proj, idx) => (
+                  {selectedOrg.projects.map((p) => (
                     <div
-                      key={idx}
-                      className="p-2.5 bg-[#121520] border border-[#1b202e] rounded-xl flex items-center justify-between text-[12.5px] text-white"
+                      key={p}
+                      className="p-2.5 bg-[#07080c] border border-[#171b26] rounded-lg text-xs font-semibold text-[#f4efe6] flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <FolderKanban className="h-3.5 w-3.5 text-[#dfba82]" />
-                        <span>{proj}</span>
-                      </div>
-                      <span className="text-[10px] text-[#22c55e] font-mono font-bold">HEALTHY</span>
+                      <span>{p}</span>
+                      <FolderKanban className="h-3.5 w-3.5 text-[#dfba82]" />
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[#1c2232]">
+            <div className="pt-4 border-t border-[#171b26] flex gap-2">
               <button
                 onClick={() => setSelectedOrg(null)}
-                className="w-full py-2.5 bg-[#dfba82] hover:bg-[#ebd2a9] text-[#07080c] rounded-xl text-[12.5px] font-bold transition-colors"
+                className="w-full py-2.5 bg-[#141824] hover:bg-[#1c2233] text-white text-xs font-semibold rounded-xl"
               >
                 Close Drawer
               </button>
@@ -286,77 +300,70 @@ export function AdminOrganizationsView() {
 
       {/* Add Organization Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div
-            className="w-full max-w-lg bg-[#0c0f16] border border-[#232a3d] rounded-2xl shadow-2xl p-6 font-sans space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-[#1c2232] pb-3">
-              <div className="flex items-center gap-2 text-white font-bold text-[16px]">
-                <Building2 className="h-4 w-4 text-[#dfba82]" />
-                <span>Create New Organization</span>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-[#6c7285] hover:text-white"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-[#0c0f16] border border-[#1b202e] rounded-2xl p-6 shadow-2xl space-y-4 font-sans">
+            <div className="flex items-center justify-between pb-3 border-b border-[#171b26]">
+              <h3 className="text-base font-bold text-[#f4efe6]">Provision New Organization</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-[#717688] hover:text-white">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateOrg} className="space-y-4">
+            <form onSubmit={handleCreateOrg} className="space-y-3.5">
               <div>
-                <label className="block text-[12px] font-semibold text-[#8e94a8] mb-1">
+                <label className="block text-xs font-semibold text-[#8e94a8] mb-1">
                   Organization Name
                 </label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Helix AI Corp"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Acme Corporation"
-                  className="w-full bg-[#131722] border border-[#22283a] text-white text-[13px] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold text-[#8e94a8] mb-1">
-                  Primary Owner / Admin Email
+                <label className="block text-xs font-semibold text-[#8e94a8] mb-1">
+                  Owner Email
                 </label>
                 <input
                   type="email"
                   required
+                  placeholder="e.g. lead@helix.ai"
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
-                  placeholder="e.g. admin@acme.com"
-                  className="w-full bg-[#131722] border border-[#22283a] text-white text-[13px] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#dfba82]"
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold text-[#8e94a8] mb-1">
-                  Monthly Hard Budget ($ USD)
+                <label className="block text-xs font-semibold text-[#8e94a8] mb-1">
+                  Subscription Tier
                 </label>
-                <input
-                  type="number"
-                  required
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  className="w-full bg-[#131722] border border-[#22283a] text-white text-[13px] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#dfba82]"
-                />
+                <select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
+                  className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="Growth">Growth</option>
+                  <option value="Scale">Scale</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-[#1c2232]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171b26]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-[12.5px] text-[#8e94a8] hover:text-white"
+                  className="px-4 py-2 text-xs text-[#8e94a8] hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#dfba82] hover:bg-[#ebd2a9] text-[#07080c] font-bold text-[12.5px] rounded-xl transition-all shadow-md"
+                  className="px-4 py-2 bg-[#dfba82] text-black font-semibold text-xs rounded-xl hover:bg-[#ebd4aa]"
                 >
                   Create Organization
                 </button>

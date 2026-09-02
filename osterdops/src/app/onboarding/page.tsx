@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OnboardingSidebar } from "@/components/onboarding/OnboardingSidebar";
 import { ContactSupportModal } from "@/components/onboarding/ContactSupportModal";
@@ -12,50 +12,45 @@ import { StepTeamMembers } from "@/components/onboarding/steps/StepTeamMembers";
 import { StepReviewFinish } from "@/components/onboarding/steps/StepReviewFinish";
 import { OnboardingData } from "@/components/onboarding/types";
 import { useRouter } from "next/navigation";
-
-const INITIAL_DATA: OnboardingData = {
-  orgName: "Acme Corporation",
-  industry: "Technology",
-  companySize: "51 – 200 employees",
-  country: "United States",
-  connectedProviders: ["openai"],
-  optimizationLevel: "Balanced",
-  notificationPreference: "Email",
-  defaultCurrency: "USD",
-  teamMembers: [
-    {
-      id: "1",
-      name: "Shaan Prasad",
-      email: "shaan@acmecorp.com",
-      role: "Owner",
-      isYou: true,
-    },
-    {
-      id: "2",
-      name: "Ava Rodriguez",
-      email: "ava@acmecorp.com",
-      role: "Admin",
-    },
-    {
-      id: "3",
-      name: "James Miller",
-      email: "james@acmecorp.com",
-      role: "Editor",
-    },
-    {
-      id: "4",
-      name: "Daniel Smith",
-      email: "daniel@acmecorp.com",
-      role: "Viewer",
-    },
-  ],
-};
+import { useAuth } from "@/context/AuthContext";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, currentOrg } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
+  const [data, setData] = useState<OnboardingData>({
+    orgName: "",
+    industry: "Technology",
+    companySize: "11 – 50 employees",
+    country: "United States",
+    connectedProviders: [],
+    optimizationLevel: "Balanced",
+    notificationPreference: "Email",
+    defaultCurrency: "USD",
+    teamMembers: [],
+  });
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+
+  useEffect(() => {
+    if (user || currentOrg) {
+      setData((prev) => ({
+        ...prev,
+        orgName: prev.orgName || currentOrg?.name || (user?.displayName ? `${user.displayName}'s Organization` : ""),
+        teamMembers:
+          prev.teamMembers.length === 0 && user
+            ? [
+                {
+                  id: user.uid,
+                  name: user.displayName || user.email?.split("@")[0] || "Workspace Owner",
+                  email: user.email || "",
+                  role: "Owner",
+                  isYou: true,
+                },
+              ]
+            : prev.teamMembers,
+      }));
+    }
+  }, [user, currentOrg]);
 
   const updateFields = (fields: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...fields }));
@@ -74,7 +69,6 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = () => {
-    // Navigate to main application dashboard page
     router.push("/dashboard");
   };
 
@@ -88,71 +82,71 @@ export default function OnboardingPage() {
       </div>
 
       {/* Main Container Wrapper Card */}
-      <div className="w-full max-w-6xl bg-[#090a0f]/90 border border-[#1a1c28] rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.85),0_0_0_1px_rgba(223,186,130,0.1)] backdrop-blur-xl overflow-hidden relative z-10 flex flex-col lg:flex-row">
-        {/* Left Stepper Sidebar */}
+      <div className="w-full max-w-5xl bg-[#0c0e17] border border-[#1b1e2c] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
+        {/* Left Side: Progress Sidebar */}
         <OnboardingSidebar
           currentStep={currentStep}
-          onSelectStep={(step) => setCurrentStep(step)}
+          onSelectStep={(step: number) => {
+            if (step < currentStep) setCurrentStep(step);
+          }}
           onOpenSupport={() => setIsSupportOpen(true)}
         />
 
-        {/* Right Main Content Panel */}
-        <main className="flex-1 p-6 sm:p-8 lg:p-10 flex flex-col justify-between overflow-y-auto max-h-[85vh] lg:max-h-none">
+        {/* Right Side: Step Canvas */}
+        <div className="flex-1 p-6 sm:p-8 md:p-10 flex flex-col justify-between overflow-y-auto">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              className="w-full h-full"
-            >
-              {currentStep === 1 && <StepWelcome onNext={handleNext} />}
-              {currentStep === 2 && (
-                <StepOrganization
-                  data={data}
-                  onChange={updateFields}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 3 && (
-                <StepConnectData
-                  data={data}
-                  onChange={updateFields}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 4 && (
-                <StepPreferences
-                  data={data}
-                  onChange={updateFields}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 5 && (
-                <StepTeamMembers
-                  data={data}
-                  onChange={updateFields}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 6 && (
-                <StepReviewFinish
-                  data={data}
-                  onFinish={handleFinish}
-                  onReviewSettings={() => setCurrentStep(2)}
-                />
-              )}
-            </motion.div>
+            {currentStep === 1 && (
+              <StepWelcome key="step1" onNext={handleNext} />
+            )}
+            {currentStep === 2 && (
+              <StepOrganization
+                key="step2"
+                data={data}
+                onChange={updateFields}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            )}
+            {currentStep === 3 && (
+              <StepConnectData
+                key="step3"
+                data={data}
+                onChange={updateFields}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            )}
+            {currentStep === 4 && (
+              <StepPreferences
+                key="step4"
+                data={data}
+                onChange={updateFields}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            )}
+            {currentStep === 5 && (
+              <StepTeamMembers
+                key="step5"
+                data={data}
+                onChange={updateFields}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            )}
+            {currentStep === 6 && (
+              <StepReviewFinish
+                key="step6"
+                data={data}
+                onFinish={handleFinish}
+                onReviewSettings={() => setCurrentStep(2)}
+              />
+            )}
           </AnimatePresence>
-        </main>
+        </div>
       </div>
 
-      {/* Support Modal */}
+      {/* Contact Support Dialog Modal */}
       <ContactSupportModal
         isOpen={isSupportOpen}
         onClose={() => setIsSupportOpen(false)}

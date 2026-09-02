@@ -82,7 +82,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex.r@acmecorp.com"
+                placeholder="colleague@company.com"
                 className="w-full bg-[#131624] border border-[#23273a] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#5e6377] focus:outline-none focus:border-[#dfba82]"
               />
             </div>

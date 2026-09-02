@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Play, Sparkles, Activity, CheckCircle2, DollarSign, Clock, ShieldAlert } from "lucide-react";
+import { Play, Sparkles, Activity, CheckCircle2, DollarSign, Clock, ShieldAlert, AlertTriangle } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
+import { useAuth } from "@/context/AuthContext";
 
 export function FirstRequestRunner() {
+  const { getIdToken } = useAuth();
   const [model, setModel] = useState("gpt-4o");
   const [prompt, setPrompt] = useState("Explain the difference between soft and hard budget enforcement.");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     id: string;
     model: string;
@@ -19,38 +22,62 @@ export function FirstRequestRunner() {
     headers: Record<string, string>;
   } | null>(null);
 
-  const handleSendRequest = () => {
+  const handleSendRequest = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const inputTok = Math.floor(prompt.length / 4) + 12;
-      const outputTok = 84;
-      const costUsd = model === "gpt-4o" ? (inputTok * 2.5 + outputTok * 10.0) / 1000000 : 0.00045;
-      const reqId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setError(null);
+    setResult(null);
+    const start = performance.now();
+
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      const elapsed = Math.round(performance.now() - start);
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(json?.error?.message || json?.message || `Gateway returned HTTP ${res.status}: Provider API key required`);
+        return;
+      }
+
+      const choice = json?.choices?.[0]?.message?.content || "Request completed successfully.";
+      const usage = json?.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      const reqId = res.headers.get("x-osterdops-request-id") || `req_${Date.now()}`;
+      const costHeader = parseFloat(res.headers.get("x-osterdops-cost-usd") || "0");
 
       setResult({
         id: reqId,
         model,
         provider: model.startsWith("gpt") ? "openai" : model.startsWith("claude") ? "anthropic" : "gemini",
-        content:
-          "Soft budget enforcement emits warning alerts when thresholds are reached but allows inference to proceed. Hard budget enforcement immediately blocks downstream requests (returning HTTP 429 BUDGET_EXCEEDED) once the spend limit is crossed to guarantee cost ceilings.",
-        latencyMs: Math.floor(Math.random() * 120 + 240),
+        content: choice,
+        latencyMs: elapsed,
         tokens: {
-          input: inputTok,
-          output: outputTok,
-          total: inputTok + outputTok,
+          input: usage.prompt_tokens || 0,
+          output: usage.completion_tokens || 0,
+          total: usage.total_tokens || 0,
         },
-        costUsd,
+        costUsd: costHeader,
         headers: {
           "x-osterdops-request-id": reqId,
-          "x-osterdops-latency-ms": "285",
-          "x-osterdops-cost-usd": costUsd.toFixed(8),
-          "x-osterdops-input-tokens": String(inputTok),
-          "x-osterdops-output-tokens": String(outputTok),
-          "x-osterdops-total-tokens": String(inputTok + outputTok),
+          "x-osterdops-latency-ms": String(elapsed),
+          "x-osterdops-cost-usd": costHeader.toFixed(8),
         },
       });
+    } catch (err: any) {
+      setError(err?.message || "Failed to connect to AI Gateway.");
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -61,7 +88,7 @@ export function FirstRequestRunner() {
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#f4efe6] font-serif">Send Your First AI Request</h3>
+            <h3 className="text-sm font-bold text-[#f4efe6] font-serif">Send Live Gateway Request</h3>
             <p className="text-[11.5px] text-[#73788c]">
               Test real-time routing, cost calculation, and response telemetry
             </p>
@@ -92,102 +119,77 @@ export function FirstRequestRunner() {
         </div>
       </div>
 
-      {/* Interactive Input Form */}
-      <div className="space-y-2">
-        <label className="text-[11px] font-semibold text-[#8e93a6] uppercase tracking-wider">
-          Prompt Payload (Ephemeral — Never Persisted)
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-mono uppercase text-[#73788c] flex items-center justify-between">
+          <span>Prompt Payload</span>
+          <span className="text-[#dfba82]">POST /api/v1/chat/completions</span>
         </label>
         <textarea
           rows={2}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full bg-[#07080c] border border-[#1b1e2c] rounded-xl p-3 text-xs text-white placeholder-[#555a6d] outline-none focus:border-[#dfba82]/40 transition-colors font-mono"
+          className="w-full bg-[#08090f] border border-[#1d202e] rounded-xl p-3 text-xs text-white font-mono placeholder-[#45495e] outline-none focus:border-[#dfba82]/50 resize-none transition-colors"
         />
       </div>
 
-      {/* Results Telemetry Preview */}
+      {error && (
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-semibold">Gateway Note:</div>
+            <div>{error}</div>
+          </div>
+        </div>
+      )}
+
       {result && (
-        <div className="p-4 rounded-xl bg-[#07080c] border border-[#1b1e2c] space-y-4 animate-in fade-in duration-200">
-          {/* Key Metrics Header */}
+        <div className="space-y-4 animate-in fade-in duration-200">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-2.5 rounded-lg bg-[#0f111d] border border-[#1b1e2c]">
-              <div className="flex items-center gap-1 text-[10px] text-[#73788c] uppercase font-semibold">
-                <Clock className="w-3 h-3 text-[#dfba82]" />
-                <span>Latency</span>
+            <div className="p-3 rounded-xl bg-[#111320] border border-[#1b1e2e]">
+              <div className="text-[10px] text-[#73788c] flex items-center gap-1 uppercase font-mono">
+                <Clock className="w-3 h-3 text-[#38bdf8]" /> Latency
               </div>
-              <div className="text-sm font-bold text-white font-mono mt-0.5">{result.latencyMs} ms</div>
+              <div className="text-base font-bold text-white font-mono mt-1">
+                {result.latencyMs} ms
+              </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[#0f111d] border border-[#1b1e2c]">
-              <div className="flex items-center gap-1 text-[10px] text-[#73788c] uppercase font-semibold">
-                <DollarSign className="w-3 h-3 text-emerald-400" />
-                <span>Calculated Cost</span>
+            <div className="p-3 rounded-xl bg-[#111320] border border-[#1b1e2e]">
+              <div className="text-[10px] text-[#73788c] flex items-center gap-1 uppercase font-mono">
+                <DollarSign className="w-3 h-3 text-[#dfba82]" /> Cost
               </div>
-              <div className="text-sm font-bold text-emerald-400 font-mono mt-0.5">
+              <div className="text-base font-bold text-[#dfba82] font-mono mt-1">
                 ${result.costUsd.toFixed(6)}
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[#0f111d] border border-[#1b1e2c]">
-              <div className="flex items-center gap-1 text-[10px] text-[#73788c] uppercase font-semibold">
-                <Activity className="w-3 h-3 text-blue-400" />
-                <span>Tokens (In / Out)</span>
+            <div className="p-3 rounded-xl bg-[#111320] border border-[#1b1e2e]">
+              <div className="text-[10px] text-[#73788c] flex items-center gap-1 uppercase font-mono">
+                <Activity className="w-3 h-3 text-purple-400" /> Tokens
               </div>
-              <div className="text-sm font-bold text-white font-mono mt-0.5">
-                {result.tokens.input} / {result.tokens.output} ({result.tokens.total})
+              <div className="text-base font-bold text-white font-mono mt-1">
+                {result.tokens.total.toLocaleString()}
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[#0f111d] border border-[#1b1e2c]">
-              <div className="flex items-center gap-1 text-[10px] text-[#73788c] uppercase font-semibold">
-                <CheckCircle2 className="w-3 h-3 text-purple-400" />
-                <span>Request ID</span>
+            <div className="p-3 rounded-xl bg-[#111320] border border-[#1b1e2e]">
+              <div className="text-[10px] text-[#73788c] flex items-center gap-1 uppercase font-mono">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Status
               </div>
-              <div className="text-[11px] font-bold text-[#dfba82] font-mono mt-0.5 truncate" title={result.id}>
-                {result.id}
+              <div className="text-base font-bold text-emerald-400 font-mono mt-1">
+                200 OK
               </div>
             </div>
           </div>
 
-          {/* Response Text Preview */}
           <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold text-[#8e93a6] uppercase tracking-wider">
-              AI Output Completion
+            <div className="text-[10px] font-mono uppercase text-[#73788c]">
+              Response Stream
             </div>
-            <div className="p-3 rounded-lg bg-[#0c0e17] border border-[#1b1e2c] text-xs text-[#c5c9d6] leading-relaxed">
+            <div className="p-3.5 rounded-xl bg-[#08090f] border border-[#1b1e2e] text-xs text-[#d1d5db] font-sans leading-relaxed">
               {result.content}
             </div>
           </div>
-
-          {/* Normalized JSON Envelope */}
-          <CodeBlock
-            title="Gateway Response Envelope (HTTP 200 OK)"
-            language="json"
-            singleCode={JSON.stringify(
-              {
-                success: true,
-                data: {
-                  id: result.id,
-                  provider: result.provider,
-                  model: result.model,
-                  output: {
-                    role: "assistant",
-                    content: result.content,
-                  },
-                  usage: {
-                    inputTokens: result.tokens.input,
-                    outputTokens: result.tokens.output,
-                    totalTokens: result.tokens.total,
-                  },
-                  finishReason: "stop",
-                  latencyMs: result.latencyMs,
-                  costUsd: result.costUsd,
-                },
-              },
-              null,
-              2
-            )}
-          />
         </div>
       )}
     </div>

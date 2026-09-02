@@ -1,34 +1,57 @@
 "use client";
 
-import React from "react";
-import { Zap, Minimize2, Trash2 } from "lucide-react";
-
+import React, { useEffect, useState } from "react";
+import { Zap, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
+
+interface OptimizationItem {
+  id?: string;
+  title: string;
+  potentialMonthlySavingsUsd?: number;
+  savingsDescription?: string;
+  impact?: "High" | "Medium" | "Low";
+}
 
 export function OptimizationOpportunitiesCard() {
-  const items = [
-    {
-      icon: Zap,
-      title: "Route 40% of gpt-4o calls to gpt-4o-mini",
-      savings: "Save $742/mo",
-      impact: "High",
-      impactColor: "text-[#4ade80] bg-[#4ade80]/10 border-[#4ade80]/30",
-    },
-    {
-      icon: Minimize2,
-      title: "Compress prompts for claude-3.5-sonnet",
-      savings: "Save $312/mo",
-      impact: "Medium",
-      impactColor: "text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/30",
-    },
-    {
-      icon: Trash2,
-      title: "Remove unused context in 12 flows",
-      savings: "Save $230/mo",
-      impact: "Low",
-      impactColor: "text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30",
-    },
-  ];
+  const { currentOrg, getIdToken } = useAuth();
+  const [items, setItems] = useState<OptimizationItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchRecs() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<any>(`/api/v1/organizations/${currentOrg.id}/recommendations`, {
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setItems(res.data);
+        } else {
+          setItems([]);
+        }
+      } catch (err) {
+        if (isMounted) setItems([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchRecs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
 
   return (
     <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
@@ -38,45 +61,50 @@ export function OptimizationOpportunitiesCard() {
           Optimization Opportunities
         </h3>
         <Link
-          href="/optimization"
+          href="/dashboard/analytics"
           className="text-xs font-semibold text-[#8e93a6] hover:text-[#dfba82] transition-colors"
         >
           View all
         </Link>
       </div>
 
-      {/* Items list */}
-      <div className="space-y-2.5">
-        {items.map((item, idx) => {
-          const Icon = item.icon;
-          return (
+      {loading ? (
+        <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
+          <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
+          <div>Scanning inference traces...</div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#090b12] border border-[#171a27] text-center space-y-2">
+          <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 border border-[#dfba82]/20 text-[#dfba82] flex items-center justify-center mx-auto">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-semibold text-white">No optimization recommendations</div>
+          <p className="text-[11px] text-[#73788c]">
+            As traffic patterns develop, algorithmic routing and prompt compression opportunities will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {items.map((item, idx) => (
             <div
               key={idx}
               className="p-3 bg-[#111320] border border-[#1b1e2e] rounded-xl flex items-center justify-between gap-3 hover:border-[#dfba82]/40 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-lg bg-[#181b2a] border border-[#262a3f] flex items-center justify-center text-[#dfba82] shrink-0">
-                  <Icon className="w-3.5 h-3.5" />
+                  <Zap className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-medium text-[#e8eaf0] tracking-tight">
-                  {item.title}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2.5 shrink-0">
-                <span className="text-xs font-bold text-[#4ade80]">
-                  {item.savings}
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${item.impactColor}`}
-                >
-                  {item.impact}
-                </span>
+                <div>
+                  <div className="text-xs font-semibold text-white">{item.title}</div>
+                  <div className="text-[11px] text-[#8e93a6]">
+                    {item.savingsDescription || `Save $${(item.potentialMonthlySavingsUsd ?? 0).toFixed(0)}/mo`}
+                  </div>
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

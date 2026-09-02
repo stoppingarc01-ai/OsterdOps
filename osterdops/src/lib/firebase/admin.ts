@@ -6,7 +6,7 @@
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
-import { getFirebaseAdminConfig } from "./config";
+import { getFirebaseAdminConfig, DEFAULT_FIREBASE_CONFIG } from "./config";
 
 let adminAppInstance: App | undefined;
 let adminAuthInstance: Auth | undefined;
@@ -40,8 +40,16 @@ export function getFirebaseAdminApp(): App {
       projectId: config.projectId,
     });
   } else {
-    // Fallback for local emulator or when environment variables will be provided at runtime
-    adminAppInstance = initializeApp();
+    // Fallback for local development or when environment variables will be provided at runtime
+    const fallbackProjectId =
+      process.env.FIREBASE_ADMIN_PROJECT_ID ||
+      process.env.FIREBASE_PROJECT_ID ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+      DEFAULT_FIREBASE_CONFIG.projectId;
+
+    adminAppInstance = initializeApp({
+      projectId: fallbackProjectId,
+    });
   }
 
   return adminAppInstance;
@@ -58,10 +66,19 @@ export function getAdminAuth(): Auth {
   return adminAuthInstance;
 }
 
+import { inMemoryDb } from "./in-memory-firestore";
+
 /**
  * Returns the Firebase Admin Firestore instance for multi-tenant data access.
+ * Automatically delegates to the zero-latency in-memory store in local dev / offline mode
+ * to eliminate 30-second Google Cloud metadata socket timeouts.
  */
 export function getAdminFirestore(): Firestore {
+  const config = getFirebaseAdminConfig();
+  if (!config) {
+    return inMemoryDb as unknown as Firestore;
+  }
+
   if (!adminDbInstance) {
     const app = getFirebaseAdminApp();
     adminDbInstance = getFirestore(app);

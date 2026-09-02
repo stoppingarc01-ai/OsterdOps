@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import { Copy, Check, Shield, Zap } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export function ProxyGatewayConfigCard() {
+  const { currentOrg } = useAuth();
   const [copied, setCopied] = useState(false);
   const [dedupCache, setDedupCache] = useState(true);
 
-  const endpoint = "https://gateway.osterdops.io/v1/acme-corp";
+  const endpoint = `https://gateway.osterdops.io/v1/${currentOrg?.slug || "proxy"}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(endpoint);

@@ -15,44 +15,17 @@ interface ApiKeyItem {
   role: string;
 }
 
-const INITIAL_KEYS: ApiKeyItem[] = [
-  {
-    id: "1",
-    name: "Production Gateway Ingestion",
-    keyPrefix: "ost_live_••••••••••••94f2",
-    created: "Apr 12, 2025",
-    lastUsed: "4 seconds ago",
-    role: "Full Ingestion Proxy",
-  },
-  {
-    id: "2",
-    name: "Staging Pipeline Proxy",
-    keyPrefix: "ost_test_••••••••••••381a",
-    created: "May 02, 2025",
-    lastUsed: "12 minutes ago",
-    role: "Read & Write",
-  },
-  {
-    id: "3",
-    name: "Datadog APM Exporter",
-    keyPrefix: "ost_live_••••••••••••77bc",
-    created: "May 08, 2025",
-    lastUsed: "1 hour ago",
-    role: "Telemetry Only",
-  },
-];
-
 interface SecuritySettingsCardProps {
   onOpenGenerateKey: () => void;
 }
 
 export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCardProps) {
   const { currentOrg, getIdToken } = useAuth();
-  const [keys, setKeys] = useState<ApiKeyItem[]>(INITIAL_KEYS);
+  const [keys, setKeys] = useState<ApiKeyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [mfaEnforced, setMfaEnforced] = useState(true);
-  const [ipWhitelist, setIpWhitelist] = useState("192.168.1.0/24, 10.0.0.0/8");
+  const [ipWhitelist, setIpWhitelist] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -188,7 +161,14 @@ export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCard
               </tr>
             </thead>
             <tbody className="divide-y divide-[#151826]">
-              {keys.map((k) => (
+              {keys.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-xs text-[#73788c] bg-[#090b12]">
+                    No active API keys found for this project.
+                  </td>
+                </tr>
+              ) : (
+                keys.map((k) => (
                 <tr key={k.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-3.5 pr-4">
                     <div className="font-semibold text-white tracking-tight">{k.name}</div>
@@ -222,7 +202,7 @@ export function SecuritySettingsCard({ onOpenGenerateKey }: SecuritySettingsCard
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

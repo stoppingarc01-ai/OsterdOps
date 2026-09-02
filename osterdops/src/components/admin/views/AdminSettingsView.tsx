@@ -9,7 +9,7 @@ export function AdminSettingsView() {
   const [rateLimitRps, setRateLimitRps] = useState("500");
   const [encryptionAlgorithm] = useState("AES-256-GCM");
   const [logRetentionDays, setLogRetentionDays] = useState("365");
-  const [webhookUrl, setWebhookUrl] = useState("https://hooks.slack.com/services/T000/B000/XXXXX");
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [webhookTestSuccess, setWebhookTestSuccess] = useState(false);
   const [isRotatingKey, setIsRotatingKey] = useState(false);

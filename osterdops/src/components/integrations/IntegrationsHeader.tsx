@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { ChevronDown, RotateCw, Bell, Building2, Plus, Plug } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface IntegrationsHeaderProps {
   onOpenConnect: () => void;
 }
 
 export function IntegrationsHeader({ onOpenConnect }: IntegrationsHeaderProps) {
-  const [selectedWorkspace, setSelectedWorkspace] = useState("Acme Corp / All Projects");
+  const { currentOrg } = useAuth();
+  const selectedWorkspace = `${currentOrg?.name || "Workspace"} / All Projects`;
 
   return (
     <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#161824]">
@@ -18,7 +20,7 @@ export function IntegrationsHeader({ onOpenConnect }: IntegrationsHeaderProps) {
           className="text-2xl sm:text-[28px] font-medium tracking-tight text-[#f4efe6]"
           style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
         >
-          Integrations & Connectors
+          Integrations &amp; Connectors
         </h1>
         <p className="text-[13px] text-[#8e93a6] mt-0.5">
           Connect AI model providers, observability tools, cloud billing, and developer webhooks.
@@ -39,43 +41,25 @@ export function IntegrationsHeader({ onOpenConnect }: IntegrationsHeaderProps) {
           </button>
         </div>
 
-        {/* Active Connectors Status Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#141724] border border-[#232738] text-xs text-[#4ade80] font-medium">
-          <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
-          <span>14 Active Connectors</span>
-        </div>
-
         {/* Refresh Icon */}
         <button
           type="button"
+          onClick={() => window.location.reload()}
           className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
-          title="Refresh Connections"
+          title="Refresh Data"
         >
-          <RotateCw className="w-4 h-4" />
+          <RotateCw className="w-3.5 h-3.5" />
         </button>
 
-        {/* Add Integration Primary Gold Button */}
+        {/* Connect New Primary CTA */}
         <button
           type="button"
           onClick={onOpenConnect}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-          <span>Add Integration</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Connect Provider</span>
         </button>
-
-        {/* Bell Icon */}
-        <div className="relative">
-          <button
-            type="button"
-            className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors relative cursor-pointer"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#b8860b] text-[#07080c] font-bold text-[9.5px] flex items-center justify-center border border-[#07080c]">
-              3
-            </span>
-          </button>
-        </div>
       </div>
     </header>
   );

@@ -27,17 +27,11 @@ export function CustomCursor() {
       mouseY.set(e.clientY);
       if (!isVisible) setIsVisible(true);
 
-      // Check if hovering over interactive elements
+      // Check if hovering over interactive elements without expensive forced reflow
       const target = e.target as HTMLElement | null;
       if (target) {
         const isClickable = Boolean(
-          target.closest("button") ||
-          target.closest("a") ||
-          target.closest("input") ||
-          target.closest("select") ||
-          target.closest("[role='button']") ||
-          target.closest(".cursor-pointer") ||
-          window.getComputedStyle(target).cursor === "pointer"
+          target.closest("button, a, input, select, textarea, [role='button'], .cursor-pointer")
         );
         setIsPointer(isClickable);
       }

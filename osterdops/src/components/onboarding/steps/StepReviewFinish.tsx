@@ -99,7 +99,7 @@ export function StepReviewFinish({
                 Organization
               </div>
               <div className="text-[13.5px] font-bold text-white mt-0.5">
-                {data.orgName || "Acme Corporation"}
+                {data.orgName || "Untitled Organization"}
               </div>
               <div className="text-[12px] text-[#8e93a6] mt-0.5">
                 {data.industry} · {data.companySize} · {data.country}

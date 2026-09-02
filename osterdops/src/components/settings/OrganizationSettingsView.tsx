@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -13,53 +13,29 @@ import {
   Moon,
   Plus,
   ArrowRight,
+  ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { IntegrationLogoBadge } from "@/components/ui/IntegrationLogos";
 import { EditOrganizationModal } from "./EditOrganizationModal";
 import { ManageIntegrationModal, IntegrationItem } from "./ManageIntegrationModal";
 import { AddIntegrationModal } from "./AddIntegrationModal";
 import { useThemeCustomizer } from "@/context/ThemeCustomizerContext";
-
-const INITIAL_INTEGRATIONS: IntegrationItem[] = [
-  {
-    id: "openai",
-    name: "OpenAI",
-    badge: "Connected",
-    addedDate: "Added on Apr 12, 2025",
-    totalSpend: "$2,450.21",
-    status: "Connected",
-    provider: "OpenAI",
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic",
-    badge: "Connected",
-    addedDate: "Added on Apr 12, 2025",
-    totalSpend: "$1,210.43",
-    status: "Connected",
-    provider: "Anthropic",
-  },
-  {
-    id: "google",
-    name: "Google Gemini",
-    badge: "Connected",
-    addedDate: "Added on Apr 14, 2025",
-    totalSpend: "$412.32",
-    status: "Connected",
-    provider: "Google",
-  },
-];
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 export function OrganizationSettingsView() {
+  const { currentOrg, user, getIdToken } = useAuth();
+
   // Organization State
   const [orgData, setOrgData] = useState({
-    name: "Acme Corporation",
-    domain: "acme-corp.osterdops.com",
-    email: "billing@acme.com",
-    plan: "Enterprise",
-    members: 24,
-    projects: 8,
-    spendThisMonth: "$4,328.64",
+    name: currentOrg?.name || "Workspace",
+    domain: `${currentOrg?.slug || "workspace"}.osterdops.com`,
+    email: user?.email || "",
+    plan: currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} Tier` : "Free Tier",
+    members: 1,
+    projects: 0,
+    spendThisMonth: "$0.00",
   });
 
   // Preferences State
@@ -79,11 +55,52 @@ export function OrganizationSettingsView() {
     useState<IntegrationItem | null>(null);
 
   // Integrations list state
-  const [integrations, setIntegrations] =
-    useState<IntegrationItem[]>(INITIAL_INTEGRATIONS);
+  const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Theme customizer hook
-  const { accent } = useThemeCustomizer();
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOrgStats() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const [membersRes, projectsRes, analyticsRes] = await Promise.all([
+          apiRequest<any[]>(`/api/v1/organizations/${currentOrg.id}/members`, { token }),
+          apiRequest<any[]>("/api/v1/projects", { params: { organizationId: currentOrg.id }, token }),
+          apiRequest<any>("/api/v1/analytics/overview", { params: { organizationId: currentOrg.id, timeRange: "30d" }, token }),
+        ]);
+
+        if (!isMounted) return;
+
+        const memberCount = Array.isArray(membersRes.data) ? membersRes.data.length : 1;
+        const projectCount = Array.isArray(projectsRes.data) ? projectsRes.data.length : 0;
+        const spend = analyticsRes.data?.kpis?.totalSpendUsd != null ? `$${analyticsRes.data.kpis.totalSpendUsd.toFixed(2)}` : "$0.00";
+
+        setOrgData({
+          name: currentOrg.name || "Workspace",
+          domain: `${currentOrg.slug || "workspace"}.osterdops.com`,
+          email: user?.email || "",
+          plan: currentOrg.planTier ? `${currentOrg.planTier.toUpperCase()} Tier` : "Free Tier",
+          members: memberCount,
+          projects: projectCount,
+          spendThisMonth: spend,
+        });
+      } catch (err) {
+        // preserve defaults
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadOrgStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg, user, getIdToken]);
 
   const handleCopyDomain = () => {
     navigator.clipboard.writeText(orgData.domain);
@@ -137,9 +154,8 @@ export function OrganizationSettingsView() {
 
         {/* Profile Details Block */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {/* Gold Building Logo */}
-          <div className="w-14 h-14 rounded-2xl bg-[#dfba82]/10 border border-[#dfba82]/30 flex items-center justify-center text-[#dfba82] shrink-0 shadow-[0_0_15px_rgba(223,186,130,0.12)]">
-            <Building2 className="w-7 h-7" />
+          <div className="w-14 h-14 rounded-2xl bg-[#dfba82]/10 border border-[#dfba82]/30 flex items-center justify-center text-[#dfba82] shrink-0 shadow-[0_0_15px_rgba(223,186,130,0.12)] font-bold text-lg">
+            {(orgData.name || "O").slice(0, 2).toUpperCase()}
           </div>
 
           <div className="space-y-1">
@@ -181,19 +197,19 @@ export function OrganizationSettingsView() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#161824]">
           <div>
             <div className="text-xs text-[#787d91]">Members</div>
-            <div className="text-xl font-bold text-white mt-1">
+            <div className="text-xl font-bold text-white mt-1 font-mono">
               {orgData.members}
             </div>
           </div>
           <div>
             <div className="text-xs text-[#787d91]">Projects</div>
-            <div className="text-xl font-bold text-white mt-1">
+            <div className="text-xl font-bold text-white mt-1 font-mono">
               {orgData.projects}
             </div>
           </div>
           <div>
-            <div className="text-xs text-[#787d91]">AI Spend (This Month)</div>
-            <div className="text-xl font-bold text-white mt-1">
+            <div className="text-xs text-[#787d91]">AI Spend (30d)</div>
+            <div className="text-xl font-bold text-[#dfba82] mt-1 font-mono">
               {orgData.spendThisMonth}
             </div>
           </div>
@@ -238,154 +254,55 @@ export function OrganizationSettingsView() {
             </div>
 
             {/* Time Zone */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#161824]">
               <div>
                 <div className="font-medium text-[#e2e4ec]">Time Zone</div>
                 <div className="text-[11px] text-[#73788c]">
-                  Set your default time zone.
+                  Used for charts and usage aggregations.
                 </div>
               </div>
               <div className="relative">
                 <select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  className="appearance-none bg-[#121522] border border-[#23273a] hover:border-[#dfba82]/40 rounded-xl px-3.5 py-2 pr-8 text-xs text-white focus:outline-none cursor-pointer min-w-[190px]"
+                  className="appearance-none bg-[#121522] border border-[#23273a] hover:border-[#dfba82]/40 rounded-xl px-3.5 py-2 pr-8 text-xs text-white focus:outline-none cursor-pointer min-w-[180px]"
                 >
-                  <option value="(GMT+05:30) Asia/Kolkata">
-                    (GMT+05:30) Asia/Kolkata
-                  </option>
-                  <option value="(GMT-07:00) America/Los_Angeles">
-                    (GMT-07:00) Pacific Time
-                  </option>
-                  <option value="(GMT-04:00) America/New_York">
-                    (GMT-04:00) Eastern Time
-                  </option>
-                  <option value="(GMT+00:00) UTC">
-                    (GMT+00:00) UTC
-                  </option>
-                  <option value="(GMT+01:00) Europe/London">
-                    (GMT+01:00) London
-                  </option>
-                  <option value="(GMT+09:00) Asia/Tokyo">
-                    (GMT+09:00) Tokyo
-                  </option>
+                  <option value="(GMT+05:30) Asia/Kolkata">(GMT+05:30) Asia/Kolkata</option>
+                  <option value="(UTC-07:00) America/Los_Angeles">(UTC-07:00) Pacific Time</option>
+                  <option value="(UTC-04:00) America/New_York">(UTC-04:00) Eastern Time</option>
+                  <option value="(UTC+00:00) Europe/London">(UTC+00:00) London</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-[#787d91] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Date Format */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <div className="font-medium text-[#e2e4ec]">Date Format</div>
-                <div className="text-[11px] text-[#73788c]">
-                  Choose how dates are displayed.
-                </div>
-              </div>
-              <div className="relative">
-                <select
-                  value={dateFormat}
-                  onChange={(e) => setDateFormat(e.target.value)}
-                  className="appearance-none bg-[#121522] border border-[#23273a] hover:border-[#dfba82]/40 rounded-xl px-3.5 py-2 pr-8 text-xs text-white focus:outline-none cursor-pointer min-w-[140px]"
-                >
-                  <option value="May 16, 2025">May 16, 2025</option>
-                  <option value="2025-05-16">2025-05-16</option>
-                  <option value="16/05/2025">16/05/2025</option>
-                  <option value="16 May 2025">16 May 2025</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-[#787d91] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Number Format */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <div className="font-medium text-[#e2e4ec]">Number Format</div>
-                <div className="text-[11px] text-[#73788c]">
-                  Choose how numbers are displayed.
-                </div>
-              </div>
-              <div className="relative">
-                <select
-                  value={numberFormat}
-                  onChange={(e) => setNumberFormat(e.target.value)}
-                  className="appearance-none bg-[#121522] border border-[#23273a] hover:border-[#dfba82]/40 rounded-xl px-3.5 py-2 pr-8 text-xs text-white focus:outline-none cursor-pointer min-w-[130px]"
-                >
-                  <option value="1,234.56">1,234.56</option>
-                  <option value="1.234,56">1.234,56</option>
-                  <option value="1 234,56">1 234,56</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-[#787d91] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Theme Toggle */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-              <div>
-                <div className="font-medium text-[#e2e4ec]">Theme</div>
-                <div className="text-[11px] text-[#73788c]">
-                  Choose your preferred theme.
-                </div>
-              </div>
-              <div className="flex items-center p-1 bg-[#121522] border border-[#23273a] rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTheme("light")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    selectedTheme === "light"
-                      ? "bg-[#dfba82] text-black font-bold shadow-xs"
-                      : "text-[#787d91] hover:text-white"
-                  }`}
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTheme("dark")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    selectedTheme === "dark"
-                      ? "bg-[#08090f] text-[#dfba82] border border-[#dfba82]/40 shadow-[0_0_10px_rgba(223,186,130,0.15)] font-semibold"
-                      : "text-[#787d91] hover:text-white"
-                  }`}
-                >
-                  <Moon className="w-3.5 h-3.5" />
-                  <span>Dark</span>
-                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Your Plan Card */}
-        <div className="p-6 bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl shadow-sm flex flex-col justify-between space-y-4">
+        {/* Right Column: Your Plan */}
+        <div className="p-6 bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl shadow-sm space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
             <h2 className="text-[15px] font-semibold text-white">Your Plan</h2>
 
-            {/* Plan Header */}
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[#dfba82]/10 border border-[#dfba82]/30 flex items-center justify-center text-[#dfba82] shrink-0 shadow-[0_0_20px_rgba(223,186,130,0.15)]">
-                <Crown className="w-7 h-7 stroke-[2]" />
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#dfba82]/10 border border-[#dfba82]/25 flex items-center justify-center text-[#dfba82] shrink-0">
+                <Crown className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white tracking-tight">
-                  Enterprise Plan
+                  {orgData.plan}
                 </h3>
                 <p className="text-xs text-[#8e93a6] leading-relaxed mt-0.5">
-                  Unlimited everything. Advanced governance, SAML SSO, priority support.
+                  High-throughput gateway routing, live budget enforcements, and audit logs.
                 </p>
               </div>
             </div>
 
-            {/* Feature Checklist */}
             <div className="space-y-2 pt-2 text-xs">
               {[
                 "Unlimited projects",
-                "Advanced governance",
-                "All integrations",
-                "Priority support",
-                "SAML SSO & SCIM",
-                "Custom data retention",
+                "Advanced governance & alerts",
+                "Proxy gateway execution",
+                "Tamper-evident audit trail",
               ].map((feature) => (
                 <div key={feature} className="flex items-center gap-2.5 text-[#c5c9d6]">
                   <Check className="w-3.5 h-3.5 text-[#dfba82] stroke-[2.5] shrink-0" />
@@ -395,10 +312,9 @@ export function OrganizationSettingsView() {
             </div>
           </div>
 
-          {/* Bottom Billing Details Link */}
           <div className="pt-2">
             <Link
-              href="/billing"
+              href="/dashboard/billing"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#dfba82] hover:text-[#ebd5ab] transition-colors group cursor-pointer"
             >
               <span>View billing details</span>
@@ -410,69 +326,69 @@ export function OrganizationSettingsView() {
 
       {/* 3. Bottom Row: Connected Integrations */}
       <div className="space-y-4">
-        <h2 className="text-[15px] font-semibold text-white">
-          Connected Integrations
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {integrations.map((item) => (
-            <div
-              key={item.id}
-              className="p-4 bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl flex flex-col justify-between gap-4 shadow-sm hover:border-[#dfba82]/30 transition-all group"
-            >
-              <div className="space-y-3">
-                {/* Header: Icon + Name + Badge */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <IntegrationLogoBadge id={item.id} size={30} />
-                    <div className="font-semibold text-sm text-white">
-                      {item.name}
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 text-[10px] font-semibold">
-                    {item.status}
-                  </span>
-                </div>
-
-                {/* Info */}
-                <div className="space-y-0.5 text-xs text-[#787d91]">
-                  <div>{item.addedDate}</div>
-                  <div className="font-medium text-[#c5c9d6]">
-                    Total Spend: {item.totalSpend}
-                  </div>
-                </div>
-              </div>
-
-              {/* Manage Button */}
-              <button
-                type="button"
-                onClick={() => setSelectedIntegrationForManage(item)}
-                className="w-full py-1.5 rounded-xl bg-[#121422] border border-[#23273a] hover:border-[#dfba82]/40 text-xs font-semibold text-[#c5c9d6] hover:text-white transition-all cursor-pointer text-center"
-              >
-                Manage
-              </button>
-            </div>
-          ))}
-
-          {/* 4th Card: Add Integration Dashed Card */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-white">
+            Connected Integrations
+          </h2>
           <button
             type="button"
             onClick={() => setIsAddIntegrationOpen(true)}
-            className="p-5 bg-[#090b12]/50 border-2 border-dashed border-[#1f2334] hover:border-[#dfba82]/50 rounded-2xl flex flex-col items-center justify-center text-center gap-2 hover:bg-[#121524]/60 transition-all cursor-pointer group min-h-[160px]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold transition-all cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-xl bg-[#121522] border border-[#232738] group-hover:border-[#dfba82]/40 text-[#dfba82] flex items-center justify-center transition-transform group-hover:scale-110">
-              <Plus className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-white group-hover:text-[#dfba82] transition-colors">
-                Add Integration
-              </div>
-              <p className="text-[11px] text-[#73788c] max-w-[180px] mt-0.5 leading-snug">
-                Connect a new provider or tool to get started.
-              </p>
-            </div>
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Add Integration</span>
           </button>
         </div>
+
+        {integrations.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#73788c] bg-[#0c0e17] rounded-2xl border border-[#1b1e2c] space-y-2">
+            <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 text-[#dfba82] flex items-center justify-center mx-auto">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div className="text-sm font-semibold text-white">No external integrations connected</div>
+            <p className="text-[11px] text-[#73788c] max-w-sm mx-auto">
+              Connect external upstream providers like OpenAI, Anthropic, or Gemini to link billing credentials.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {integrations.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl flex flex-col justify-between gap-4 shadow-sm hover:border-[#dfba82]/30 transition-all group"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <IntegrationLogoBadge id={item.id} size={30} />
+                      <div className="font-semibold text-sm text-white">
+                        {item.name}
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 text-[10px] font-semibold">
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="space-y-0.5 text-xs text-[#787d91]">
+                    <div>{item.addedDate}</div>
+                    <div className="font-medium text-[#c5c9d6]">
+                      Total Spend: {item.totalSpend}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedIntegrationForManage(item)}
+                  className="w-full py-1.5 rounded-xl bg-[#121422] border border-[#23273a] hover:border-[#dfba82]/40 text-xs font-semibold text-[#c5c9d6] hover:text-white transition-all cursor-pointer text-center"
+                >
+                  Manage
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -484,7 +400,7 @@ export function OrganizationSettingsView() {
       />
 
       <ManageIntegrationModal
-        isOpen={!!selectedIntegrationForManage}
+        isOpen={selectedIntegrationForManage !== null}
         onClose={() => setSelectedIntegrationForManage(null)}
         integration={selectedIntegrationForManage}
         onUpdate={handleUpdateIntegration}

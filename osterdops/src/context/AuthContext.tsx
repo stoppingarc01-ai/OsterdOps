@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import {
   User as FirebaseUser,
   signInWithEmailAndPassword,
@@ -35,6 +35,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: User | null;
   organizations: UserOrganizationData[];
+  userOrganizations: Organization[];
   currentOrg: Organization | null;
   currentMembership: OrganizationMember | null;
   isLoading: boolean;
@@ -347,12 +348,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [organizations]
   );
 
+  const userOrganizations = useMemo(
+    () => organizations.map((o) => o.organization),
+    [organizations]
+  );
+
   return (
     <AuthContext.Provider
       value={{
         user,
         userProfile,
         organizations,
+        userOrganizations,
         currentOrg,
         currentMembership,
         isLoading,

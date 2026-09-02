@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   Search,
@@ -19,7 +19,10 @@ import {
   Check,
   Download,
   Terminal,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api/client";
 
 export interface RequestLogEntry {
   id: string;
@@ -37,85 +40,74 @@ export interface RequestLogEntry {
   errorMessage?: string;
 }
 
-const SAMPLE_LOGS: RequestLogEntry[] = [
-  {
-    id: "gw_req_01j9a8b1",
-    timestamp: "2026-08-31 20:54:12",
-    provider: "openai",
-    model: "gpt-4o-mini",
-    statusCode: 200,
-    latencyMs: 312,
-    inputTokens: 142,
-    outputTokens: 85,
-    cachedTokens: 64,
-    costUsd: 0.000072,
-    stream: true,
-  },
-  {
-    id: "gw_req_01j9a8b2",
-    timestamp: "2026-08-31 20:53:48",
-    provider: "anthropic",
-    model: "claude-3-5-sonnet",
-    statusCode: 200,
-    latencyMs: 468,
-    inputTokens: 420,
-    outputTokens: 160,
-    cachedTokens: 128,
-    costUsd: 0.00366,
-    stream: true,
-  },
-  {
-    id: "gw_req_01j9a8b3",
-    timestamp: "2026-08-31 20:51:20",
-    provider: "gemini",
-    model: "gemini-1.5-flash",
-    statusCode: 200,
-    latencyMs: 198,
-    inputTokens: 250,
-    outputTokens: 60,
-    cachedTokens: 0,
-    costUsd: 0.000044,
-    stream: false,
-  },
-  {
-    id: "gw_req_01j9a8b4",
-    timestamp: "2026-08-31 20:48:05",
-    provider: "openai",
-    model: "gpt-4o",
-    statusCode: 429,
-    latencyMs: 65,
-    inputTokens: 0,
-    outputTokens: 0,
-    cachedTokens: 0,
-    costUsd: 0,
-    stream: false,
-    errorCode: "PROVIDER_RATE_LIMITED",
-    errorMessage: "Upstream rate limit reached for 'openai'.",
-  },
-  {
-    id: "gw_req_01j9a8b5",
-    timestamp: "2026-08-31 20:45:30",
-    provider: "anthropic",
-    model: "claude-3-5-sonnet",
-    statusCode: 504,
-    latencyMs: 30000,
-    inputTokens: 0,
-    outputTokens: 0,
-    cachedTokens: 0,
-    costUsd: 0,
-    stream: true,
-    errorCode: "TIMEOUT",
-    errorMessage: "Upstream AI provider request timed out after server deadline.",
-  },
-];
-
 export function RequestLogsView() {
-  const [logs] = useState<RequestLogEntry[]>(SAMPLE_LOGS);
+  const { currentOrg, getIdToken } = useAuth();
+  const [logs, setLogs] = useState<RequestLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [activeInspectorLog, setActiveInspectorLog] = useState<RequestLogEntry | null>(null);
   const [copiedId, setCopiedId] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchLogs() {
+      if (!currentOrg?.id) return;
+      setLoading(true);
+
+      try {
+        const token = await getIdToken();
+        const res = await apiRequest<any[]>("/api/v1/usage", {
+          params: { organizationId: currentOrg.id, limit: 50 },
+          token,
+        });
+
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data)) {
+          const mapped: RequestLogEntry[] = res.data.map((u: any) => {
+            let prov: "openai" | "anthropic" | "gemini" = "openai";
+            const p = (u.provider || "").toLowerCase();
+            if (p.includes("anthropic")) prov = "anthropic";
+            else if (p.includes("gemini") || p.includes("google")) prov = "gemini";
+
+            return {
+              id: u.id,
+              timestamp: u.createdAt
+                ? new Date(u.createdAt).toISOString().replace("T", " ").slice(0, 19)
+                : new Date().toISOString().replace("T", " ").slice(0, 19),
+              provider: prov,
+              model: u.model || "unknown",
+              statusCode: u.statusCode ?? (u.status === "SUCCESS" ? 200 : 500),
+              latencyMs: u.latencyMs ?? 0,
+              inputTokens: u.tokensPrompt ?? 0,
+              outputTokens: u.tokensCompletion ?? 0,
+              cachedTokens: u.tokensCached ?? 0,
+              costUsd: u.estimatedCostUsd ?? u.estimatedCost ?? 0,
+              stream: Boolean(u.stream),
+              errorCode: u.errorCode,
+              errorMessage: u.errorMessage,
+            };
+          });
+          setLogs(mapped);
+        } else {
+          setLogs([]);
+        }
+      } catch (err) {
+        if (isMounted) setLogs([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchLogs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentOrg?.id, getIdToken]);
 
   const filteredLogs = logs.filter((log) => {
     if (searchQuery.trim() && !log.id.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -141,134 +133,163 @@ export function RequestLogsView() {
 
   return (
     <div className="space-y-6">
-      {/* Privacy Guarantee Header Banner */}
-      <div className="p-4 rounded-2xl bg-[#0c0e17] border border-emerald-800/30 flex items-start gap-3 shadow-lg">
-        <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-[#8e93a6] leading-relaxed">
-          <span className="font-bold text-white font-serif">Zero Payload Persistence:</span> Request logs record ONLY
-          operational metrics (latency, token breakdown, status codes, estimated cost, and correlation IDs). Prompts,
-          system instructions, and completions are NEVER stored or inspectable.
+      {/* Top Filter Bar */}
+      <div className="p-4 bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full md:w-auto flex-1">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-[#73788c] absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by Request ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#111422] border border-[#1d2136] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-[#52576b] focus:outline-none focus:border-[#dfba82]"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-[#73788c]" />
+            <select
+              value={selectedProvider}
+              onChange={(e) => setSelectedProvider(e.target.value)}
+              className="bg-[#111422] border border-[#1d2136] rounded-xl px-3 py-2 text-xs text-[#c5c9d6] focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Providers</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-[#111422] border border-[#1d2136] rounded-xl px-3 py-2 text-xs text-[#c5c9d6] focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="success">200 OK Only</option>
+              <option value="error">Errors & Throttles</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
+              const downloadAnchor = document.createElement("a");
+              downloadAnchor.setAttribute("href", dataStr);
+              downloadAnchor.setAttribute("download", "request-logs.json");
+              document.body.appendChild(downloadAnchor);
+              downloadAnchor.click();
+              downloadAnchor.remove();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#141726] border border-[#232738] text-xs font-semibold text-[#c5c9d6] hover:text-white hover:border-[#dfba82]/40 transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-[#dfba82]" />
+            <span>Export JSON</span>
+          </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="p-4 rounded-2xl bg-[#0c0e17] border border-[#1b1e2c] shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-[#73788c] absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by Request ID (gw_req_...)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#111422] border border-[#1b1e2c] text-xs text-white placeholder-[#73788c] focus:outline-none focus:border-[#dfba82]/50 font-mono"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedProvider}
-            onChange={(e) => setSelectedProvider(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-[#111422] border border-[#1b1e2c] text-xs text-white focus:outline-none focus:border-[#dfba82]/50"
-          >
-            <option value="all">All Providers</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="gemini">Google Gemini</option>
-          </select>
-
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-[#111422] border border-[#1b1e2c] text-xs text-white focus:outline-none focus:border-[#dfba82]/50"
-          >
-            <option value="all">All Statuses</option>
-            <option value="success">Success (200 OK)</option>
-            <option value="error">Errors (4xx, 5xx)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Request Logs Table */}
-      <div className="rounded-2xl bg-[#0c0e17] border border-[#1b1e2c] shadow-xl overflow-hidden">
+      {/* Logs Table Card */}
+      <div className="bg-[#0c0e17] border border-[#1b1e2c] rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-[#1b1e2c] text-[#8e93a6] bg-[#111422]/50">
-                <th className="py-3 px-4 font-semibold">Status</th>
-                <th className="py-3 px-4 font-semibold">Request ID</th>
-                <th className="py-3 px-4 font-semibold">Timestamp (UTC)</th>
-                <th className="py-3 px-4 font-semibold">Provider & Model</th>
-                <th className="py-3 px-4 font-semibold">Mode</th>
-                <th className="py-3 px-4 font-semibold">Latency</th>
-                <th className="py-3 px-4 font-semibold">Tokens (In / Out)</th>
-                <th className="py-3 px-4 font-semibold">Estimated Cost</th>
-                <th className="py-3 px-4 text-right font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#161928] font-mono">
-              {filteredLogs.map((log) => (
-                <tr
-                  key={log.id}
-                  onClick={() => setActiveInspectorLog(log)}
-                  className="hover:bg-[#111422]/80 transition-colors cursor-pointer"
-                >
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold border ${
-                        log.statusCode === 200
-                          ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/30"
-                          : log.statusCode === 429
-                          ? "bg-amber-950/60 text-amber-400 border-amber-800/30"
-                          : "bg-rose-950/60 text-rose-400 border-rose-800/30"
-                      }`}
-                    >
-                      {log.statusCode === 200 ? (
-                        <CheckCircle2 className="w-3 h-3" />
-                      ) : log.statusCode === 429 ? (
-                        <AlertTriangle className="w-3 h-3" />
-                      ) : (
-                        <XCircle className="w-3 h-3" />
-                      )}
-                      <span>{log.statusCode}</span>
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-white">{log.id}</td>
-                  <td className="py-3.5 px-4 text-[#8e93a6] font-sans text-[11px]">{log.timestamp}</td>
-                  <td className="py-3.5 px-4 font-sans">
-                    <div className="font-semibold text-white">{log.model}</div>
-                    <div className="text-[10px] text-[#73788c] uppercase">{log.provider}</div>
-                  </td>
-                  <td className="py-3.5 px-4 font-sans">
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        log.stream ? "bg-blue-950/60 text-blue-400" : "bg-[#161928] text-[#8e93a6]"
-                      }`}
-                    >
-                      {log.stream ? "SSE Stream" : "Unary"}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-white">{log.latencyMs}ms</td>
-                  <td className="py-3.5 px-4 text-[#8e93a6]">
-                    {log.inputTokens} / {log.outputTokens}
-                    {log.cachedTokens > 0 && (
-                      <span className="text-purple-400 text-[10px] ml-1">({log.cachedTokens} cached)</span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 text-[#dfba82] font-bold">
-                    {log.costUsd > 0 ? `$${log.costUsd.toFixed(6)}` : "—"}
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      type="button"
-                      className="text-[#73788c] hover:text-white transition-colors cursor-pointer"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </td>
+          {loading ? (
+            <div className="p-12 text-center text-xs text-[#8e93a6] space-y-2">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#dfba82]" />
+              <div>Aggregating proxy logs...</div>
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="p-12 text-center text-xs text-[#73788c] bg-[#090b12] space-y-2">
+              <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 text-[#dfba82] flex items-center justify-center mx-auto">
+                <Activity className="w-4 h-4" />
+              </div>
+              <div className="text-sm font-semibold text-white">No request logs recorded</div>
+              <p className="text-[11px] text-[#73788c] max-w-sm mx-auto">
+                Once requests are routed through the OsterdOps Proxy Gateway, live execution traces will display here.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[#161824] bg-[#0f111c] text-[10.5px] uppercase tracking-wider text-[#6e7387]">
+                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold">Request ID</th>
+                  <th className="py-3 px-4 font-semibold">Timestamp (UTC)</th>
+                  <th className="py-3 px-4 font-semibold">Provider & Model</th>
+                  <th className="py-3 px-4 font-semibold">Mode</th>
+                  <th className="py-3 px-4 font-semibold">Latency</th>
+                  <th className="py-3 px-4 font-semibold">Tokens (In / Out)</th>
+                  <th className="py-3 px-4 font-semibold">Estimated Cost</th>
+                  <th className="py-3 px-4 text-right font-semibold">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#161928] font-mono">
+                {filteredLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    onClick={() => setActiveInspectorLog(log)}
+                    className="hover:bg-[#111422]/80 transition-colors cursor-pointer"
+                  >
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold border ${
+                          log.statusCode === 200
+                            ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/30"
+                            : log.statusCode === 429
+                            ? "bg-amber-950/60 text-amber-400 border-amber-800/30"
+                            : "bg-rose-950/60 text-rose-400 border-rose-800/30"
+                        }`}
+                      >
+                        {log.statusCode === 200 ? (
+                          <CheckCircle2 className="w-3 h-3" />
+                        ) : log.statusCode === 429 ? (
+                          <AlertTriangle className="w-3 h-3" />
+                        ) : (
+                          <XCircle className="w-3 h-3" />
+                        )}
+                        <span>{log.statusCode}</span>
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-white">{log.id}</td>
+                    <td className="py-3.5 px-4 text-[#8e93a6] font-sans text-[11px]">{log.timestamp}</td>
+                    <td className="py-3.5 px-4 font-sans">
+                      <div className="font-semibold text-white">{log.model}</div>
+                      <div className="text-[10px] text-[#73788c] uppercase">{log.provider}</div>
+                    </td>
+                    <td className="py-3.5 px-4 font-sans">
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          log.stream ? "bg-blue-950/60 text-blue-400" : "bg-[#161928] text-[#8e93a6]"
+                        }`}
+                      >
+                        {log.stream ? "SSE Stream" : "Unary"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-white">{log.latencyMs}ms</td>
+                    <td className="py-3.5 px-4 text-[#8e93a6]">
+                      {log.inputTokens} / {log.outputTokens}
+                      {log.cachedTokens > 0 && (
+                        <span className="text-purple-400 text-[10px] ml-1">({log.cachedTokens} cached)</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-[#dfba82] font-bold">
+                      {log.costUsd > 0 ? `$${log.costUsd.toFixed(6)}` : "—"}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        className="text-[#73788c] hover:text-white transition-colors cursor-pointer"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -298,82 +319,62 @@ export function RequestLogsView() {
                     : "bg-rose-950/40 border-rose-800/30 text-rose-400"
                 }`}
               >
-                <div className="flex items-center gap-2 font-bold font-mono">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {activeInspectorLog.statusCode === 200 ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4" />
+                  )}
                   <span>HTTP {activeInspectorLog.statusCode}</span>
-                  <span>{activeInspectorLog.statusCode === 200 ? "SUCCESS" : activeInspectorLog.errorCode}</span>
                 </div>
-                <div className="font-mono text-xs text-white">{activeInspectorLog.latencyMs}ms</div>
+                <span className="text-xs font-mono">{activeInspectorLog.latencyMs}ms elapsed</span>
               </div>
 
-              {/* Request ID with Copy Button */}
-              <div className="space-y-1">
-                <span className="text-[11px] text-[#8e93a6] uppercase font-semibold">Correlation ID</span>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] flex items-center justify-between font-mono text-xs text-white">
-                  <span>{activeInspectorLog.id}</span>
-                  <button
-                    onClick={() => copyRequestId(activeInspectorLog.id)}
-                    className="text-[#73788c] hover:text-white transition-colors cursor-pointer"
-                  >
-                    {copiedId ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
+              {/* Key Values */}
+              <div className="space-y-3 font-mono text-xs">
+                <div className="flex justify-between py-1.5 border-b border-[#161928]">
+                  <span className="text-[#73788c]">Request ID</span>
+                  <div className="flex items-center gap-1.5 text-white">
+                    <span>{activeInspectorLog.id}</span>
+                    <button
+                      onClick={() => copyRequestId(activeInspectorLog.id)}
+                      className="p-1 hover:text-[#dfba82]"
+                    >
+                      {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Detailed Breakdown Grid */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">AI Provider</span>
-                  <span className="font-bold text-white uppercase">{activeInspectorLog.provider}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">Model Name</span>
-                  <span className="font-bold text-white">{activeInspectorLog.model}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">Prompt Tokens</span>
-                  <span className="font-mono text-white">{activeInspectorLog.inputTokens}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">Output Tokens</span>
-                  <span className="font-mono text-white">{activeInspectorLog.outputTokens}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">Prompt Cache Tokens</span>
-                  <span className="font-mono text-purple-400">{activeInspectorLog.cachedTokens}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#111422] border border-[#1b1e2c] space-y-1">
-                  <span className="text-[10px] text-[#73788c] block uppercase">Estimated Spend</span>
-                  <span className="font-mono text-[#dfba82] font-bold">
-                    ${activeInspectorLog.costUsd.toFixed(6)}
+                <div className="flex justify-between py-1.5 border-b border-[#161928]">
+                  <span className="text-[#73788c]">Provider / Model</span>
+                  <span className="text-white">
+                    {activeInspectorLog.provider.toUpperCase()} · {activeInspectorLog.model}
                   </span>
                 </div>
-              </div>
 
-              {/* Error Explanation if Failed */}
-              {activeInspectorLog.errorMessage && (
-                <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800/30 space-y-2 text-xs">
-                  <div className="font-bold text-rose-400">Error Classification</div>
-                  <p className="text-white font-mono">{activeInspectorLog.errorMessage}</p>
+                <div className="flex justify-between py-1.5 border-b border-[#161928]">
+                  <span className="text-[#73788c]">Input Tokens</span>
+                  <span className="text-white">{activeInspectorLog.inputTokens}</span>
                 </div>
-              )}
 
-              {/* Privacy Shield Seal */}
-              <div className="p-4 rounded-xl bg-[#08090f] border border-[#161928] flex items-center gap-3 text-xs text-[#73788c]">
-                <EyeOff className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>
-                  Prompt & completion contents were purged from volatile memory immediately after gateway delivery.
-                </span>
+                <div className="flex justify-between py-1.5 border-b border-[#161928]">
+                  <span className="text-[#73788c]">Output Tokens</span>
+                  <span className="text-white">{activeInspectorLog.outputTokens}</span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-[#161928]">
+                  <span className="text-[#73788c]">Estimated Cost</span>
+                  <span className="text-[#dfba82] font-bold">${activeInspectorLog.costUsd.toFixed(6)}</span>
+                </div>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[#1b1e2c]">
-              <button
-                onClick={() => setActiveInspectorLog(null)}
-                className="w-full py-2 rounded-xl bg-[#111422] hover:bg-[#161928] text-xs font-semibold text-white transition-colors cursor-pointer"
-              >
-                Close Inspector
-              </button>
-            </div>
+            <button
+              onClick={() => setActiveInspectorLog(null)}
+              className="w-full py-2.5 bg-[#141726] hover:bg-[#1a1e32] border border-[#232738] rounded-xl text-xs font-semibold text-white"
+            >
+              Close Inspector
+            </button>
           </div>
         </div>
       )}

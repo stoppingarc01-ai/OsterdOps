@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Calendar, ChevronDown, RotateCw, Bell, Building2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export function ModelsHeader() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState("Acme Corp / All Projects");
-  const [selectedDate, setSelectedDate] = useState("May 10 – May 16, 2025");
+  const { currentOrg } = useAuth();
+  const selectedWorkspace = `${currentOrg?.name || "Workspace"} / All Projects`;
+  const selectedDate = "Last 30 Days";
 
   return (
     <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#161824]">
@@ -44,40 +46,18 @@ export function ModelsHeader() {
           >
             <Calendar className="w-3.5 h-3.5 text-[#dfba82]" />
             <span>{selectedDate}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#73788c]" />
           </button>
         </div>
 
         {/* Refresh Icon */}
         <button
           type="button"
+          onClick={() => window.location.reload()}
           className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
           title="Refresh Data"
         >
-          <RotateCw className="w-4 h-4" />
+          <RotateCw className="w-3.5 h-3.5" />
         </button>
-
-        {/* Calendar Icon */}
-        <button
-          type="button"
-          className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
-          title="Schedule Report"
-        >
-          <Calendar className="w-4 h-4" />
-        </button>
-
-        {/* Bell Icon */}
-        <div className="relative">
-          <button
-            type="button"
-            className="p-2 rounded-xl bg-[#0c0e17] border border-[#1b1e2c] hover:border-[#dfba82]/40 text-[#8e93a6] hover:text-white transition-colors relative cursor-pointer"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#b8860b] text-[#07080c] font-bold text-[9.5px] flex items-center justify-center border border-[#07080c]">
-              3
-            </span>
-          </button>
-        </div>
       </div>
     </header>
   );

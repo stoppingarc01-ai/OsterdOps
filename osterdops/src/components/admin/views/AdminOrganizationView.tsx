@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -12,12 +12,14 @@ import {
   Shield,
   Sparkles,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export function AdminOrganizationView() {
-  const [name, setName] = useState("Acme Enterprises");
-  const [slug, setSlug] = useState("acme-enterprises");
-  const [primaryDomain, setPrimaryDomain] = useState("acme.com");
-  const [tier, setTier] = useState("Enterprise Scale");
+  const { currentOrg, user } = useAuth();
+  const [name, setName] = useState(currentOrg?.name || "Workspace");
+  const [slug, setSlug] = useState(currentOrg?.slug || "workspace");
+  const [primaryDomain, setPrimaryDomain] = useState(`${currentOrg?.slug || "workspace"}.osterdops.com`);
+  const [tier, setTier] = useState(currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} Tier` : "Free Tier");
   const [status, setStatus] = useState("ACTIVE");
   const [defaultRateLimit, setDefaultRateLimit] = useState(500);
   const [defaultSpendLimit, setDefaultSpendLimit] = useState(1000);
@@ -25,7 +27,16 @@ export function AdminOrganizationView() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const orgId = "org_acme_corp_live_094";
+  useEffect(() => {
+    if (currentOrg) {
+      setName(currentOrg.name || "Workspace");
+      setSlug(currentOrg.slug || "workspace");
+      setPrimaryDomain(`${currentOrg.slug || "workspace"}.osterdops.com`);
+      setTier(currentOrg.planTier ? `${currentOrg.planTier.toUpperCase()} Tier` : "Free Tier");
+    }
+  }, [currentOrg]);
+
+  const orgId = currentOrg?.id || "org_default";
 
   const handleCopyOrgId = () => {
     navigator.clipboard.writeText(orgId);
@@ -58,148 +69,104 @@ export function AdminOrganizationView() {
                 {status}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-[#8e93a6] mt-1 font-mono">
+            <div className="flex items-center gap-2 text-xs text-[#8e93a6] mt-1 font-mono">
               <span>ID: {orgId}</span>
               <button
+                type="button"
                 onClick={handleCopyOrgId}
-                className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-                title="Copy Organization ID"
+                className="hover:text-[#dfba82] transition-colors cursor-pointer"
+                title="Copy Org ID"
               >
-                <Copy className="w-3 h-3" />
-                <span>{copied ? "Copied!" : "Copy"}</span>
+                {copied ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-xs text-[#8e93a6]">Plan Tier</div>
-            <div className="text-sm font-semibold text-[#dfba82]">{tier}</div>
-          </div>
-          <div className="h-8 w-px bg-[#1b202e] mx-2" />
-          <div className="text-right">
-            <div className="text-xs text-[#8e93a6]">Created</div>
-            <div className="text-sm font-semibold text-white">Jan 12, 2025</div>
-          </div>
+          <span className="px-3 py-1.5 rounded-xl bg-[#141824] border border-[#232c40] text-xs font-semibold text-[#dfba82]">
+            {tier}
+          </span>
         </div>
       </div>
 
-      {/* Organization Settings Form */}
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-6 space-y-6">
-          <h3 className="text-sm font-bold text-white border-b border-[#171b26] pb-3 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-[#dfba82]" />
-            Organization Profile
-          </h3>
+      {/* Organization Details Form */}
+      <form onSubmit={handleSave} className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-6 space-y-5">
+        <h3 className="text-sm font-bold text-white border-b border-[#171b26] pb-3">
+          Workspace Identity &amp; Routing Isolation
+        </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Organization Display Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+              Organization Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
+            />
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Organization URL Slug
-              </label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+              Organization Slug (URL Subdomain)
+            </label>
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82] font-mono"
+            />
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Primary Authorized Domain
-              </label>
-              <input
-                type="text"
-                value={primaryDomain}
-                onChange={(e) => setPrimaryDomain(e.target.value)}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+              Primary Routing Domain
+            </label>
+            <input
+              type="text"
+              value={primaryDomain}
+              onChange={(e) => setPrimaryDomain(e.target.value)}
+              className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white placeholder-[#555a6d] focus:outline-none focus:border-[#dfba82]"
+            />
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              >
-                <option value="ACTIVE">ACTIVE — Normal Operations</option>
-                <option value="SUSPENDED">SUSPENDED — Read Only</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#8e93a6] mb-1">
+              Default Project Spend Limit (USD)
+            </label>
+            <input
+              type="number"
+              value={defaultSpendLimit}
+              onChange={(e) => setDefaultSpendLimit(Number(e.target.value))}
+              className="w-full bg-[#111422] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82] font-mono"
+            />
           </div>
         </div>
 
-        {/* Global Project Defaults */}
-        <div className="bg-[#0c0f16] border border-[#171b26] rounded-2xl p-6 space-y-6">
-          <h3 className="text-sm font-bold text-white border-b border-[#171b26] pb-3 flex items-center gap-2">
-            <HardDrive className="w-4 h-4 text-[#dfba82]" />
-            Default Project Governance Bounds
-          </h3>
+        <div className="flex items-center justify-between pt-4 border-t border-[#171b26]">
+          {savedSuccess ? (
+            <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Changes saved successfully
+            </span>
+          ) : (
+            <div />
+          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Default Rate Limit (Requests per Minute)
-              </label>
-              <input
-                type="number"
-                value={defaultRateLimit}
-                onChange={(e) => setDefaultRateLimit(Number(e.target.value))}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#8e93a6] mb-1.5">
-                Default Project Monthly Spend Limit ($USD)
-              </label>
-              <input
-                type="number"
-                value={defaultSpendLimit}
-                onChange={(e) => setDefaultSpendLimit(Number(e.target.value))}
-                className="w-full bg-[#07080c] border border-[#1b202e] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#dfba82]"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex items-center justify-between">
-          <div className="text-xs text-[#8e93a6]">
-            Server-side mutations are verified with audit log entries.
-          </div>
-          <div className="flex items-center gap-3">
-            {savedSuccess && (
-              <span className="text-xs text-emerald-400 flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="w-4 h-4" /> Changes saved
-              </span>
-            )}
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-5 py-2 rounded-xl bg-[#dfba82] hover:bg-[#ebd2a9] text-black font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSaving ? "Saving..." : "Save Settings"}</span>
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="px-5 py-2 bg-[#dfba82] hover:bg-[#ebd2a9] text-black font-semibold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSaving ? "Saving..." : "Save Settings"}</span>
+          </button>
         </div>
       </form>
     </div>
