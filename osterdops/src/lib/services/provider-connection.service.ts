@@ -479,6 +479,7 @@ export async function resolveProviderCredentials(
         const projectMatches = !projectId || !d.projectId || d.projectId === projectId;
         const providerMatches =
           p === normalizedProvider ||
+          ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (p === "moonshot" || p === "kimi")) ||
           (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai"));
 
         return projectMatches && providerMatches;
@@ -498,8 +499,9 @@ export async function resolveProviderCredentials(
         const p = String(d.provider || "").toLowerCase();
         return (
           p === normalizedProvider ||
+          ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (p === "moonshot" || p === "kimi")) ||
           (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai")) ||
-          (p === "custom" && (normalizedProvider === "openai" || normalizedProvider === "custom" || normalizedProvider === "groq" || normalizedProvider === "mistral"))
+          (p === "custom" && (normalizedProvider === "openai" || normalizedProvider === "custom" || normalizedProvider === "groq" || normalizedProvider === "mistral" || normalizedProvider === "moonshot" || normalizedProvider === "kimi"))
         );
       });
     }
@@ -542,6 +544,13 @@ export async function resolveProviderCredentials(
     }
     if (normalizedProvider === "groq" && process.env.GROQ_API_KEY) {
       return { apiKey: process.env.GROQ_API_KEY, baseUrl: "https://api.groq.com/openai/v1", provider: "groq" };
+    }
+    if ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY)) {
+      return {
+        apiKey: process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "",
+        baseUrl: process.env.MOONSHOT_BASE_URL || process.env.KIMI_BASE_URL || "https://api.moonshot.cn/v1",
+        provider: "moonshot",
+      };
     }
   }
 

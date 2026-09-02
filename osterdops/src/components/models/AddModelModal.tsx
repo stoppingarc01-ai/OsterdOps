@@ -99,12 +99,12 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     models: ["azure/gpt-4o", "azure/gpt-4o-mini"],
   },
   {
-    id: "kimi",
+    id: "moonshot",
     name: "Moonshot AI (Kimi)",
-    tagline: "Kimi k1.5, Moonshot-v1 128k/32k/8k",
+    tagline: "Kimi k1.5, Moonshot-v1 8k/32k/128k",
     defaultBaseUrl: "https://api.moonshot.cn/v1",
     keyPlaceholder: "sk-...",
-    models: ["kimi-k1.5", "moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"],
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "kimi-k1.5"],
   },
   {
     id: "custom",
@@ -168,7 +168,11 @@ export function AddModelModal({
       let targetPreset = PROVIDER_PRESETS[0];
       if (initialProvider) {
         const found = PROVIDER_PRESETS.find(
-          (p) => p.id.toLowerCase() === initialProvider.toLowerCase() || p.name.toLowerCase() === initialProvider.toLowerCase()
+          (p) =>
+            p.id.toLowerCase() === initialProvider.toLowerCase() ||
+            p.name.toLowerCase() === initialProvider.toLowerCase() ||
+            ((initialProvider.toLowerCase() === "kimi" || initialProvider.toLowerCase() === "moonshot") &&
+              (p.id === "moonshot" || p.id === "kimi"))
         );
         if (found) targetPreset = found;
       }

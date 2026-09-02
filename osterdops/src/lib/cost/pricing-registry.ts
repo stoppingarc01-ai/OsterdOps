@@ -6,7 +6,7 @@
 
 import type { AIProvider } from "@/types";
 
-export type ProviderId = AIProvider | "meta" | "groq";
+export type ProviderId = AIProvider | "meta" | "groq" | "moonshot" | "kimi";
 
 export interface ModelPricing {
   provider: ProviderId;
@@ -610,47 +610,22 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
   // ==========================================
   // 6. Moonshot AI (Kimi) Models
   // ==========================================
-  "kimi-k1.5": createPricingEntry({
-    provider: "kimi",
-    model: "kimi-k1.5",
-    inputCostPer1M: 2.50,
-    outputCostPer1M: 10.00,
-    contextWindow: 131072,
-    supportsStreaming: true,
-    supportsVision: true,
-    supportsFunctionCalling: true,
-    fallbackModel: "moonshot-v1-128k",
-    description: "Next-gen multimodal reasoning model with long-context visual reasoning and math capabilities",
-  }),
-  "kimi-latest": createPricingEntry({
-    provider: "kimi",
-    model: "kimi-latest",
-    inputCostPer1M: 2.50,
-    outputCostPer1M: 10.00,
-    contextWindow: 131072,
-    supportsStreaming: true,
-    supportsVision: true,
-    supportsFunctionCalling: true,
-    fallbackModel: "moonshot-v1-128k",
-    description: "Points dynamically to Kimi's most capable frontier reasoning and multimodal release",
-  }),
-  "moonshot-v1-128k": createPricingEntry({
-    provider: "kimi",
-    model: "moonshot-v1-128k",
-    inputCostPer1M: 8.40,
-    outputCostPer1M: 8.40,
-    contextWindow: 131072,
+  "moonshot-v1-8k": createPricingEntry({
+    provider: "moonshot",
+    model: "moonshot-v1-8k",
+    inputCostPer1M: 1.70,
+    outputCostPer1M: 1.70,
+    contextWindow: 8192,
     supportsStreaming: true,
     supportsVision: false,
     supportsFunctionCalling: true,
-    fallbackModel: "moonshot-v1-32k",
-    description: "Massive 128K context window for multi-document synthesis and long-form financial analysis",
+    description: "High-speed, cost-effective 8K context model for conversational chat and routing",
   }),
   "moonshot-v1-32k": createPricingEntry({
-    provider: "kimi",
+    provider: "moonshot",
     model: "moonshot-v1-32k",
-    inputCostPer1M: 3.36,
-    outputCostPer1M: 3.36,
+    inputCostPer1M: 3.40,
+    outputCostPer1M: 3.40,
     contextWindow: 32768,
     supportsStreaming: true,
     supportsVision: false,
@@ -658,16 +633,41 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     fallbackModel: "moonshot-v1-8k",
     description: "Balanced 32K context window for detailed coding assistance, document Q&A, and agents",
   }),
-  "moonshot-v1-8k": createPricingEntry({
-    provider: "kimi",
-    model: "moonshot-v1-8k",
-    inputCostPer1M: 1.68,
-    outputCostPer1M: 1.68,
-    contextWindow: 8192,
+  "moonshot-v1-128k": createPricingEntry({
+    provider: "moonshot",
+    model: "moonshot-v1-128k",
+    inputCostPer1M: 8.50,
+    outputCostPer1M: 8.50,
+    contextWindow: 131072,
     supportsStreaming: true,
     supportsVision: false,
     supportsFunctionCalling: true,
-    description: "High-speed, cost-effective 8K context model for conversational chat and routing",
+    fallbackModel: "moonshot-v1-32k",
+    description: "Massive 128K context window for multi-document synthesis and long-form financial analysis",
+  }),
+  "kimi-k1.5": createPricingEntry({
+    provider: "moonshot",
+    model: "kimi-k1.5",
+    inputCostPer1M: 1.40,
+    outputCostPer1M: 2.80,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: true,
+    supportsFunctionCalling: true,
+    fallbackModel: "moonshot-v1-8k",
+    description: "Next-gen multimodal reasoning model with long-context visual reasoning and math capabilities",
+  }),
+  "kimi-latest": createPricingEntry({
+    provider: "moonshot",
+    model: "kimi-latest",
+    inputCostPer1M: 1.40,
+    outputCostPer1M: 2.80,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: true,
+    supportsFunctionCalling: true,
+    fallbackModel: "moonshot-v1-8k",
+    description: "Points dynamically to Kimi's most capable frontier reasoning and multimodal release",
   }),
 };
 

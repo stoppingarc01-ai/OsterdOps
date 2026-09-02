@@ -62,6 +62,7 @@ export interface GatewayChatResponse {
 export interface ProviderCredentials {
   apiKey: string;
   baseUrl?: string;
+  provider?: string;
 }
 
 export type NormalizedProviderErrorCode =

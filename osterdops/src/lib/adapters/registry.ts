@@ -80,6 +80,10 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
     return "openai";
   }
 
+  if (normalized.startsWith("moonshot") || normalized.startsWith("kimi")) {
+    return "moonshot";
+  }
+
   // Default to OpenAI protocol for unknown / custom fine-tuned models
   return "openai";
 }

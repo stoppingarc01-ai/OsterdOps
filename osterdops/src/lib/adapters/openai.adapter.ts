@@ -56,6 +56,16 @@ interface OpenAIResponseBody {
 export class OpenAIAdapter implements AIProviderAdapter {
   readonly provider = "openai" as const;
 
+  private resolveBaseUrl(credentials: ProviderCredentials, model?: string): string {
+    if (credentials.baseUrl) return credentials.baseUrl;
+    const prov = (credentials.provider || "").toLowerCase();
+    const mdl = (model || "").toLowerCase();
+    if (prov === "moonshot" || prov === "kimi" || mdl.startsWith("moonshot") || mdl.startsWith("kimi")) {
+      return "https://api.moonshot.cn/v1";
+    }
+    return "https://api.openai.com/v1";
+  }
+
   /**
    * Safe server-side credential validation using OpenAI models endpoint.
    */
@@ -66,7 +76,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
       return { valid: false, error: "API key is required" };
     }
 
-    const baseUrl = credentials.baseUrl || "https://api.openai.com/v1";
+    const baseUrl = this.resolveBaseUrl(credentials);
     const url = `${baseUrl.replace(/\/+$/, "")}/models`;
 
     try {
@@ -86,14 +96,14 @@ export class OpenAIAdapter implements AIProviderAdapter {
       }
 
       if (res.status === 401 || res.status === 403) {
-        return { valid: false, error: "INVALID_CREDENTIALS: Invalid OpenAI API key." };
+        return { valid: false, error: "INVALID_CREDENTIALS: Invalid API key." };
       }
 
       if (res.status === 429) {
-        return { valid: false, error: "PROVIDER_RATE_LIMITED: OpenAI rate limit reached." };
+        return { valid: false, error: "PROVIDER_RATE_LIMITED: Upstream rate limit reached." };
       }
 
-      return { valid: false, error: `VALIDATION_FAILED: OpenAI responded with HTTP ${res.status}.` };
+      return { valid: false, error: `VALIDATION_FAILED: Provider responded with HTTP ${res.status}.` };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Network error";
       return { valid: false, error: `PROVIDER_UNAVAILABLE: ${errMsg}` };
@@ -104,7 +114,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
     request: GatewayChatRequest,
     credentials: ProviderCredentials
   ): { url: string; headers: Record<string, string>; body: string } {
-    const baseUrl = credentials.baseUrl || "https://api.openai.com/v1";
+    const baseUrl = this.resolveBaseUrl(credentials, request.model);
     const url = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
     const headers: Record<string, string> = {
