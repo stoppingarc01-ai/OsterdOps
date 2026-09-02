@@ -117,10 +117,10 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: "xai",
     name: "xAI (Grok)",
-    tagline: "Grok 2, Grok 2 Vision, Grok Beta",
+    tagline: "Grok 2, Grok 2 Vision, Grok 2 Mini, Grok Beta",
     defaultBaseUrl: "https://api.x.ai/v1",
     keyPlaceholder: "xai-...",
-    models: ["grok-2-1212", "grok-2-vision-1212", "grok-beta"],
+    models: ["grok-2", "grok-2-vision", "grok-2-mini", "grok-beta"],
   },
   {
     id: "perplexity",

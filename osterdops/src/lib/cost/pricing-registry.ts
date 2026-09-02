@@ -716,6 +716,42 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
   // ==========================================
   // 7. xAI Grok Models
   // ==========================================
+  "grok-2": createPricingEntry({
+    provider: "xai",
+    model: "grok-2",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 10.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "grok-2-mini",
+    description: "xAI Grok 2 frontier general intelligence ($2.00 in / $10.00 out)",
+  }),
+  "grok-2-vision": createPricingEntry({
+    provider: "xai",
+    model: "grok-2-vision",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 10.0,
+    contextWindow: 32768,
+    supportsStreaming: true,
+    supportsVision: true,
+    supportsFunctionCalling: true,
+    fallbackModel: "grok-2",
+    description: "xAI Grok 2 Vision multimodal model ($2.00 in / $10.00 out)",
+  }),
+  "grok-2-mini": createPricingEntry({
+    provider: "xai",
+    model: "grok-2-mini",
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 1.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "gpt-4o-mini",
+    description: "xAI Grok 2 Mini high-efficiency model ($0.20 in / $1.00 out)",
+  }),
   "grok-2-1212": createPricingEntry({
     provider: "xai",
     model: "grok-2-1212",

@@ -40,6 +40,8 @@ interface CatalogModel {
     vision: boolean;
     reasoning: boolean;
     streaming: boolean;
+    functionCalling?: boolean;
+    code?: boolean;
   };
   fallbackModel?: string;
   popular?: boolean;
@@ -330,13 +332,13 @@ const CURATED_MODELS: CatalogModel[] = [
     id: "deepseek-chat",
     name: "DeepSeek Chat (V3)",
     provider: "deepseek",
-    providerDisplayName: "DEEPSEEK AI",
+    providerDisplayName: "DeepSeek AI",
     category: "frontier",
-    contextWindow: "65,536 tokens",
+    contextWindow: "64k tokens",
     inputCostPer1M: "$0.14",
     outputCostPer1M: "$0.28",
     description: "DeepSeek-V3 MoE frontier flagship model with ultra-low token economics and high-throughput inference.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
+    capabilities: { vision: false, reasoning: false, streaming: true, functionCalling: true },
     fallbackModel: "gpt-4o-mini",
     popular: true,
   },
@@ -344,9 +346,9 @@ const CURATED_MODELS: CatalogModel[] = [
     id: "deepseek-reasoner",
     name: "DeepSeek Reasoner (R1)",
     provider: "deepseek",
-    providerDisplayName: "DEEPSEEK AI",
+    providerDisplayName: "DeepSeek AI",
     category: "reasoning",
-    contextWindow: "65,536 tokens",
+    contextWindow: "64k tokens",
     inputCostPer1M: "$0.55",
     outputCostPer1M: "$2.19",
     description: "DeepSeek-R1 frontier reasoning model with verifiable Chain-of-Thought (CoT) and code/math superiority.",
@@ -358,129 +360,71 @@ const CURATED_MODELS: CatalogModel[] = [
     id: "deepseek-coder",
     name: "DeepSeek Coder",
     provider: "deepseek",
-    providerDisplayName: "DEEPSEEK AI",
+    providerDisplayName: "DeepSeek AI",
     category: "frontier",
-    contextWindow: "16,384 tokens",
+    contextWindow: "16k tokens",
     inputCostPer1M: "$0.14",
     outputCostPer1M: "$0.28",
     description: "Dedicated code generation, refactoring, and fill-in-the-middle repository synthesis model.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
+    capabilities: { vision: false, reasoning: false, streaming: true, code: true },
     fallbackModel: "deepseek-chat",
   },
 
   // xAI Grok
   {
-    id: "grok-2-1212",
-    name: "Grok 2 (1212)",
+    id: "grok-2",
+    name: "Grok 2",
     provider: "xai",
-    providerDisplayName: "xAI",
+    providerDisplayName: "xAI Grok",
     category: "frontier",
-    contextWindow: "131,072 tokens",
+    contextWindow: "128k tokens",
     inputCostPer1M: "$2.00",
     outputCostPer1M: "$10.00",
     description: "Frontier reasoning and general intelligence model by xAI with real-time knowledge synthesis.",
     capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "grok-beta",
+    fallbackModel: "grok-2-mini",
     popular: true,
   },
   {
-    id: "grok-2-vision-1212",
-    name: "Grok 2 Vision (1212)",
+    id: "grok-2-vision",
+    name: "Grok 2 Vision",
     provider: "xai",
-    providerDisplayName: "xAI",
+    providerDisplayName: "xAI Grok",
     category: "multimodal",
-    contextWindow: "131,072 tokens",
+    contextWindow: "32k tokens",
     inputCostPer1M: "$2.00",
     outputCostPer1M: "$10.00",
-    description: "Frontier multimodal vision model by xAI for complex image understanding and spatial layout reasoning.",
+    description: "Frontier multimodal vision model by xAI for complex image understanding and spatial document QA.",
     capabilities: { vision: true, reasoning: false, streaming: true },
-    fallbackModel: "grok-2-1212",
+    fallbackModel: "grok-2",
+    popular: true,
+  },
+  {
+    id: "grok-2-mini",
+    name: "Grok 2 Mini",
+    provider: "xai",
+    providerDisplayName: "xAI Grok",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCostPer1M: "$0.20",
+    outputCostPer1M: "$1.00",
+    description: "Cost-efficient compact frontier model for high-throughput reasoning and conversational flows.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "gpt-4o-mini",
     popular: true,
   },
   {
     id: "grok-beta",
     name: "Grok Beta",
     provider: "xai",
-    providerDisplayName: "xAI",
+    providerDisplayName: "xAI Grok",
     category: "frontier",
-    contextWindow: "131,072 tokens",
+    contextWindow: "128k tokens",
     inputCostPer1M: "$5.00",
     outputCostPer1M: "$15.00",
-    description: "High-speed preview model with unfiltered reasoning and conversational intelligence.",
+    description: "High-speed preview model with real-time knowledge synthesis and conversational intelligence.",
     capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "gpt-4o-mini",
-  },
-
-  // Perplexity AI
-  {
-    id: "sonar-pro",
-    name: "Sonar Pro (Search & Synthesis)",
-    provider: "perplexity",
-    providerDisplayName: "Perplexity AI",
-    category: "reasoning",
-    contextWindow: "200,000 tokens",
-    inputCostPer1M: "$3.00",
-    outputCostPer1M: "$15.00",
-    description: "Advanced internet-grounded search, live citation synthesis, and multi-source analytical reasoning.",
-    capabilities: { vision: false, reasoning: true, streaming: true },
-    fallbackModel: "sonar",
-    popular: true,
-  },
-  {
-    id: "sonar",
-    name: "Sonar (Fast Search)",
-    provider: "perplexity",
-    providerDisplayName: "Perplexity AI",
-    category: "frontier",
-    contextWindow: "131,072 tokens",
-    inputCostPer1M: "$1.00",
-    outputCostPer1M: "$1.00",
-    description: "Ultra-fast, cost-effective internet search integration with real-time web grounding.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "gpt-4o-mini",
-  },
-  {
-    id: "sonar-reasoning-pro",
-    name: "Sonar Reasoning Pro",
-    provider: "perplexity",
-    providerDisplayName: "Perplexity AI",
-    category: "reasoning",
-    contextWindow: "131,072 tokens",
-    inputCostPer1M: "$2.00",
-    outputCostPer1M: "$8.00",
-    description: "Chain-of-thought web reasoning model verifying and synthesizing live citations before generating output.",
-    capabilities: { vision: false, reasoning: true, streaming: true },
-    fallbackModel: "sonar-pro",
-    popular: true,
-  },
-
-  // Cohere
-  {
-    id: "command-r-plus-08-2024",
-    name: "Command R+ (08-2024)",
-    provider: "cohere",
-    providerDisplayName: "Cohere",
-    category: "frontier",
-    contextWindow: "131,072 tokens",
-    inputCostPer1M: "$2.50",
-    outputCostPer1M: "$10.00",
-    description: "Enterprise RAG and multi-step tool use powerhouse optimized for enterprise automation.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "command-r-08-2024",
-    popular: true,
-  },
-  {
-    id: "command-r-08-2024",
-    name: "Command R (08-2024)",
-    provider: "cohere",
-    providerDisplayName: "Cohere",
-    category: "frontier",
-    contextWindow: "131,072 tokens",
-    inputCostPer1M: "$0.15",
-    outputCostPer1M: "$0.60",
-    description: "High-efficiency enterprise model for document RAG, summarization, and business workflows.",
-    capabilities: { vision: false, reasoning: false, streaming: true },
-    fallbackModel: "gpt-4o-mini",
+    fallbackModel: "grok-2",
   },
 
   // Embeddings
@@ -568,8 +512,6 @@ export default function DashboardModelsPage() {
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
       if (activeFilter === "deepseek" && m.provider !== "deepseek") return false;
       if (activeFilter === "xai" && m.provider !== "xai") return false;
-      if (activeFilter === "perplexity" && m.provider !== "perplexity") return false;
-      if (activeFilter === "cohere" && m.provider !== "cohere") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
       if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
       if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
@@ -600,8 +542,6 @@ export default function DashboardModelsPage() {
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
       deepseek: CURATED_MODELS.filter((m) => m.provider === "deepseek").length,
       xai: CURATED_MODELS.filter((m) => m.provider === "xai").length,
-      perplexity: CURATED_MODELS.filter((m) => m.provider === "perplexity").length,
-      cohere: CURATED_MODELS.filter((m) => m.provider === "cohere").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
       kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
       reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
@@ -616,8 +556,6 @@ export default function DashboardModelsPage() {
     { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "deepseek", label: `DeepSeek (${filterCounts.deepseek})` },
     { id: "xai", label: `xAI Grok (${filterCounts.xai})` },
-    { id: "perplexity", label: `Perplexity (${filterCounts.perplexity})` },
-    { id: "cohere", label: `Cohere (${filterCounts.cohere})` },
     { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
     { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
@@ -854,14 +792,14 @@ export default function DashboardModelsPage() {
                             xAI Grok
                           </span>
                         )}
-                        {model.provider === "perplexity" && (
+                        {model.capabilities.functionCalling && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
-                            Live Citations
+                            Function Calling
                           </span>
                         )}
-                        {model.provider === "cohere" && (
+                        {model.capabilities.code && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
-                            Enterprise RAG
+                            Code
                           </span>
                         )}
                         {model.capabilities.vision && (
