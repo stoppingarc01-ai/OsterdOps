@@ -21,7 +21,14 @@ export async function POST(request: Request) {
   const { user } = authResult;
 
   try {
-    let body: { companyName?: string; displayName?: string } = {};
+    let body: {
+      uid?: string;
+      name?: string;
+      displayName?: string;
+      organizationName?: string;
+      companyName?: string;
+      phone?: string;
+    } = {};
     try {
       body = await request.json();
     } catch {
@@ -29,12 +36,21 @@ export async function POST(request: Request) {
     }
 
     const displayName =
+      body.name?.trim() ||
       body.displayName?.trim() ||
       user.displayName ||
-      user.email.split("@")[0] ||
-      "User";
+      (user.email ? user.email.split("@")[0] : "") ||
+      body.phone ||
+      "Enterprise User";
 
-    const companyName = body.companyName?.trim() || `${displayName}'s Team`;
+    const companyName =
+      body.organizationName?.trim() ||
+      body.companyName?.trim() ||
+      `${displayName}'s Workspace`;
+
+    const contactEmail =
+      user.email ||
+      (body.phone ? `${body.phone.replace(/[^0-9+]/g, "")}@phone.osterdops.internal` : `${user.uid}@user.osterdops.internal`);
 
     // 1. Check if user already has an organization
     const existingOrgs = await getUserOrganizations(user.uid);
@@ -47,7 +63,7 @@ export async function POST(request: Request) {
       member = existingOrgs[0].membership;
     } else {
       // 2. Create organization and OWNER membership atomically
-      const result = await createOrganization(user.uid, user.email, displayName, {
+      const result = await createOrganization(user.uid, contactEmail, displayName, {
         name: companyName,
       });
       organization = result.organization;
@@ -56,7 +72,7 @@ export async function POST(request: Request) {
 
     // 3. Create/update Firestore user profile document
     const userProfile = await syncUserRecord(user.uid, {
-      email: user.email,
+      email: contactEmail,
       displayName,
       photoURL: user.photoURL,
       defaultOrgId: organization.id,

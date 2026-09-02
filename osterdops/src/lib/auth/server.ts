@@ -78,8 +78,8 @@ export async function getAuthenticatedUser(request: Request): Promise<Authentica
 
   return {
     uid: decoded.uid,
-    email: decoded.email || "",
-    displayName: decoded.name || decoded.email?.split("@")[0] || "User",
+    email: decoded.email || (decoded.phone_number as string | undefined) || "",
+    displayName: decoded.name || decoded.email?.split("@")[0] || (decoded.phone_number as string | undefined) || "Enterprise User",
     photoURL: decoded.picture,
     token: decoded,
   };
@@ -106,8 +106,8 @@ export async function requireAuth(request: Request): Promise<AuthResult> {
 
   const user: AuthenticatedUser = {
     uid: decoded.uid,
-    email: decoded.email || "",
-    displayName: decoded.name || decoded.email?.split("@")[0] || "User",
+    email: decoded.email || (decoded.phone_number as string | undefined) || "",
+    displayName: decoded.name || decoded.email?.split("@")[0] || (decoded.phone_number as string | undefined) || "Enterprise User",
     photoURL: decoded.picture,
     token: decoded,
   };
