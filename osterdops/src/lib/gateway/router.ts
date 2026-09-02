@@ -271,16 +271,23 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
       responseHeaders["Retry-After"] = String(governanceVerdict.retryAfterSeconds);
     }
 
+    const errorType = isLoop ? "runaway_loop_detected" : "budget_exceeded";
+    const errorMessage = isLoop
+      ? (governanceVerdict.reason || "Runaway agent loop detected by OsterdOps Circuit Breaker. Gateway execution frozen.")
+      : (governanceVerdict.reason || "Monthly spend cap reached. Request blocked by OsterdOps.");
+
     return new NextResponse(
       JSON.stringify({
         error: {
-          type: "osterdops_finops_violation",
-          code: governanceVerdict.code,
-          message: governanceVerdict.reason,
+          type: errorType,
+          message: errorMessage,
+          code: httpStatus,
+          violationCode: governanceVerdict.code,
           currentSpend: governanceVerdict.currentSpend,
           cap: governanceVerdict.cap,
           ...(isLoop ? { retryAfter: governanceVerdict.retryAfterSeconds } : {}),
         },
+        success: false,
       }),
       {
         status: httpStatus,

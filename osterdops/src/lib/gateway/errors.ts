@@ -28,12 +28,28 @@ export function createGatewayErrorResponse(
     ? String(redactSensitiveData(error.message))
     : "An error occurred.";
 
+  const codeToType: Record<string, string> = {
+    BUDGET_EXCEEDED: "budget_exceeded",
+    RATE_LIMITED: "rate_limit_exceeded",
+    UNAUTHORIZED: "authentication_error",
+    INVALID_CREDENTIALS: "invalid_credentials",
+    BAD_REQUEST: "invalid_request_error",
+    MODEL_NOT_FOUND: "model_not_found",
+    CIRCUIT_BREAKER_OPEN: "service_unavailable",
+    TIMEOUT: "timeout_error",
+    PROVIDER_UNAVAILABLE: "service_unavailable",
+    PROVIDER_RATE_LIMITED: "rate_limit_exceeded",
+    PROVIDER_BAD_REQUEST: "invalid_request_error",
+  };
+
   const body: ApiResponse<never> = {
     success: false,
     error: {
       code: error.code,
       message: cleanMessage,
       details: {
+        type: codeToType[error.code] || "gateway_error",
+        statusCode: error.statusCode,
         provider: error.provider,
         retryable: error.retryable,
       },
