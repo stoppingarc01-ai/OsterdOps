@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { AddModelModal } from "@/components/models/AddModelModal";
+import { ModelProviderLogo } from "@/components/ui/ModelLogos";
 import { useAuth } from "@/context/AuthContext";
 import type { ProviderConnection, ProviderConnectionStatus } from "@/types";
 import {
@@ -404,11 +405,14 @@ export default function ProvidersPage() {
                     {/* Header */}
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="text-xs font-mono uppercase text-amber-400 tracking-wider">
-                            {conn.provider}
+                        <div className="flex items-center gap-2.5">
+                          <ModelProviderLogo provider={conn.provider} size="md" />
+                          <div>
+                            <div className="text-xs font-mono uppercase text-amber-400 tracking-wider">
+                              {conn.provider}
+                            </div>
+                            <h3 className="text-sm font-bold text-white mt-0.5">{conn.name}</h3>
                           </div>
-                          <h3 className="text-sm font-bold text-white mt-0.5">{conn.name}</h3>
                         </div>
                         {renderStatusBadge(conn.status)}
                       </div>
