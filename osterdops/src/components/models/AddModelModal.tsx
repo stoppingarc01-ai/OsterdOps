@@ -30,6 +30,8 @@ export interface AddModelModalProps {
   onSuccess?: (connection: ProviderConnection) => void;
   initialOrgId?: string;
   initialProjectId?: string;
+  initialProvider?: string;
+  initialModel?: string;
 }
 
 interface ProviderPreset {
@@ -112,6 +114,8 @@ export function AddModelModal({
   onSuccess,
   initialOrgId,
   initialProjectId,
+  initialProvider,
+  initialModel,
 }: AddModelModalProps) {
   const { currentOrg, organizations } = useAuth();
   const effectiveOrgId = initialOrgId || currentOrg?.id || organizations[0]?.organization?.id || "";
@@ -151,14 +155,37 @@ export function AddModelModal({
   // Reset when opened
   useEffect(() => {
     if (isOpen) {
-      setStep(1);
-      setSelectedProvider(PROVIDER_PRESETS[0]);
-      setConnectionName("Production OpenAI");
+      // Find preset by initialProvider if given
+      let targetPreset = PROVIDER_PRESETS[0];
+      if (initialProvider) {
+        const found = PROVIDER_PRESETS.find(
+          (p) => p.id.toLowerCase() === initialProvider.toLowerCase() || p.name.toLowerCase() === initialProvider.toLowerCase()
+        );
+        if (found) targetPreset = found;
+      }
+
+      setSelectedProvider(targetPreset);
+      setConnectionName(`${targetPreset.name} Gateway Connection`);
       setApiKey("");
       setShowApiKey(false);
-      setCustomBaseUrl("");
-      setSelectedModel(PROVIDER_PRESETS[0].models[0]);
-      setCustomModelInput("");
+      setCustomBaseUrl(targetPreset.defaultBaseUrl || "");
+
+      if (initialModel) {
+        if (targetPreset.models.includes(initialModel)) {
+          setSelectedModel(initialModel);
+          setCustomModelInput("");
+        } else {
+          setSelectedModel(targetPreset.models[0] || "");
+          setCustomModelInput(initialModel);
+        }
+        // Jump straight to step 2 if model was directly chosen
+        setStep(2);
+      } else {
+        setSelectedModel(targetPreset.models[0] || "");
+        setCustomModelInput("");
+        setStep(initialProvider ? 2 : 1);
+      }
+
       setMaxSpendCap("");
       setFallbackModel("");
       setValidationResult(null);
@@ -167,7 +194,7 @@ export function AddModelModal({
       setHasCopiedSnippet(false);
       setHasCopiedKey(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialProvider, initialModel]);
 
   // Sync default values when provider changes
   const handleSelectProvider = (preset: ProviderPreset) => {
