@@ -170,7 +170,10 @@ export interface ModelProviderLogoProps {
 
 /**
  * Deep Obsidian themed Model Provider Logo Badge.
- * Renders authentic crisp SVG logos inside obsidian surface containers.
+ * Strictly adheres to OsterdOps design guidelines:
+ * - Obsidian background (#141414), subtle border (#262626)
+ * - Warm metallic amber/gold (text-amber-400, border-amber-400/40) for highlights
+ * - Zero blur filters, zero purple/neon gradients
  */
 export function ModelProviderLogo({
   provider = "",
@@ -191,14 +194,14 @@ export function ModelProviderLogo({
 
   const iconSizes = size === "sm" ? 14 : size === "lg" ? 22 : 18;
 
+  // Unified Deep Obsidian container with warm metallic amber/gold accent
+  const baseContainer = `${sizeClasses} bg-[#141414] border border-[#262626] text-amber-400 flex items-center justify-center shrink-0 group-hover:border-amber-400/40 transition-colors ${className}`;
+
   // 1. Google Gemini
   if (p === "gemini" || p === "google" || m.startsWith("gemini")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#0c121e] border border-[#1e3a5f] text-[#60a5fa] flex items-center justify-center shrink-0 ${className}`}
-        title="Google Gemini"
-      >
-        <GoogleGeminiLogo size={iconSizes} className="w-full h-full text-[#60a5fa]" />
+      <div className={baseContainer} title="Google Gemini">
+        <GoogleGeminiLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -206,11 +209,8 @@ export function ModelProviderLogo({
   // 2. Anthropic Claude
   if (p === "anthropic" || m.startsWith("claude")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#18110b] border border-[#4d2812] text-[#f59e0b] flex items-center justify-center shrink-0 ${className}`}
-        title="Anthropic Claude"
-      >
-        <AnthropicLogo size={iconSizes} className="w-full h-full text-[#f59e0b]" />
+      <div className={baseContainer} title="Anthropic Claude">
+        <AnthropicLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -218,11 +218,8 @@ export function ModelProviderLogo({
   // 3. Meta LLaMA
   if (p === "meta" || m.startsWith("llama")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#0b141d] border border-[#1d3d5a] text-[#38bdf8] flex items-center justify-center shrink-0 ${className}`}
-        title="Meta LLaMA"
-      >
-        <MetaLlamaLogo size={iconSizes} className="w-full h-full text-[#38bdf8]" />
+      <div className={baseContainer} title="Meta LLaMA">
+        <MetaLlamaLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -230,11 +227,8 @@ export function ModelProviderLogo({
   // 4. Groq Cloud
   if (p === "groq") {
     return (
-      <div
-        className={`${sizeClasses} bg-[#1a120c] border border-[#4a2810] text-[#fb923c] flex items-center justify-center shrink-0 ${className}`}
-        title="Groq Fast LPU"
-      >
-        <GroqLogo size={iconSizes} className="w-full h-full text-[#fb923c]" />
+      <div className={baseContainer} title="Groq Fast LPU">
+        <GroqLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -242,11 +236,8 @@ export function ModelProviderLogo({
   // 5. Mistral AI
   if (p === "mistral" || m.startsWith("mistral") || m.startsWith("codestral") || m.startsWith("pixtral")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#170e0a] border border-[#4a2212] text-[#f97316] flex items-center justify-center shrink-0 ${className}`}
-        title="Mistral AI"
-      >
-        <MistralLogo size={iconSizes} className="w-full h-full text-[#f97316]" />
+      <div className={baseContainer} title="Mistral AI">
+        <MistralLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -254,11 +245,8 @@ export function ModelProviderLogo({
   // 6. AWS Bedrock
   if (p === "bedrock" || p === "aws" || m.startsWith("bedrock/")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#18140e] border border-[#423315] text-[#fbbf24] flex items-center justify-center shrink-0 ${className}`}
-        title="AWS Bedrock"
-      >
-        <AWSBedrockLogo size={iconSizes} className="w-full h-full text-[#fbbf24]" />
+      <div className={baseContainer} title="AWS Bedrock">
+        <AWSBedrockLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -266,11 +254,8 @@ export function ModelProviderLogo({
   // 7. Azure OpenAI
   if (p === "azure" || m.startsWith("azure/")) {
     return (
-      <div
-        className={`${sizeClasses} bg-[#0b131e] border border-[#173254] text-[#38bdf8] flex items-center justify-center shrink-0 ${className}`}
-        title="Azure OpenAI"
-      >
-        <AzureLogo size={iconSizes} className="w-full h-full text-[#38bdf8]" />
+      <div className={baseContainer} title="Azure OpenAI">
+        <AzureLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
   }
@@ -278,10 +263,7 @@ export function ModelProviderLogo({
   // 8. Custom / LocalAI / Ollama / vLLM
   if (p === "custom") {
     return (
-      <div
-        className={`${sizeClasses} bg-[#141414] border border-[#333333] text-amber-400 flex items-center justify-center shrink-0 ${className}`}
-        title="Custom OpenAI-Compatible Endpoint"
-      >
+      <div className={baseContainer} title="Custom OpenAI-Compatible Endpoint">
         <CustomEndpointLogo size={iconSizes} className="w-full h-full text-amber-400" />
       </div>
     );
@@ -289,11 +271,8 @@ export function ModelProviderLogo({
 
   // Default: OpenAI
   return (
-    <div
-      className={`${sizeClasses} bg-[#0f1412] border border-[#1d3d2c] text-[#34d399] flex items-center justify-center shrink-0 ${className}`}
-      title="OpenAI"
-    >
-      <OpenAILogo size={iconSizes} className="w-full h-full text-[#34d399]" />
+    <div className={baseContainer} title="OpenAI">
+      <OpenAILogo size={iconSizes} className="w-full h-full text-amber-400" />
     </div>
   );
 }

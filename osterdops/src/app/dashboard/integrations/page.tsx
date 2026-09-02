@@ -604,22 +604,22 @@ export default function IntegrationsPage() {
                       {/* Capability Tags */}
                       <div className="flex flex-wrap gap-1">
                         {model.capabilities.vision && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-300 border border-[#262626]">
                             Vision
                           </span>
                         )}
                         {model.capabilities.reasoning && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/30">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/40 font-semibold">
                             Reasoning
                           </span>
                         )}
                         {model.capabilities.streaming && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#181818] text-neutral-300 border border-[#2a2a2a]">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-400 border border-[#262626]">
                             Streaming
                           </span>
                         )}
                         {model.fallbackModel && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#181818] text-neutral-500 border border-[#2a2a2a]">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-500 border border-[#262626]">
                             Fallback: {model.fallbackModel}
                           </span>
                         )}
@@ -632,7 +632,7 @@ export default function IntegrationsPage() {
                         onClick={() => handleDirectIntegrate(model)}
                         className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm ${
                           isProviderConnected
-                            ? "bg-[#1c1c1c] text-neutral-100 hover:bg-[#252525] border border-neutral-700"
+                            ? "bg-[#161616] text-amber-400 hover:bg-amber-400/10 border border-amber-400/40"
                             : "bg-amber-400 text-black hover:bg-amber-300"
                         }`}
                       >
