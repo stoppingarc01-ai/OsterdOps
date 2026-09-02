@@ -22,6 +22,9 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   kimi: new OpenAIAdapter(),
   moonshot: new OpenAIAdapter(),
   deepseek: new OpenAIAdapter(),
+  xai: new OpenAIAdapter(),
+  perplexity: new OpenAIAdapter(),
+  cohere: new OpenAIAdapter(),
   custom: new OpenAIAdapter(),
 };
 
@@ -87,6 +90,18 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
 
   if (normalized.startsWith("deepseek")) {
     return "deepseek";
+  }
+
+  if (normalized.startsWith("grok") || normalized.startsWith("xai")) {
+    return "xai";
+  }
+
+  if (normalized.startsWith("sonar") || normalized.startsWith("perplexity")) {
+    return "perplexity";
+  }
+
+  if (normalized.startsWith("command") || normalized.startsWith("cohere") || normalized.startsWith("embed-english")) {
+    return "cohere";
   }
 
   // Default to OpenAI protocol for unknown / custom fine-tuned models

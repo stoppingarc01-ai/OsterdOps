@@ -68,6 +68,15 @@ export class OpenAIAdapter implements AIProviderAdapter {
     if (prov === "deepseek" || mdl.startsWith("deepseek")) {
       return "https://api.deepseek.com/v1";
     }
+    if (prov === "xai" || mdl.startsWith("grok")) {
+      return "https://api.x.ai/v1";
+    }
+    if (prov === "perplexity" || mdl.startsWith("sonar")) {
+      return "https://api.perplexity.ai";
+    }
+    if (prov === "cohere" || mdl.startsWith("command") || mdl.startsWith("embed-english")) {
+      return "https://api.cohere.com/v2";
+    }
     return "https://api.openai.com/v1";
   }
 

@@ -193,6 +193,54 @@ export function DeepSeekLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
   );
 }
 
+export function XAILogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+export function PerplexityLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  );
+}
+
+export function CohereLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6z" />
+    </svg>
+  );
+}
+
 export interface ModelProviderLogoProps {
   provider?: string;
   modelId?: string;
@@ -289,6 +337,33 @@ export function ModelProviderLogo({
     return (
       <div className={baseContainer} title="DeepSeek AI">
         <DeepSeekLogo size={iconSizes} className="w-full h-full text-[#DFB277]" />
+      </div>
+    );
+  }
+
+  // 8. xAI Grok
+  if (p === "xai" || m.startsWith("grok")) {
+    return (
+      <div className={baseContainer} title="xAI (Grok)">
+        <XAILogo size={iconSizes} className="w-full h-full text-[#DFB277]" />
+      </div>
+    );
+  }
+
+  // 9. Perplexity AI
+  if (p === "perplexity" || m.startsWith("sonar")) {
+    return (
+      <div className={baseContainer} title="Perplexity AI">
+        <PerplexityLogo size={iconSizes} className="w-full h-full text-[#DFB277]" />
+      </div>
+    );
+  }
+
+  // 10. Cohere
+  if (p === "cohere" || m.startsWith("command") || m.startsWith("embed-english")) {
+    return (
+      <div className={baseContainer} title="Cohere">
+        <CohereLogo size={iconSizes} className="w-full h-full text-[#DFB277]" />
       </div>
     );
   }

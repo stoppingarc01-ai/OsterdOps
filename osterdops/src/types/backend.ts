@@ -120,6 +120,9 @@ export type AIProvider =
   | "kimi"
   | "moonshot"
   | "deepseek"
+  | "xai"
+  | "perplexity"
+  | "cohere"
   | "custom";
 
 export type ProviderConnectionStatus =

@@ -368,6 +368,121 @@ const CURATED_MODELS: CatalogModel[] = [
     fallbackModel: "deepseek-chat",
   },
 
+  // xAI Grok
+  {
+    id: "grok-2-1212",
+    name: "Grok 2 (1212)",
+    provider: "xai",
+    providerDisplayName: "xAI",
+    category: "frontier",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$10.00",
+    description: "Frontier reasoning and general intelligence model by xAI with real-time knowledge synthesis.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "grok-beta",
+    popular: true,
+  },
+  {
+    id: "grok-2-vision-1212",
+    name: "Grok 2 Vision (1212)",
+    provider: "xai",
+    providerDisplayName: "xAI",
+    category: "multimodal",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$10.00",
+    description: "Frontier multimodal vision model by xAI for complex image understanding and spatial layout reasoning.",
+    capabilities: { vision: true, reasoning: false, streaming: true },
+    fallbackModel: "grok-2-1212",
+    popular: true,
+  },
+  {
+    id: "grok-beta",
+    name: "Grok Beta",
+    provider: "xai",
+    providerDisplayName: "xAI",
+    category: "frontier",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$5.00",
+    outputCostPer1M: "$15.00",
+    description: "High-speed preview model with unfiltered reasoning and conversational intelligence.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "gpt-4o-mini",
+  },
+
+  // Perplexity AI
+  {
+    id: "sonar-pro",
+    name: "Sonar Pro (Search & Synthesis)",
+    provider: "perplexity",
+    providerDisplayName: "Perplexity AI",
+    category: "reasoning",
+    contextWindow: "200,000 tokens",
+    inputCostPer1M: "$3.00",
+    outputCostPer1M: "$15.00",
+    description: "Advanced internet-grounded search, live citation synthesis, and multi-source analytical reasoning.",
+    capabilities: { vision: false, reasoning: true, streaming: true },
+    fallbackModel: "sonar",
+    popular: true,
+  },
+  {
+    id: "sonar",
+    name: "Sonar (Fast Search)",
+    provider: "perplexity",
+    providerDisplayName: "Perplexity AI",
+    category: "frontier",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$1.00",
+    outputCostPer1M: "$1.00",
+    description: "Ultra-fast, cost-effective internet search integration with real-time web grounding.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "gpt-4o-mini",
+  },
+  {
+    id: "sonar-reasoning-pro",
+    name: "Sonar Reasoning Pro",
+    provider: "perplexity",
+    providerDisplayName: "Perplexity AI",
+    category: "reasoning",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$2.00",
+    outputCostPer1M: "$8.00",
+    description: "Chain-of-thought web reasoning model verifying and synthesizing live citations before generating output.",
+    capabilities: { vision: false, reasoning: true, streaming: true },
+    fallbackModel: "sonar-pro",
+    popular: true,
+  },
+
+  // Cohere
+  {
+    id: "command-r-plus-08-2024",
+    name: "Command R+ (08-2024)",
+    provider: "cohere",
+    providerDisplayName: "Cohere",
+    category: "frontier",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$2.50",
+    outputCostPer1M: "$10.00",
+    description: "Enterprise RAG and multi-step tool use powerhouse optimized for enterprise automation.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "command-r-08-2024",
+    popular: true,
+  },
+  {
+    id: "command-r-08-2024",
+    name: "Command R (08-2024)",
+    provider: "cohere",
+    providerDisplayName: "Cohere",
+    category: "frontier",
+    contextWindow: "131,072 tokens",
+    inputCostPer1M: "$0.15",
+    outputCostPer1M: "$0.60",
+    description: "High-efficiency enterprise model for document RAG, summarization, and business workflows.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "gpt-4o-mini",
+  },
+
   // Embeddings
   {
     id: "text-embedding-3-large",
@@ -452,6 +567,9 @@ export default function DashboardModelsPage() {
       if (activeFilter === "openai" && m.provider !== "openai") return false;
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
       if (activeFilter === "deepseek" && m.provider !== "deepseek") return false;
+      if (activeFilter === "xai" && m.provider !== "xai") return false;
+      if (activeFilter === "perplexity" && m.provider !== "perplexity") return false;
+      if (activeFilter === "cohere" && m.provider !== "cohere") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
       if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
       if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
@@ -481,6 +599,9 @@ export default function DashboardModelsPage() {
       openai: CURATED_MODELS.filter((m) => m.provider === "openai").length,
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
       deepseek: CURATED_MODELS.filter((m) => m.provider === "deepseek").length,
+      xai: CURATED_MODELS.filter((m) => m.provider === "xai").length,
+      perplexity: CURATED_MODELS.filter((m) => m.provider === "perplexity").length,
+      cohere: CURATED_MODELS.filter((m) => m.provider === "cohere").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
       kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
       reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
@@ -490,10 +611,13 @@ export default function DashboardModelsPage() {
 
   const filterTabs = [
     { id: "all", label: `All Models (${filterCounts.all})` },
-    { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "openai", label: `OpenAI (${filterCounts.openai})` },
     { id: "anthropic", label: `Anthropic (${filterCounts.anthropic})` },
+    { id: "gemini", label: `Google Gemini (${filterCounts.gemini})` },
     { id: "deepseek", label: `DeepSeek (${filterCounts.deepseek})` },
+    { id: "xai", label: `xAI Grok (${filterCounts.xai})` },
+    { id: "perplexity", label: `Perplexity (${filterCounts.perplexity})` },
+    { id: "cohere", label: `Cohere (${filterCounts.cohere})` },
     { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
     { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
@@ -724,6 +848,21 @@ export default function DashboardModelsPage() {
                               Ultra-Low Cost
                             </span>
                           </>
+                        )}
+                        {model.provider === "xai" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                            xAI Grok
+                          </span>
+                        )}
+                        {model.provider === "perplexity" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 font-semibold">
+                            Live Citations
+                          </span>
+                        )}
+                        {model.provider === "cohere" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DFB277]/10 text-[#DFB277] border border-[#DFB277]/40 font-semibold">
+                            Enterprise RAG
+                          </span>
                         )}
                         {model.capabilities.vision && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">

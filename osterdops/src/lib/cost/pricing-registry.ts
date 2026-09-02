@@ -712,6 +712,125 @@ export const PRICING_REGISTRY: Record<string, ModelPricing> = {
     fallbackModel: "deepseek-chat",
     description: "DeepSeek Coder model optimized for code generation and refactoring ($0.14 in / $0.28 out)",
   }),
+
+  // ==========================================
+  // 7. xAI Grok Models
+  // ==========================================
+  "grok-2-1212": createPricingEntry({
+    provider: "xai",
+    model: "grok-2-1212",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 10.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "grok-beta",
+    description: "xAI Grok 2 frontier general intelligence ($2.00 in / $10.00 out)",
+  }),
+  "grok-2-vision-1212": createPricingEntry({
+    provider: "xai",
+    model: "grok-2-vision-1212",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 10.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: true,
+    supportsFunctionCalling: true,
+    fallbackModel: "grok-2-1212",
+    description: "xAI Grok 2 Vision multimodal model ($2.00 in / $10.00 out)",
+  }),
+  "grok-beta": createPricingEntry({
+    provider: "xai",
+    model: "grok-beta",
+    inputCostPer1M: 5.0,
+    outputCostPer1M: 15.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "gpt-4o-mini",
+    description: "xAI Grok Beta preview model ($5.00 in / $15.00 out)",
+  }),
+
+  // ==========================================
+  // 8. Perplexity AI Models
+  // ==========================================
+  "sonar-pro": createPricingEntry({
+    provider: "perplexity",
+    model: "sonar-pro",
+    inputCostPer1M: 3.0,
+    outputCostPer1M: 15.0,
+    contextWindow: 200000,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    fallbackModel: "sonar",
+    description: "Perplexity Sonar Pro live internet reasoning ($3.00 in / $15.00 out)",
+  }),
+  "sonar": createPricingEntry({
+    provider: "perplexity",
+    model: "sonar",
+    inputCostPer1M: 1.0,
+    outputCostPer1M: 1.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    fallbackModel: "gpt-4o-mini",
+    description: "Perplexity Sonar fast internet search model ($1.00 in / $1.00 out)",
+  }),
+  "sonar-reasoning-pro": createPricingEntry({
+    provider: "perplexity",
+    model: "sonar-reasoning-pro",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 8.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    fallbackModel: "sonar-pro",
+    description: "Perplexity Sonar Reasoning Pro chain-of-thought web reasoning ($2.00 in / $8.00 out)",
+  }),
+
+  // ==========================================
+  // 9. Cohere Models
+  // ==========================================
+  "command-r-plus-08-2024": createPricingEntry({
+    provider: "cohere",
+    model: "command-r-plus-08-2024",
+    inputCostPer1M: 2.5,
+    outputCostPer1M: 10.0,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "command-r-08-2024",
+    description: "Cohere Command R+ enterprise RAG powerhouse ($2.50 in / $10.00 out)",
+  }),
+  "command-r-08-2024": createPricingEntry({
+    provider: "cohere",
+    model: "command-r-08-2024",
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.6,
+    contextWindow: 131072,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctionCalling: true,
+    fallbackModel: "gpt-4o-mini",
+    description: "Cohere Command R enterprise workhorse ($0.15 in / $0.60 out)",
+  }),
+  "embed-english-v3.0": createPricingEntry({
+    provider: "cohere",
+    model: "embed-english-v3.0",
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.0,
+    contextWindow: 512,
+    supportsStreaming: false,
+    supportsVision: false,
+    supportsFunctionCalling: false,
+    description: "Cohere Embed English v3.0 semantic embeddings ($0.10 in / $0.00 out)",
+  }),
 };
 
 /**
