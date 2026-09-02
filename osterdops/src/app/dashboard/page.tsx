@@ -20,14 +20,23 @@ import { CostSimulatorDrawer } from "@/components/dashboard/CostSimulatorDrawer"
 import { RequestsTable } from "@/components/analytics/RequestsTable";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
+import { PlanSelectionModal } from "@/components/onboarding/PlanSelectionModal";
 import { useAuth } from "@/context/AuthContext";
 import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
 
 export default function DashboardPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, currentOrg, refreshUser } = useAuth();
   const displayName = userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Lead");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+
+  // Prompt plan selection if current workspace has no planTier set
+  React.useEffect(() => {
+    if (currentOrg && !currentOrg.planTier) {
+      setIsPlanModalOpen(true);
+    }
+  }, [currentOrg]);
 
   // Global Real-Time Telemetry Pipeline
   const { data: telemetry, isLoading, refetch, lastUpdated } = useLiveTelemetry({
@@ -133,6 +142,18 @@ export default function DashboardPage() {
       <CostSimulatorDrawer
         isOpen={isSimulatorOpen}
         onClose={() => setIsSimulatorOpen(false)}
+      />
+
+      {/* Mandatory Plan Selection Modal */}
+      <PlanSelectionModal
+        isOpen={isPlanModalOpen}
+        orgId={currentOrg?.id}
+        currentPlanTier={currentOrg?.planTier || "growth"}
+        onPlanSelected={async () => {
+          setIsPlanModalOpen(false);
+          await refreshUser();
+        }}
+        isMandatory={true}
       />
     </div>
   );

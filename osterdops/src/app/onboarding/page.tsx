@@ -10,14 +10,16 @@ import { StepConnectData } from "@/components/onboarding/steps/StepConnectData";
 import { StepPreferences } from "@/components/onboarding/steps/StepPreferences";
 import { StepTeamMembers } from "@/components/onboarding/steps/StepTeamMembers";
 import { StepReviewFinish } from "@/components/onboarding/steps/StepReviewFinish";
+import { PlanSelectionModal } from "@/components/onboarding/PlanSelectionModal";
 import { OnboardingData } from "@/components/onboarding/types";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, currentOrg } = useAuth();
+  const { user, currentOrg, refreshUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     orgName: "",
     industry: "Technology",
@@ -69,6 +71,12 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = () => {
+    setIsPlanModalOpen(true);
+  };
+
+  const handlePlanConfirmed = async () => {
+    setIsPlanModalOpen(false);
+    await refreshUser();
     router.push("/dashboard");
   };
 
@@ -150,6 +158,15 @@ export default function OnboardingPage() {
       <ContactSupportModal
         isOpen={isSupportOpen}
         onClose={() => setIsSupportOpen(false)}
+      />
+
+      {/* Mandatory Plan Selection Onboarding Modal */}
+      <PlanSelectionModal
+        isOpen={isPlanModalOpen}
+        orgId={currentOrg?.id}
+        currentPlanTier={currentOrg?.planTier || "growth"}
+        onPlanSelected={handlePlanConfirmed}
+        isMandatory={true}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import { incrementMetric } from "@/lib/observability/metrics";
 import { cacheRegistry } from "@/lib/cache";
 import { getModelCapabilities } from "@/lib/adapters/models";
 import { getModelPricing } from "@/lib/cost/pricing-registry";
+import { canAccessFeature, getPricingPlan, normalizePlanTier } from "@/lib/billing/plans";
 import type { AIProvider, ApiKey, Project, Organization } from "@/types";
 
 /* =========================================================================
@@ -491,10 +492,40 @@ function computePromptHash(messages: Array<{ role: string; content?: string }>):
 export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<GovernanceVerdict> {
   const policy = getGovernancePolicy(req.organizationId, req.projectId);
 
+  // Resolve active plan tier and entitlements
+  const rawTier = req.organization?.planTier || (req.organization as unknown as Record<string, unknown>)?.plan as string;
+  const planTier = normalizePlanTier(rawTier);
+  const planDef = getPricingPlan(planTier);
+
+  // -----------------------------------------------------------------------
+  // CHECK 0: Plan Monthly Request Limit Quota Hard Interception
+  // -----------------------------------------------------------------------
+  const currentMonthRequests = Number(
+    (req.organization as unknown as Record<string, unknown>)?.currentPeriodRequests || 0
+  );
+  if (
+    planDef.limits.monthlyRequestLimit < Number.MAX_SAFE_INTEGER &&
+    currentMonthRequests >= planDef.limits.monthlyRequestLimit
+  ) {
+    incrementMetric("governance.blocks_total", 1, {
+      reason: "plan_request_quota_exceeded",
+      planTier,
+      orgId: req.organizationId,
+    });
+    return {
+      action: "BLOCK",
+      code: "BLOCKED_RATE_LIMIT",
+      scope: "org_monthly",
+      cap: planDef.limits.monthlyRequestLimit,
+      currentSpend: currentMonthRequests,
+      reason: `Monthly request quota (${planDef.limits.monthlyRequestLimit.toLocaleString()} requests) reached for ${planDef.name} plan. Upgrade to Growth or Scale to continue.`,
+    };
+  }
+
   // -----------------------------------------------------------------------
   // CHECK 1: Runaway Agent Loop Detection (30-second velocity breaker)
   // -----------------------------------------------------------------------
-  if (policy.runawayLoopProtectionEnabled) {
+  if (policy.runawayLoopProtectionEnabled && canAccessFeature(planTier, "runawayLoopBreaker")) {
     const promptHash = req.promptHash || computePromptHash(req.messages);
     const loopStatus = runawayLoopTracker.checkAndRecord(
       req.apiKeyId,
@@ -608,6 +639,7 @@ export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<G
   const threshold = policy.downgradeThreshold || 80;
   if (
     policy.autoDowngradeEnabled &&
+    canAccessFeature(planTier, "autoDowngradeEnabled") &&
     maxSpendPercentage >= threshold &&
     maxSpendPercentage < 100
   ) {

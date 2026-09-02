@@ -435,3 +435,60 @@ export async function removeOrganizationMember(
     return { success: true };
   }
 }
+
+/**
+ * Updates an organization's subscription plan tier in Firestore and in-memory store.
+ */
+export async function updateOrganizationPlan(
+  orgId: string,
+  planTier: string
+): Promise<Organization> {
+  const now = new Date().toISOString();
+  const adminConfig = getFirebaseAdminConfig();
+
+  if (!adminConfig) {
+    const org = simulatedOrgs.get(orgId);
+    if (!org) {
+      throw new Error(`Organization ${orgId} not found.`);
+    }
+    org.planTier = planTier;
+    org.updatedAt = now;
+    simulatedOrgs.set(orgId, org);
+    return org;
+  }
+
+  try {
+    const db = getAdminFirestore();
+    const orgRef = db.collection("organizations").doc(orgId);
+    await orgRef.update({
+      planTier,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const updatedDoc = await orgRef.get();
+    return {
+      id: updatedDoc.id,
+      ...updatedDoc.data(),
+    } as Organization;
+  } catch (err) {
+    console.warn("[OsterdOps Org] Firestore update failed, falling back to simulated store:", (err as Error).message);
+    const org = simulatedOrgs.get(orgId) || {
+      id: orgId,
+      name: "Workspace",
+      slug: orgId,
+      ownerId: "owner",
+      plan: "starter" as const,
+      planTier,
+      status: "active" as const,
+      currentPeriodSpendUsd: 0,
+      currentPeriodStart: now,
+      settings: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    org.planTier = planTier;
+    org.updatedAt = now;
+    simulatedOrgs.set(orgId, org);
+    return org;
+  }
+}
