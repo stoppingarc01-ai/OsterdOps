@@ -22,11 +22,8 @@ import {
   Activity,
   Plus,
   Server,
-  Eye,
-  Check,
-  ExternalLink,
   KeyRound,
-  Radio,
+  Check,
 } from "lucide-react";
 
 interface CatalogModel {
@@ -76,6 +73,7 @@ const CURATED_MODELS: CatalogModel[] = [
     description: "Chain-of-thought thinking model displaying internal reasoning before output.",
     capabilities: { vision: true, reasoning: true, streaming: true },
     fallbackModel: "gemini-2.0-flash-exp",
+    popular: true,
   },
   {
     id: "gemini-1.5-pro",
@@ -399,17 +397,17 @@ export default function IntegrationsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-neutral-200 flex flex-col lg:flex-row selection:bg-amber-400 selection:text-black font-sans">
+    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-[1600px] mx-auto w-full space-y-8">
         <ContentTransition>
           {/* Top Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#262626]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#1A1A1A]">
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-amber-400 mb-1">
+              <div className="flex items-center gap-2 text-[#D4A362] text-xs font-mono tracking-wider uppercase mb-1">
                 <Workflow className="w-3.5 h-3.5" />
-                Enterprise Model Gateway
+                <span>Enterprise Model Gateway</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                 AI Provider Integrations & Model Catalog
@@ -425,7 +423,7 @@ export default function IntegrationsPage() {
                 setPreSelectedModel(undefined);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 text-black text-xs font-semibold hover:bg-amber-300 transition-all shadow-sm shrink-0"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#DFB277] text-[#0E0E0E] hover:bg-[#E5C38E] text-xs font-semibold transition-all shadow-sm shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               + Connect Custom / BYO Model
@@ -434,19 +432,19 @@ export default function IntegrationsPage() {
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="p-4 rounded-xl bg-[#111111] border border-[#262626] space-y-1">
+            <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all space-y-1">
               <div className="text-[11px] font-mono uppercase text-neutral-400 flex items-center justify-between">
                 <span>Available Catalog Models</span>
-                <Layers className="w-3.5 h-3.5 text-amber-400" />
+                <Layers className="w-3.5 h-3.5 text-[#D4A362]" />
               </div>
               <div className="text-2xl font-bold text-white font-mono">{CURATED_MODELS.length}</div>
               <div className="text-[11px] text-neutral-500 font-mono">Frontier, Reasoning & Open Weights</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#111111] border border-[#262626] space-y-1">
+            <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all space-y-1">
               <div className="text-[11px] font-mono uppercase text-neutral-400 flex items-center justify-between">
                 <span>Active Workspace Keys</span>
-                <Server className="w-3.5 h-3.5 text-emerald-400" />
+                <KeyRound className="w-3.5 h-3.5 text-[#D4A362]" />
               </div>
               <div className="text-2xl font-bold text-white font-mono">
                 {connections.filter((c) => c.status === "active").length}
@@ -454,21 +452,21 @@ export default function IntegrationsPage() {
               <div className="text-[11px] text-neutral-500 font-mono">Connected & authorized for proxy</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#111111] border border-[#262626] space-y-1">
+            <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all space-y-1">
               <div className="text-[11px] font-mono uppercase text-neutral-400 flex items-center justify-between">
                 <span>Credential Security</span>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
               </div>
-              <div className="text-sm font-semibold text-emerald-400 font-mono mt-1 flex items-center gap-1.5">
+              <div className="text-sm font-semibold text-[#10B981] font-mono mt-1 flex items-center gap-1.5">
                 <Check className="w-4 h-4" /> AES-256-GCM Vault
               </div>
               <div className="text-[11px] text-neutral-500 font-mono">Zero plaintext key storage</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#111111] border border-[#262626] space-y-1">
+            <div className="p-4 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all space-y-1">
               <div className="text-[11px] font-mono uppercase text-neutral-400 flex items-center justify-between">
                 <span>Gateway Status</span>
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <Zap className="w-3.5 h-3.5 text-[#D4A362]" />
               </div>
               <div className="text-2xl font-bold text-white font-mono">100% Operational</div>
               <div className="text-[11px] text-neutral-500 font-mono">Dynamic routing & FinOps fallback</div>
@@ -481,8 +479,8 @@ export default function IntegrationsPage() {
           <section className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase bg-amber-400/10 text-amber-400 border border-amber-400/30 mb-2">
-                  <Sparkles className="w-3 h-3" />
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase bg-[#D4A362]/5 text-[#D4A362] border border-[#D4A362]/40 mb-2">
+                  <Sparkles className="w-3 h-3 text-[#D4A362]" />
                   Direct Model Catalog & 1-Click Integration
                 </div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -501,7 +499,7 @@ export default function IntegrationsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search gpt-4o, claude, gemini, llama..."
-                  className="w-full bg-[#111111] border border-[#262626] rounded-lg pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-amber-400/70 font-mono"
+                  className="w-full bg-[#0E0E0E] border border-[#1A1A1A] rounded-lg pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-[#D4A362]/60 font-mono"
                 />
               </div>
             </div>
@@ -512,10 +510,10 @@ export default function IntegrationsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all border ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all border cursor-pointer ${
                     activeFilter === tab.id
-                      ? "bg-amber-400/10 border-amber-400/50 text-amber-400 font-semibold"
-                      : "bg-[#111111] border-[#262626] text-neutral-400 hover:text-neutral-200 hover:border-neutral-700"
+                      ? "bg-[#D4A362]/10 border-[#D4A362]/60 text-[#E5C38E] font-semibold"
+                      : "bg-[#0E0E0E] border-[#1A1A1A] text-neutral-400 hover:text-neutral-200 hover:border-[#262626]"
                   }`}
                 >
                   {tab.label}
@@ -540,7 +538,7 @@ export default function IntegrationsPage() {
                 return (
                   <div
                     key={model.id}
-                    className="p-5 rounded-xl bg-[#111111] border border-[#262626] hover:border-neutral-700 transition-all flex flex-col justify-between space-y-4 group"
+                    className="p-5 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all flex flex-col justify-between space-y-4 group"
                   >
                     <div className="space-y-3">
                       {/* Top Header: Authentic Brand Logo + Provider & Badges */}
@@ -548,10 +546,10 @@ export default function IntegrationsPage() {
                         <div className="flex items-center gap-2.5">
                           <ModelProviderLogo provider={model.provider} modelId={model.id} size="md" />
                           <div>
-                            <div className="text-[11px] font-mono uppercase text-amber-400 tracking-wider">
+                            <div className="text-[11px] font-mono uppercase text-[#D4A362] tracking-wider">
                               {model.providerDisplayName}
                             </div>
-                            <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                            <h3 className="text-sm font-bold text-white group-hover:text-[#E5C38E] transition-colors">
                               {model.name}
                             </h3>
                           </div>
@@ -559,25 +557,25 @@ export default function IntegrationsPage() {
 
                         <div className="flex flex-col items-end gap-1">
                           {isProviderConnected ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 shrink-0">
                               <CheckCircle2 className="w-3 h-3" />
                               Ready
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#181818] text-neutral-400 border border-[#262626] shrink-0">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#161616] text-neutral-400 border border-[#222222] shrink-0">
                               Connect Key
                             </span>
                           )}
 
                           {model.popular && (
-                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-bold bg-amber-400/10 text-amber-400 border border-amber-400/30">
-                              Popular
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-bold bg-[#D4A362]/5 text-[#D4A362] border border-[#D4A362]/40">
+                              POPULAR
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="text-[11px] font-mono text-neutral-500 bg-[#0a0a0a] px-2.5 py-1 rounded border border-[#202020] truncate">
+                      <div className="text-[11px] font-mono text-neutral-500 bg-[#0A0A0A] px-2.5 py-1 rounded border border-[#161616] truncate">
                         ID: <span className="text-neutral-300">{model.id}</span>
                       </div>
 
@@ -587,13 +585,13 @@ export default function IntegrationsPage() {
                       </p>
 
                       {/* Context Window & Pricing Chips */}
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#1e1e1e] text-[11px] font-mono">
-                        <div className="p-2 rounded bg-[#0a0a0a] border border-[#262626]">
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#161616] text-[11px] font-mono">
+                        <div className="p-2 rounded bg-[#0A0A0A] border border-[#161616]">
                           <div className="text-neutral-500 text-[10px]">Context Window</div>
                           <div className="text-neutral-200 font-semibold mt-0.5">{model.contextWindow}</div>
                         </div>
 
-                        <div className="p-2 rounded bg-[#0a0a0a] border border-[#262626]">
+                        <div className="p-2 rounded bg-[#0A0A0A] border border-[#161616]">
                           <div className="text-neutral-500 text-[10px]">Token Cost ($/1M)</div>
                           <div className="text-neutral-200 font-semibold mt-0.5">
                             {model.inputCostPer1M} / {model.outputCostPer1M}
@@ -604,41 +602,37 @@ export default function IntegrationsPage() {
                       {/* Capability Tags */}
                       <div className="flex flex-wrap gap-1">
                         {model.capabilities.vision && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-300 border border-[#262626]">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-300 border border-[#161616]">
                             Vision
                           </span>
                         )}
                         {model.capabilities.reasoning && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/40 font-semibold">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4A362]/10 text-[#D4A362] border border-[#D4A362]/40 font-semibold">
                             Reasoning
                           </span>
                         )}
                         {model.capabilities.streaming && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-400 border border-[#262626]">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-400 border border-[#161616]">
                             Streaming
                           </span>
                         )}
                         {model.fallbackModel && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-500 border border-[#262626]">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0A0A] text-neutral-500 border border-[#161616]">
                             Fallback: {model.fallbackModel}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Direct Integration Action Button */}
-                    <div className="pt-3 border-t border-[#1e1e1e]">
+                    {/* Ghost Action Button (Card Bottom CTA) */}
+                    <div className="pt-3 border-t border-[#161616]">
                       <button
                         onClick={() => handleDirectIntegrate(model)}
-                        className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm ${
-                          isProviderConnected
-                            ? "bg-[#161616] text-amber-400 hover:bg-amber-400/10 border border-amber-400/40"
-                            : "bg-amber-400 text-black hover:bg-amber-300"
-                        }`}
+                        className="w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-[#0E0E0E] hover:bg-[#141414] border border-[#222222] hover:border-[#D4A362]/50 text-[#D1D1D1] hover:text-white cursor-pointer"
                       >
-                        <Zap className={`w-3.5 h-3.5 ${isProviderConnected ? "text-amber-400" : "fill-black"}`} />
-                        {isProviderConnected ? "Configure & Route Model" : "Integrate Model Directly"}
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <Zap className="w-3.5 h-3.5 text-[#D4A362]" />
+                        <span>{isProviderConnected ? "Configure & Route Model" : "Integrate Model Directly"}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-[#D4A362]" />
                       </button>
                     </div>
                   </div>
@@ -647,7 +641,7 @@ export default function IntegrationsPage() {
             </div>
 
             {filteredModels.length === 0 && (
-              <div className="p-8 rounded-xl bg-[#111111] border border-[#262626] text-center space-y-2">
+              <div className="p-8 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] text-center space-y-2">
                 <Search className="w-6 h-6 text-neutral-600 mx-auto" />
                 <div className="text-sm font-semibold text-white">No models match your search</div>
                 <div className="text-xs text-neutral-400">
@@ -659,9 +653,9 @@ export default function IntegrationsPage() {
                     setPreSelectedModel(searchQuery.trim() || undefined);
                     setIsModalOpen(true);
                   }}
-                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-neutral-700 text-neutral-200 text-xs font-semibold hover:border-neutral-500"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141414] border border-[#222222] hover:border-[#D4A362]/50 text-neutral-200 text-xs font-semibold cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 text-amber-400" />
+                  <Plus className="w-3.5 h-3.5 text-[#D4A362]" />
                   Connect &quot;{searchQuery || "Custom"}&quot; via Custom OpenAI-Compatible
                 </button>
               </div>
@@ -671,11 +665,11 @@ export default function IntegrationsPage() {
           {/* ========================================================
               ACTIVE WORKSPACE CREDENTIALS & CONNECTIONS SECTION
              ======================================================== */}
-          <section className="space-y-4 pt-4 border-t border-[#262626]">
+          <section className="space-y-4 pt-4 border-t border-[#1A1A1A]">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <ShieldCheck className="w-5 h-5 text-[#10B981]" />
                   Configured Provider Credentials
                 </h2>
                 <p className="text-xs text-neutral-400">
@@ -686,15 +680,15 @@ export default function IntegrationsPage() {
               <button
                 onClick={fetchConnections}
                 disabled={isLoadingConnections}
-                className="p-2 rounded-lg bg-[#111111] border border-[#262626] text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors"
+                className="p-2 rounded-lg bg-[#0E0E0E] border border-[#1A1A1A] text-neutral-400 hover:text-white hover:border-[#262626] transition-colors cursor-pointer"
                 title="Refresh Credentials"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingConnections ? "animate-spin text-amber-400" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingConnections ? "animate-spin text-[#D4A362]" : ""}`} />
               </button>
             </div>
 
             {connections.length === 0 && !isLoadingConnections && (
-              <div className="p-6 rounded-xl bg-[#111111] border border-[#262626] text-center space-y-2">
+              <div className="p-6 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] text-center space-y-2">
                 <Server className="w-8 h-8 text-neutral-600 mx-auto" />
                 <div className="text-sm font-semibold text-white">No Credentials Configured Yet</div>
                 <p className="text-xs text-neutral-400 max-w-md mx-auto">
@@ -708,35 +702,35 @@ export default function IntegrationsPage() {
                 {connections.map((conn) => (
                   <div
                     key={conn.id}
-                    className="p-5 rounded-xl bg-[#111111] border border-[#262626] space-y-4 flex flex-col justify-between"
+                    className="p-5 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] transition-all space-y-4 flex flex-col justify-between"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
                           <ModelProviderLogo provider={conn.provider} size="md" />
                           <div>
-                            <div className="text-[11px] font-mono uppercase text-amber-400">{conn.provider}</div>
+                            <div className="text-[11px] font-mono uppercase text-[#D4A362]">{conn.provider}</div>
                             <div className="font-bold text-sm text-white mt-0.5">{conn.name}</div>
                           </div>
                         </div>
 
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30">
                           <CheckCircle2 className="w-3 h-3" />
                           {conn.status === "active" ? "Operational" : conn.status}
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#262626] text-xs space-y-2">
+                      <div className="p-3 rounded-lg bg-[#0A0A0A] border border-[#161616] text-xs space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-neutral-500">Encryption Standard:</span>
-                          <span className="inline-flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
+                          <span className="inline-flex items-center gap-1 text-[#10B981] font-mono text-[11px]">
                             <Lock className="w-3 h-3" />
                             AES-256-GCM
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-neutral-500">Masked Key Hint:</span>
-                          <span className="font-mono text-amber-400 text-[11px]">{conn.maskedKey}</span>
+                          <span className="font-mono text-[#D4A362] text-[11px]">{conn.maskedKey}</span>
                         </div>
                         {conn.customBaseUrl && (
                           <div className="flex items-center justify-between">
@@ -755,10 +749,10 @@ export default function IntegrationsPage() {
                         setPreSelectedModel(conn.defaultModel || undefined);
                         setIsModalOpen(true);
                       }}
-                      className="w-full py-2 rounded-lg bg-[#181818] hover:bg-[#222222] text-xs font-semibold text-neutral-200 transition-colors border border-neutral-700 flex items-center justify-center gap-1.5"
+                      className="w-full py-2 rounded-lg bg-[#0E0E0E] hover:bg-[#141414] text-xs font-semibold text-[#D1D1D1] hover:text-white transition-colors border border-[#222222] hover:border-[#D4A362]/50 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       Update Credential / Models
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 text-[#D4A362]" />
                     </button>
                   </div>
                 ))}
