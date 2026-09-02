@@ -25,6 +25,7 @@ import { apiRequest } from "@/lib/api/client";
 import { RbacGuard } from "@/components/auth/RbacGuard";
 import { CreateBudgetModal } from "@/components/billing/CreateBudgetModal";
 import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
+import { GovernanceRulesCard } from "@/components/budgets/GovernanceRulesCard";
 
 interface BudgetDisplayItem {
   id: string;
@@ -273,6 +274,9 @@ export default function BudgetsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Active FinOps Governance & Circuit Breakers Panel */}
+            <GovernanceRulesCard organizationId={currentOrg?.id} />
 
             {/* Main Budgets List Card */}
             <div className="rounded-2xl border border-[#1A1A1A] bg-[#0E0E0E] p-4.5 space-y-4">

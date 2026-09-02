@@ -27,7 +27,7 @@ import { createGatewayErrorResponse, normalizeGatewayError } from "./errors";
 import { recordGatewayTelemetry } from "./telemetry";
 import { createGatewayStreamResponse } from "./stream";
 import { executeProviderHttpWithRetry } from "./retry-client";
-import { getProviderCircuitBreaker } from "./circuit-breaker";
+import { getProviderCircuitBreaker, evaluateGovernanceRules } from "./circuit-breaker";
 import { calculateRequestCost } from "@/lib/cost/calculator";
 import type {
   GatewayRequestPayload,
@@ -234,6 +234,81 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   }
 
   const payload = rawBody as GatewayRequestPayload;
+
+  // 5b. Active FinOps Governance & Circuit Breaker Pre-Flight Check (< 5ms SLA)
+  const governanceVerdict = await evaluateGovernanceRules({
+    organizationId: organization.id,
+    projectId: project.id,
+    apiKeyId: key.id,
+    model: payload.model,
+    messages: payload.messages || [],
+    project,
+    organization,
+    key,
+  });
+
+  if (governanceVerdict.action === "BLOCK") {
+    const isLoop = governanceVerdict.code === "BLOCKED_RUNAWAY_LOOP";
+    const httpStatus = isLoop ? 429 : 402;
+    const durationMs = Date.now() - startTime;
+
+    recordGatewayTelemetry({
+      requestId,
+      organizationId: organization.id,
+      projectId: project.id,
+      keyId: key.id,
+      provider: "openai",
+      model: payload.model,
+      status: "error",
+      httpStatus,
+      durationMs,
+      errorCode: governanceVerdict.code,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (isLoop && governanceVerdict.retryAfterSeconds) {
+      responseHeaders["Retry-After"] = String(governanceVerdict.retryAfterSeconds);
+    }
+
+    return new NextResponse(
+      JSON.stringify({
+        error: {
+          type: "osterdops_finops_violation",
+          code: governanceVerdict.code,
+          message: governanceVerdict.reason,
+          currentSpend: governanceVerdict.currentSpend,
+          cap: governanceVerdict.cap,
+          ...(isLoop ? { retryAfter: governanceVerdict.retryAfterSeconds } : {}),
+        },
+      }),
+      {
+        status: httpStatus,
+        headers: {
+          ...responseHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  }
+
+  if (governanceVerdict.action === "DOWNGRADE" && governanceVerdict.fallbackModel) {
+    const originalModel = payload.model;
+    const fallbackModel = governanceVerdict.fallbackModel;
+    payload.model = fallbackModel;
+
+    const remainingBudget =
+      governanceVerdict.cap && governanceVerdict.currentSpend !== undefined
+        ? Math.max(0, governanceVerdict.cap - governanceVerdict.currentSpend)
+        : undefined;
+
+    responseHeaders["x-osterdops-governance"] = "auto-downgraded";
+    responseHeaders["x-osterdops-original-model"] = originalModel;
+    responseHeaders["x-osterdops-active-model"] = fallbackModel;
+    if (remainingBudget !== undefined) {
+      responseHeaders["x-osterdops-budget-remaining"] = remainingBudget.toFixed(2);
+    }
+  }
+
   const provider: AIProvider = validation.normalizedProvider || resolveProviderFromModel(payload.model);
 
   // 6. Validate Model Request Parameters against Registry Capabilities
