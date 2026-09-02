@@ -12,6 +12,7 @@ export interface OtpInputProps {
   onComplete?: (code: string) => void;
   className?: string;
   id?: string;
+  variant?: "card" | "obsidian";
 }
 
 export function OtpInput({
@@ -24,6 +25,7 @@ export function OtpInput({
   onComplete,
   className = "",
   id = "otp-input",
+  variant = "card",
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -40,7 +42,6 @@ export function OtpInput({
   }, [autoFocus, disabled]);
 
   const handleFocus = (index: number) => {
-    // Select contents upon focus for easy overwrite
     inputRefs.current[index]?.select();
   };
 
@@ -138,10 +139,12 @@ export function OtpInput({
     <div
       role="group"
       aria-label="One-Time Verification Code"
-      className={`flex items-center justify-center gap-2 sm:gap-3 ${className}`}
+      className={`flex items-center justify-center gap-2 sm:gap-2.5 ${className}`}
     >
       {digits.map((digit, index) => {
         const isFilled = Boolean(digit);
+        const isCard = variant === "card";
+
         return (
           <input
             key={`otp-slot-${index}`}
@@ -162,24 +165,43 @@ export function OtpInput({
             onPaste={handlePaste}
             aria-label={`Digit ${index + 1} of ${length}`}
             className={`
-              w-11 h-14 sm:w-12 sm:h-14
-              text-center text-xl sm:text-2xl font-mono font-semibold
-              bg-[#0A0A0A] text-neutral-100
-              border rounded-lg
-              transition-all duration-150
-              outline-none
+              w-10 h-13 sm:w-11 sm:h-13
+              text-center text-lg sm:text-xl font-mono font-semibold
+              rounded-xl border transition-all duration-150 outline-none
               ${
-                hasError
-                  ? "border-red-500/80 text-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500/30"
-                  : isFilled
-                  ? "border-[#333333] text-white"
-                  : "border-[#262626] text-neutral-400"
+                isCard
+                  ? `
+                    bg-white text-[#1a1c24]
+                    ${
+                      hasError
+                        ? "border-[#f8b4b4] text-[#9b1c1c] focus:border-[#e02424] focus:ring-2 focus:ring-[#e02424]/20"
+                        : isFilled
+                        ? "border-[#b8860b] text-[#14161f]"
+                        : "border-[#d5cfc2] text-[#494e60]"
+                    }
+                    ${
+                      !hasError &&
+                      "focus:border-[#dfba82] focus:ring-2 focus:ring-[#dfba82]/30"
+                    }
+                    ${disabled ? "opacity-40 cursor-not-allowed bg-[#f8f6f0]" : "hover:border-[#b8860b]/60"}
+                    shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]
+                  `
+                  : `
+                    bg-[#0A0A0A] text-neutral-100
+                    ${
+                      hasError
+                        ? "border-red-500/80 text-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500/30"
+                        : isFilled
+                        ? "border-[#333333] text-white"
+                        : "border-[#262626] text-neutral-400"
+                    }
+                    ${
+                      !hasError &&
+                      "focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/30"
+                    }
+                    ${disabled ? "opacity-40 cursor-not-allowed bg-neutral-950" : "hover:border-neutral-700"}
+                  `
               }
-              ${
-                !hasError &&
-                "focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/30"
-              }
-              ${disabled ? "opacity-40 cursor-not-allowed bg-neutral-950" : "hover:border-neutral-700"}
             `}
           />
         );
@@ -187,3 +209,5 @@ export function OtpInput({
     </div>
   );
 }
+
+export default OtpInput;
