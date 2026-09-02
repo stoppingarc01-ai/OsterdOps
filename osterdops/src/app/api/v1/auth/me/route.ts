@@ -16,9 +16,15 @@ export async function GET(request: Request) {
 
   const { user } = authResult;
 
+  // Derive email or internal phone email for Firestore profile
+  const userEmail =
+    user.email && user.email.includes("@")
+      ? user.email
+      : `${(user.email || user.uid).replace(/[^0-9+]/g, "") || user.uid}@phone.osterdops.internal`;
+
   // Sync / ensure user document exists
   const profile = await syncUserRecord(user.uid, {
-    email: user.email,
+    email: userEmail,
     displayName: user.displayName,
     photoURL: user.photoURL,
   });

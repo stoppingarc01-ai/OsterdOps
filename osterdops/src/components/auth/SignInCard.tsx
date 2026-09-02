@@ -25,10 +25,18 @@ import { SocialAuthButtons } from "./SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { OtpInput } from "./OtpInput";
 import { CountryCodeSelector, TOP_50_COUNTRIES, type Country } from "./CountryCodeSelector";
+import { getOrCreateRecaptchaVerifier, clearRecaptchaVerifier } from "@/lib/firebase/recaptcha";
 
 export function SignInCard() {
   const router = useRouter();
-  const { signIn, resetPassword, error: authError, clearError } = useAuth();
+  const { signIn, signInWithPhone, confirmPhoneOtp, resetPassword, error: authError, clearError } = useAuth();
+
+  // Clean up recaptcha on unmount
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
 
   // Authentication Mode Toggle
   const [authMethod, setAuthMethod] = useState<"credentials" | "phone">("credentials");
@@ -112,36 +120,6 @@ export function SignInCard() {
     };
   }, []);
 
-  const getOrCreateRecaptcha = useCallback((): RecaptchaVerifier => {
-    const auth = getFirebaseAuth();
-    if (recaptchaVerifierRef.current) {
-      try {
-        recaptchaVerifierRef.current.clear();
-      } catch {
-        // safely discard stale widget
-      }
-      recaptchaVerifierRef.current = null;
-    }
-
-    const container = document.getElementById("signin-recaptcha-container");
-    if (container) {
-      container.innerHTML = "";
-    }
-
-    const verifier = new RecaptchaVerifier(auth, "signin-recaptcha-container", {
-      size: "invisible",
-      callback: () => {
-        // reCAPTCHA solved
-      },
-      "expired-callback": () => {
-        setFormError("Security verification expired. Please resend the verification code.");
-      },
-    });
-
-    recaptchaVerifierRef.current = verifier;
-    return verifier;
-  }, []);
-
   // Standard Email/Password Submission
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,8 +155,12 @@ export function SignInCard() {
     setPhoneLoading(true);
     try {
       const auth = getFirebaseAuth();
-      const verifier = getOrCreateRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      const verifier = getOrCreateRecaptchaVerifier(auth, "signin-recaptcha-container", {
+        onExpired: () => {
+          setFormError("Security verification session expired. Please resend the verification code.");
+        },
+      });
+      const confirmation = await signInWithPhone(fullPhone, verifier);
       setConfirmationResult(confirmation);
       setPhoneStep("otp");
       setCountdown(60);
@@ -206,8 +188,7 @@ export function SignInCard() {
     setPhoneLoading(true);
     setFormError(null);
     try {
-      const credential = await confirmationResult.confirm(code);
-      await credential.user.getIdToken(true);
+      await confirmPhoneOtp(confirmationResult, code);
       router.push("/dashboard");
     } catch (err: unknown) {
       console.error("[OsterdOps SignIn] OTP confirmation failed:", err);
@@ -224,10 +205,10 @@ export function SignInCard() {
     setPhoneLoading(true);
     try {
       const auth = getFirebaseAuth();
-      const verifier = getOrCreateRecaptcha();
+      const verifier = getOrCreateRecaptchaVerifier(auth, "signin-recaptcha-container");
       const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
       const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      const confirmation = await signInWithPhone(fullPhone, verifier);
       setConfirmationResult(confirmation);
       setCountdown(60);
     } catch (err: unknown) {

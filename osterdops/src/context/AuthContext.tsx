@@ -14,6 +14,10 @@ import {
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
+  signInWithPhoneNumber,
+  type ApplicationVerifier,
+  type ConfirmationResult,
+  type UserCredential,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { User, Organization, OrganizationMember } from "@/types";
@@ -42,6 +46,15 @@ interface AuthContextType {
   error: string | null;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signUp: (params: SignUpParams) => Promise<void>;
+  signInWithPhone: (phoneNumber: string, appVerifier: ApplicationVerifier) => Promise<ConfirmationResult>;
+  confirmPhoneOtp: (confirmationResult: ConfirmationResult, otpCode: string) => Promise<UserCredential>;
+  registerWithPhone: (params: {
+    confirmationResult: ConfirmationResult;
+    otpCode: string;
+    name: string;
+    organizationName: string;
+    phone: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -124,8 +137,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setUser(fbUser);
       if (fbUser) {
+        try {
+          const token = await fbUser.getIdToken();
+          if (typeof document !== "undefined") {
+            document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax`;
+          }
+        } catch {
+          // ignore cookie sync failure
+        }
         await refreshUser();
       } else {
+        if (typeof document !== "undefined") {
+          document.cookie = "__session=; path=/; max-age=0; SameSite=Lax";
+        }
         setUserProfile(null);
         setOrganizations([]);
         setCurrentOrg(null);
@@ -301,12 +325,134 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshUser]);
 
+  // Phone Step 1: Send SMS OTP
+  const signInWithPhone = useCallback(
+    async (phoneNumber: string, appVerifier: ApplicationVerifier): Promise<ConfirmationResult> => {
+      setError(null);
+      setIsLoading(true);
+      try {
+        const auth = getFirebaseAuth();
+        return await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      } catch (err: unknown) {
+        const fbErr = err as { code?: string; message?: string };
+        let userMsg = "Failed to dispatch SMS verification code.";
+        if (fbErr.code === "auth/invalid-phone-number") {
+          userMsg = "The phone number format is invalid. Please verify.";
+        } else if (fbErr.code === "auth/quota-exceeded" || fbErr.code === "auth/too-many-requests") {
+          userMsg = "SMS quota or rate limit exceeded. Please wait a moment.";
+        } else if (fbErr.code === "auth/captcha-check-failed") {
+          userMsg = "Security reCAPTCHA verification failed. Please try again.";
+        }
+        setError(userMsg);
+        throw new Error(userMsg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  // Phone Step 2: Confirm OTP & Sign In
+  const confirmPhoneOtp = useCallback(
+    async (confirmationResult: ConfirmationResult, otpCode: string): Promise<UserCredential> => {
+      setError(null);
+      setIsLoading(true);
+      try {
+        const credential = await confirmationResult.confirm(otpCode);
+        setUser(credential.user);
+        const token = await credential.user.getIdToken(true);
+        if (typeof document !== "undefined") {
+          document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax`;
+        }
+        await refreshUser();
+        return credential;
+      } catch (err: unknown) {
+        const fbErr = err as { code?: string; message?: string };
+        let userMsg = "Invalid verification code. Please check and retry.";
+        if (fbErr.code === "auth/code-expired") {
+          userMsg = "The verification code has expired. Please request a new code.";
+        }
+        setError(userMsg);
+        throw new Error(userMsg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [refreshUser]
+  );
+
+  // Phone Registration: Confirm OTP & Provision Workspace
+  const registerWithPhone = useCallback(
+    async ({
+      confirmationResult,
+      otpCode,
+      name,
+      organizationName,
+      phone,
+    }: {
+      confirmationResult: ConfirmationResult;
+      otpCode: string;
+      name: string;
+      organizationName: string;
+      phone: string;
+    }): Promise<void> => {
+      setError(null);
+      setIsLoading(true);
+      try {
+        const credential = await confirmationResult.confirm(otpCode);
+        setUser(credential.user);
+
+        try {
+          await updateProfile(credential.user, { displayName: name.trim() });
+        } catch {
+          // Non-fatal
+        }
+
+        const idToken = await credential.user.getIdToken(true);
+        if (typeof document !== "undefined") {
+          document.cookie = `__session=${idToken}; path=/; max-age=3600; SameSite=Lax`;
+        }
+
+        const res = await fetch("/api/v1/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            uid: credential.user.uid,
+            name: name.trim(),
+            organizationName: organizationName.trim(),
+            phone: phone.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error?.message || "Failed to provision workspace account.");
+        }
+
+        await refreshUser();
+      } catch (err: unknown) {
+        const msg = (err as Error).message || "Registration with phone failed.";
+        setError(msg);
+        throw new Error(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [refreshUser]
+  );
+
   // Sign Out
   const signOut = useCallback(async () => {
     setError(null);
     try {
       const auth = getFirebaseAuth();
       await firebaseSignOut(auth);
+      if (typeof document !== "undefined") {
+        document.cookie = "__session=; path=/; max-age=0; SameSite=Lax";
+      }
       setUser(null);
       setUserProfile(null);
       setOrganizations([]);
@@ -366,6 +512,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error,
         signIn,
         signUp,
+        signInWithPhone,
+        confirmPhoneOtp,
+        registerWithPhone,
         signOut,
         resetPassword,
         signInWithGoogle,

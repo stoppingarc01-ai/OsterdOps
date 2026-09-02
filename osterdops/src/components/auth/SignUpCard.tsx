@@ -29,10 +29,18 @@ import { SocialAuthButtons } from "./SocialAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { OtpInput } from "./OtpInput";
 import { CountryCodeSelector, TOP_50_COUNTRIES, type Country } from "./CountryCodeSelector";
+import { getOrCreateRecaptchaVerifier, clearRecaptchaVerifier } from "@/lib/firebase/recaptcha";
 
 export function SignUpCard() {
   const router = useRouter();
-  const { signUp, error: authError, clearError } = useAuth();
+  const { signUp, signInWithPhone, registerWithPhone, error: authError, clearError } = useAuth();
+
+  // Clean up recaptcha on unmount
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
 
   // Mode Selection: Email vs Phone OTP
   const [authMethod, setAuthMethod] = useState<"credentials" | "phone">("credentials");
@@ -109,36 +117,6 @@ export function SignUpCard() {
     };
   }, []);
 
-  const getOrCreateRecaptcha = useCallback((): RecaptchaVerifier => {
-    const auth = getFirebaseAuth();
-    if (recaptchaVerifierRef.current) {
-      try {
-        recaptchaVerifierRef.current.clear();
-      } catch {
-        // safely discard stale widget
-      }
-      recaptchaVerifierRef.current = null;
-    }
-
-    const container = document.getElementById("signup-recaptcha-container");
-    if (container) {
-      container.innerHTML = "";
-    }
-
-    const verifier = new RecaptchaVerifier(auth, "signup-recaptcha-container", {
-      size: "invisible",
-      callback: () => {
-        // reCAPTCHA solved
-      },
-      "expired-callback": () => {
-        setFormError("Security verification expired. Please resend the verification code.");
-      },
-    });
-
-    recaptchaVerifierRef.current = verifier;
-    return verifier;
-  }, []);
-
   // Dynamic password strength calculation
   const getPasswordStrength = () => {
     if (!password) return { level: 0, text: "Enter a password" };
@@ -199,8 +177,12 @@ export function SignUpCard() {
     setPhoneLoading(true);
     try {
       const auth = getFirebaseAuth();
-      const verifier = getOrCreateRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      const verifier = getOrCreateRecaptchaVerifier(auth, "signup-recaptcha-container", {
+        onExpired: () => {
+          setFormError("Security verification session expired. Please resend the verification code.");
+        },
+      });
+      const confirmation = await signInWithPhone(fullPhone, verifier);
       setConfirmationResult(confirmation);
       setPhoneStep("otp");
       setCountdown(60);
@@ -228,43 +210,17 @@ export function SignUpCard() {
     setPhoneLoading(true);
     setFormError(null);
     try {
-      // 1. Confirm OTP code
-      const credential = await confirmationResult.confirm(code);
-      const user = credential.user;
-
-      // 2. Set user display name
-      const adminFullName = `${firstName.trim()} ${lastName.trim()}`.trim() || "Administrator";
-      try {
-        await updateProfile(user, { displayName: adminFullName });
-      } catch {
-        // Non-fatal
-      }
-
-      // 3. Obtain fresh ID Token
-      const idToken = await user.getIdToken(true);
-
       const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
       const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
+      const adminFullName = `${firstName.trim()} ${lastName.trim()}`.trim() || "Administrator";
 
-      // 4. Provision tenant via atomic registration API contract
-      const res = await fetch("/api/v1/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          name: adminFullName,
-          organizationName: companyName.trim() || "My Organization",
-          phone: fullPhone,
-        }),
+      await registerWithPhone({
+        confirmationResult,
+        otpCode: code,
+        name: adminFullName,
+        organizationName: companyName.trim() || "My Organization",
+        phone: fullPhone,
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || "Failed to provision workspace account.");
-      }
 
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -282,10 +238,10 @@ export function SignUpCard() {
     setPhoneLoading(true);
     try {
       const auth = getFirebaseAuth();
-      const verifier = getOrCreateRecaptcha();
+      const verifier = getOrCreateRecaptchaVerifier(auth, "signup-recaptcha-container");
       const cleanDigits = nationalPhoneNumber.replace(/\D/g, "");
       const fullPhone = `${selectedCountry.dialCode}${cleanDigits}`;
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      const confirmation = await signInWithPhone(fullPhone, verifier);
       setConfirmationResult(confirmation);
       setCountdown(60);
     } catch (err: unknown) {
