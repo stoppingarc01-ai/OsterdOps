@@ -133,6 +133,20 @@ export function AzureLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
   );
 }
 
+export function KimiLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M4 3h3.5v7.2L14.8 3H19l-8.2 8.6L20 21h-4.3l-5.6-6.6-2.6 2.7V21H4V3z" />
+    </svg>
+  );
+}
+
 export function CustomEndpointLogo({ className = "w-4 h-4", size = 16 }: LogoProps) {
   return (
     <svg
@@ -242,7 +256,16 @@ export function ModelProviderLogo({
     );
   }
 
-  // 6. AWS Bedrock
+  // 6. Moonshot AI (Kimi)
+  if (p === "kimi" || p === "moonshot" || m.startsWith("kimi") || m.startsWith("moonshot")) {
+    return (
+      <div className={baseContainer} title="Moonshot AI (Kimi)">
+        <KimiLogo size={iconSizes} className="w-full h-full text-[#D4A362]" />
+      </div>
+    );
+  }
+
+  // 7. AWS Bedrock
   if (p === "bedrock" || p === "aws" || m.startsWith("bedrock/")) {
     return (
       <div className={baseContainer} title="AWS Bedrock">
@@ -251,7 +274,7 @@ export function ModelProviderLogo({
     );
   }
 
-  // 7. Azure OpenAI
+  // 8. Azure OpenAI
   if (p === "azure" || m.startsWith("azure/")) {
     return (
       <div className={baseContainer} title="Azure OpenAI">
@@ -260,7 +283,7 @@ export function ModelProviderLogo({
     );
   }
 
-  // 8. Custom / LocalAI / Ollama / vLLM
+  // 9. Custom / LocalAI / Ollama / vLLM
   if (p === "custom") {
     return (
       <div className={baseContainer} title="Custom OpenAI-Compatible Endpoint">

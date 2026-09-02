@@ -19,6 +19,8 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   meta: new OpenAIAdapter(),
   groq: new OpenAIAdapter(),
   mistral: new OpenAIAdapter(),
+  kimi: new OpenAIAdapter(),
+  moonshot: new OpenAIAdapter(),
   custom: new OpenAIAdapter(),
 };
 

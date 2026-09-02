@@ -270,6 +270,61 @@ const CURATED_MODELS: CatalogModel[] = [
     capabilities: { vision: false, reasoning: false, streaming: true },
   },
 
+  // Moonshot AI (Kimi)
+  {
+    id: "kimi-k1.5",
+    name: "Kimi k1.5 (Multimodal)",
+    provider: "kimi",
+    providerDisplayName: "Moonshot AI",
+    category: "reasoning",
+    contextWindow: "128k tokens",
+    inputCostPer1M: "$2.50",
+    outputCostPer1M: "$10.00",
+    description: "Next-gen multimodal reasoning model with long-context visual reasoning and math capabilities.",
+    capabilities: { vision: true, reasoning: true, streaming: true },
+    fallbackModel: "moonshot-v1-128k",
+    popular: true,
+  },
+  {
+    id: "moonshot-v1-128k",
+    name: "Moonshot v1 (128K)",
+    provider: "kimi",
+    providerDisplayName: "Moonshot AI",
+    category: "frontier",
+    contextWindow: "128k tokens",
+    inputCostPer1M: "$8.40",
+    outputCostPer1M: "$8.40",
+    description: "Massive 128K context window for multi-document synthesis and long-form financial analysis.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "moonshot-v1-32k",
+    popular: true,
+  },
+  {
+    id: "moonshot-v1-32k",
+    name: "Moonshot v1 (32K)",
+    provider: "kimi",
+    providerDisplayName: "Moonshot AI",
+    category: "frontier",
+    contextWindow: "32k tokens",
+    inputCostPer1M: "$3.36",
+    outputCostPer1M: "$3.36",
+    description: "Balanced 32K context window for detailed coding assistance, document Q&A, and agents.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+    fallbackModel: "moonshot-v1-8k",
+  },
+  {
+    id: "moonshot-v1-8k",
+    name: "Moonshot v1 (8K)",
+    provider: "kimi",
+    providerDisplayName: "Moonshot AI",
+    category: "frontier",
+    contextWindow: "8k tokens",
+    inputCostPer1M: "$1.68",
+    outputCostPer1M: "$1.68",
+    description: "High-speed, cost-effective 8K context model for conversational chat and routing.",
+    capabilities: { vision: false, reasoning: false, streaming: true },
+  },
+
   // Embeddings
   {
     id: "text-embedding-3-large",
@@ -354,6 +409,7 @@ export default function DashboardModelsPage() {
       if (activeFilter === "openai" && m.provider !== "openai") return false;
       if (activeFilter === "anthropic" && m.provider !== "anthropic") return false;
       if (activeFilter === "groq" && m.provider !== "groq" && !m.id.startsWith("llama")) return false;
+      if (activeFilter === "kimi" && m.provider !== "kimi" && !m.id.startsWith("moonshot")) return false;
       if (activeFilter === "reasoning" && !m.capabilities.reasoning) return false;
       if (activeFilter === "embeddings" && m.category !== "embeddings") return false;
 
@@ -381,6 +437,7 @@ export default function DashboardModelsPage() {
       openai: CURATED_MODELS.filter((m) => m.provider === "openai").length,
       anthropic: CURATED_MODELS.filter((m) => m.provider === "anthropic").length,
       groq: CURATED_MODELS.filter((m) => m.provider === "groq" || m.id.startsWith("llama")).length,
+      kimi: CURATED_MODELS.filter((m) => m.provider === "kimi" || m.id.startsWith("moonshot")).length,
       reasoning: CURATED_MODELS.filter((m) => m.capabilities.reasoning).length,
       embeddings: CURATED_MODELS.filter((m) => m.category === "embeddings").length,
     };
@@ -392,6 +449,7 @@ export default function DashboardModelsPage() {
     { id: "openai", label: `OpenAI (${filterCounts.openai})` },
     { id: "anthropic", label: `Anthropic (${filterCounts.anthropic})` },
     { id: "groq", label: `Meta / Groq (${filterCounts.groq})` },
+    { id: "kimi", label: `Moonshot (Kimi) (${filterCounts.kimi})` },
     { id: "reasoning", label: `Reasoning (${filterCounts.reasoning})` },
     { id: "embeddings", label: `Embeddings (${filterCounts.embeddings})` },
   ];

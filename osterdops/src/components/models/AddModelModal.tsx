@@ -99,6 +99,14 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     models: ["azure/gpt-4o", "azure/gpt-4o-mini"],
   },
   {
+    id: "kimi",
+    name: "Moonshot AI (Kimi)",
+    tagline: "Kimi k1.5, Moonshot-v1 128k/32k/8k",
+    defaultBaseUrl: "https://api.moonshot.cn/v1",
+    keyPlaceholder: "sk-...",
+    models: ["kimi-k1.5", "moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"],
+  },
+  {
     id: "custom",
     name: "Custom OpenAI-Compatible",
     tagline: "vLLM, Ollama, Together, OpenRouter, LocalAI",

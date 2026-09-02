@@ -115,6 +115,8 @@ export type AIProvider =
   | "meta"
   | "groq"
   | "mistral"
+  | "kimi"
+  | "moonshot"
   | "custom";
 
 export type ProviderConnectionStatus =
