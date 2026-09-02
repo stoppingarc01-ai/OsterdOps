@@ -20,7 +20,7 @@ export interface PaginationOptions {
   cursor?: string;
 }
 
-export type AIProvider = "openai" | "anthropic" | "gemini" | "azure" | "bedrock";
+export type AIProvider = "openai" | "anthropic" | "gemini" | "azure" | "bedrock" | "meta" | "groq";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool" | "developer";

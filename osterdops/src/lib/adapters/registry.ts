@@ -16,6 +16,8 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   gemini: new GeminiAdapter(),
   azure: new AzureAdapter(),
   bedrock: new BedrockAdapter(),
+  meta: new OpenAIAdapter(),
+  groq: new OpenAIAdapter(),
 };
 
 /**
@@ -58,6 +60,10 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
 
   if (normalized.startsWith("bedrock-") || normalized.startsWith("amazon.") || normalized.startsWith("anthropic.claude")) {
     return "bedrock";
+  }
+
+  if (normalized.startsWith("llama") || normalized.startsWith("meta")) {
+    return "meta";
   }
 
   if (

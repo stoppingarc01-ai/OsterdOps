@@ -106,7 +106,7 @@ export interface GeneratedApiKeyResponse {
    3. Provider Connections
    ============================================================ */
 
-export type AIProvider = "openai" | "anthropic" | "gemini" | "azure" | "bedrock";
+export type AIProvider = "openai" | "anthropic" | "gemini" | "azure" | "bedrock" | "meta" | "groq";
 
 export type ProviderConnectionStatus =
   | "active"

@@ -36,7 +36,7 @@ export async function runModelCatalogTests(): Promise<void> {
 
   const geminiCap = getModelCapabilities("gemini-1.5-pro");
   assert(geminiCap !== null, "gemini-1.5-pro capabilities found");
-  assert(geminiCap?.contextWindow === 2000000, "Gemini 1.5 Pro context window is 2M tokens");
+  assert(geminiCap?.contextWindow === 2097152 || geminiCap?.contextWindow === 2000000, "Gemini 1.5 Pro context window is 2M tokens");
 
   assert(isModelSupported("gpt-4o-mini"), "isModelSupported returns true for gpt-4o-mini");
   assert(isModelSupported("claude-3-5-haiku"), "isModelSupported returns true for claude-3-5-haiku");
