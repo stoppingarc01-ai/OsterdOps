@@ -1,101 +1,75 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { apiRequest } from "@/lib/api/client";
+import React from "react";
+import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
+import { ModelProviderLogo } from "@/components/ui/ModelLogos";
 import { Layers, Loader2 } from "lucide-react";
 
-interface ProviderUsage {
-  provider: string;
-  spendUsd: number;
-  percentageOfSpend: number;
-  requests: number;
+interface SpendByProviderCardProps {
+  telemetry?: LiveTelemetryData;
+  isLoading?: boolean;
 }
 
-const PROVIDER_COLORS: Record<string, string> = {
-  openai: "#dfba82",
-  anthropic: "#b8860b",
-  gemini: "#9da1b2",
-  other: "#3b82f6",
+const PROVIDER_ACCENTS: Record<string, string> = {
+  openai: "#10B981",
+  anthropic: "#DFB277",
+  gemini: "#38BDF8",
+  groq: "#F59E0B",
+  meta: "#8B5CF6",
+  mistral: "#EC4899",
+  moonshot: "#DFB277",
+  kimi: "#DFB277",
+  custom: "#A3A3A3",
 };
 
-export function SpendByProviderCard() {
-  const { currentOrg, getIdToken } = useAuth();
-  const [providers, setProviders] = useState<ProviderUsage[]>([]);
-  const [loading, setLoading] = useState(false);
+export function SpendByProviderCard({ telemetry: externalTelemetry, isLoading: externalLoading }: SpendByProviderCardProps) {
+  const internalHook = useLiveTelemetry();
+  const data = externalTelemetry || internalHook.data;
+  const loading = externalLoading !== undefined ? externalLoading : internalHook.isLoading;
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function fetchProviderSpend() {
-      if (!currentOrg?.id) return;
-      setLoading(true);
-
-      try {
-        const token = await getIdToken();
-        const res = await apiRequest<any>("/api/v1/analytics/overview", {
-          params: { organizationId: currentOrg.id, timeRange: "30d" },
-          token,
-        });
-
-        if (!isMounted) return;
-
-        if (res.data && Array.isArray(res.data.byProvider) && res.data.byProvider.length > 0) {
-          setProviders(res.data.byProvider);
-        } else {
-          setProviders([]);
-        }
-      } catch (err) {
-        if (isMounted) setProviders([]);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    fetchProviderSpend();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentOrg?.id, getIdToken]);
+  const providers = data.providerDistribution || [];
 
   return (
-    <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
-      <h3 className="text-base font-semibold text-[#f4efe6]">Spend by Provider</h3>
+    <div className="p-5 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl space-y-4 transition-all">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-white tracking-tight">Spend by Provider</h3>
+        <span className="text-[10px] font-mono text-neutral-400">Live Breakdown</span>
+      </div>
 
       {loading ? (
-        <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
-          <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
-          <div>Aggregating provider metrics...</div>
+        <div className="p-8 text-center text-xs text-neutral-400 space-y-2">
+          <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#DFB277]" />
+          <div className="font-mono">Aggregating provider metrics...</div>
         </div>
       ) : providers.length === 0 ? (
-        <div className="p-6 rounded-xl bg-[#090b12] border border-[#171a27] text-center space-y-2">
-          <div className="w-8 h-8 rounded-full bg-[#dfba82]/10 border border-[#dfba82]/20 text-[#dfba82] flex items-center justify-center mx-auto">
+        <div className="p-6 rounded-xl bg-[#0A0A0A] border border-[#161616] text-center space-y-2">
+          <div className="w-8 h-8 rounded-full bg-[#DFB277]/10 border border-[#DFB277]/20 text-[#DFB277] flex items-center justify-center mx-auto">
             <Layers className="w-4 h-4" />
           </div>
           <div className="text-xs font-semibold text-white">No provider usage recorded</div>
-          <p className="text-[11px] text-[#73788c]">
+          <p className="text-[11px] text-neutral-400">
             Provider spend breakdown will appear once gateway proxy requests are made.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {providers.map((p) => {
-            const color = PROVIDER_COLORS[p.provider.toLowerCase()] || "#38bdf8";
+            const color = PROVIDER_ACCENTS[p.provider.toLowerCase()] || "#DFB277";
             return (
-              <div key={p.provider} className="space-y-1">
+              <div key={p.provider} className="space-y-1.5 font-mono">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="font-medium text-[#c5c9d6] capitalize">{p.provider}</span>
+                    <ModelProviderLogo provider={p.provider} size="sm" />
+                    <span className="font-medium text-neutral-200 capitalize">{p.provider}</span>
+                    <span className="text-[10px] text-neutral-500 font-mono">({p.requests} reqs)</span>
                   </div>
                   <span className="font-mono font-bold text-white">${p.spendUsd.toFixed(2)}</span>
                 </div>
-                <div className="w-full h-1.5 bg-[#141724] rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-[#141414] rounded-full overflow-hidden border border-[#1A1A1A]">
                   <div
-                    className="h-full rounded-full"
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${Math.min(100, p.percentageOfSpend)}%`,
+                      width: `${Math.min(100, Math.max(2, p.percentageOfSpend))}%`,
                       backgroundColor: color,
                     }}
                   />

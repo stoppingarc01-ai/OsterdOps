@@ -578,6 +578,7 @@ export interface AnalyticsOverviewResponse {
   byApiKey: ApiKeyAnalyticsGroup[];
   byStatusCode: Record<string, number>;
   timeSeries: TimeSeriesMetricPoint[];
+  recentRequests?: UsageRecord[];
 }
 
 export interface AnalyticsFilterOptions {

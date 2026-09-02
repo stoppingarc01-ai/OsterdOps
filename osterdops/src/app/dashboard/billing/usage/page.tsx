@@ -1,125 +1,42 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
+import { ModelProviderLogo } from "@/components/ui/ModelLogos";
+import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
 import {
   Layers,
   Cpu,
-  Database,
   Calendar,
-  ShieldCheck,
   Zap,
   CreditCard,
-  SlidersHorizontal,
   Loader2,
+  Terminal,
+  ArrowRight,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { apiRequest } from "@/lib/api/client";
-
-interface ModelUsageItem {
-  model: string;
-  provider: string;
-  promptTokens: number;
-  completionTokens: number;
-  cachedTokens: number;
-  totalTokens: number;
-  variant: "amber" | "blue" | "emerald" | "purple";
-}
 
 export default function BillingUsagePage() {
-  const { currentOrg, getIdToken } = useAuth();
-  const [activeFilter, setActiveFilter] = useState<"all" | "openai" | "anthropic" | "gemini">("all");
-  const [loading, setLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<"all" | "openai" | "anthropic" | "gemini" | "kimi" | "meta">("all");
 
-  const [totalPromptTokens, setTotalPromptTokens] = useState<number>(0);
-  const [totalCompletionTokens, setTotalCompletionTokens] = useState<number>(0);
-  const [totalCachedTokens, setTotalCachedTokens] = useState<number>(0);
-  const [totalMeteredTokens, setTotalMeteredTokens] = useState<number>(0);
-  const [cacheHitRate, setCacheHitRate] = useState<number>(0);
-  const [models, setModels] = useState<ModelUsageItem[]>([]);
+  const { data: telemetry, isLoading, isValidating } = useLiveTelemetry({
+    timeRange: "30d",
+    pollIntervalMs: 4000,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function fetchUsage() {
-      if (!currentOrg?.id) return;
-      setLoading(true);
-
-      try {
-        const token = await getIdToken();
-        const res = await apiRequest<any>("/api/v1/analytics/overview", {
-          params: { organizationId: currentOrg.id, timeRange: "30d" },
-          token,
-        });
-
-        if (!isMounted) return;
-
-        if (res.data && res.data.kpis) {
-          const k = res.data.kpis;
-          setTotalPromptTokens(k.totalInputTokens ?? 0);
-          setTotalCompletionTokens(k.totalOutputTokens ?? 0);
-          setTotalCachedTokens(k.totalCachedTokens ?? 0);
-          setTotalMeteredTokens(k.totalTokens ?? 0);
-          setCacheHitRate(k.cacheHitRatePercent ?? 0);
-
-          if (Array.isArray(res.data.byModel)) {
-            const variants: Array<"amber" | "blue" | "emerald" | "purple"> = [
-              "emerald",
-              "amber",
-              "blue",
-              "purple",
-            ];
-            const mapped: ModelUsageItem[] = res.data.byModel.map((m: any, idx: number) => ({
-              model: m.model,
-              provider: m.provider,
-              promptTokens: Math.round((m.tokens ?? 0) * 0.7),
-              completionTokens: Math.round((m.tokens ?? 0) * 0.3),
-              cachedTokens: 0,
-              totalTokens: m.tokens ?? 0,
-              variant: variants[idx % variants.length],
-            }));
-            setModels(mapped);
-          } else {
-            setModels([]);
-          }
-        } else {
-          setTotalPromptTokens(0);
-          setTotalCompletionTokens(0);
-          setTotalCachedTokens(0);
-          setTotalMeteredTokens(0);
-          setCacheHitRate(0);
-          setModels([]);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setTotalPromptTokens(0);
-          setTotalCompletionTokens(0);
-          setTotalCachedTokens(0);
-          setTotalMeteredTokens(0);
-          setCacheHitRate(0);
-          setModels([]);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    fetchUsage();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentOrg?.id, getIdToken]);
-
-  const filteredModels = models.filter((m) => {
+  const filteredModels = telemetry.modelDistribution.filter((m) => {
     if (activeFilter === "all") return true;
     return m.provider.toLowerCase() === activeFilter.toLowerCase();
   });
 
+  const totalPromptTokens = telemetry.promptTokens;
+  const totalCompletionTokens = telemetry.completionTokens;
+  const totalMeteredTokens = telemetry.totalTokens;
+  const totalSpend = telemetry.totalSpendUsd;
+
   return (
-    <div className="min-h-screen bg-[#07080c] text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
+    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">
@@ -129,43 +46,40 @@ export default function BillingUsagePage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#dfba82] tracking-wider uppercase mb-1">
-                  <Zap className="w-3 h-3 text-[#dfba82]" />
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#DFB277] tracking-wider uppercase mb-1 font-mono">
+                  <Zap className="w-3 h-3 text-[#DFB277]" />
                   <span>AI OPERATIONS</span>
-                  <span className="text-[#555a6d]">/</span>
-                  <span className="text-[#c5c9d6]">USAGE</span>
+                  <span className="text-neutral-600">/</span>
+                  <span className="text-neutral-400">USAGE METERING</span>
                 </div>
 
-                {/* Title with Badge */}
+                {/* Title */}
                 <div className="flex items-center gap-2.5">
-                  <h1
-                    className="text-2xl sm:text-3xl font-bold tracking-tight text-[#f4efe6]"
-                    style={{ fontFamily: "var(--font-serif-luxury), Georgia, serif" }}
-                  >
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                     Metered Token Usage & Entitlements
                   </h1>
-                  <div className="w-5 h-5 rounded-md border border-[#dfba82]/40 bg-[#dfba82]/10 flex items-center justify-center text-[#dfba82]">
+                  <div className="w-6 h-6 rounded-md border border-[#DFB277]/40 bg-[#DFB277]/10 flex items-center justify-center text-[#DFB277]">
                     <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
                 </div>
-                <p className="text-xs text-[#8e93a6] mt-0.5">
+                <p className="text-xs text-neutral-400 mt-0.5">
                   High-fidelity token metering across prompt, completion, cache hits, and quota consumption.
                 </p>
               </div>
 
               {/* Controls Toolbar */}
               <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0c0e16] border border-[#1b1e2c] text-xs text-[#c5c9d6]">
-                  <Calendar className="w-3.5 h-3.5 text-[#8e93a6]" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0E0E0E] border border-[#1A1A1A] text-xs font-mono text-neutral-300">
+                  <Calendar className="w-3.5 h-3.5 text-neutral-500" />
                   <span>Active 30-Day Window</span>
                 </div>
 
                 <Link
-                  href="/dashboard/billing"
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#dfba82] hover:bg-[#ebd4aa] text-black text-xs font-bold shadow-[0_2px_12px_rgba(223,186,130,0.25)] transition-all cursor-pointer shrink-0"
+                  href="/dashboard/budgets"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#DFB277] hover:bg-[#E5C38E] text-[#0E0E0E] text-xs font-bold font-mono transition-all cursor-pointer shrink-0"
                 >
                   <CreditCard className="w-3.5 h-3.5" />
-                  <span>Manage Entitlements</span>
+                  <span>Manage Budgets</span>
                 </Link>
               </div>
             </div>
@@ -173,93 +87,89 @@ export default function BillingUsagePage() {
             {/* 4 Top KPI Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               {/* Card 1: Total Metered Tokens */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
+              <div className="p-3.5 rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82]">
+                    <div className="w-6 h-6 rounded-md bg-[#DFB277]/10 border border-[#DFB277]/20 flex items-center justify-center text-[#DFB277]">
                       <Cpu className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Metered Tokens</span>
+                    <span className="text-[11px] font-mono text-neutral-400 uppercase">Total Tokens</span>
                   </div>
-                  <div className="text-xl font-bold text-white pt-0.5 font-mono">
+                  <div className="text-xl font-bold font-mono text-white">
                     {totalMeteredTokens.toLocaleString()}
                   </div>
-                  <div className="text-[10.5px] text-purple-400 font-medium">
-                    {totalPromptTokens.toLocaleString()} prompt / {totalCompletionTokens.toLocaleString()} comp
-                  </div>
+                  <div className="text-[10.5px] text-neutral-500 font-mono">Aggregated Throughput</div>
                 </div>
               </div>
 
               {/* Card 2: Prompt Tokens */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
+              <div className="p-3.5 rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-blue-950/40 border border-blue-800/30 flex items-center justify-center text-blue-400">
-                      <Layers className="w-3.5 h-3.5" />
+                    <div className="w-6 h-6 rounded-md bg-[#DFB277]/10 border border-[#DFB277]/20 flex items-center justify-center text-[#DFB277]">
+                      <Cpu className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Input Prompt Tokens</span>
+                    <span className="text-[11px] font-mono text-neutral-400 uppercase">Prompt Tokens</span>
                   </div>
-                  <div className="text-xl font-bold text-[#dfba82] pt-0.5 font-mono">
+                  <div className="text-xl font-bold font-mono text-white">
                     {totalPromptTokens.toLocaleString()}
                   </div>
-                  <div className="text-[10.5px] text-emerald-400 font-medium">Ingested through gateway</div>
+                  <div className="text-[10.5px] text-neutral-500 font-mono">Inbound Context Volume</div>
                 </div>
               </div>
 
               {/* Card 3: Completion Tokens */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
+              <div className="p-3.5 rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-emerald-950/40 border border-emerald-800/30 flex items-center justify-center text-emerald-400">
-                      <ShieldCheck className="w-3.5 h-3.5" />
+                    <div className="w-6 h-6 rounded-md bg-[#DFB277]/10 border border-[#DFB277]/20 flex items-center justify-center text-[#DFB277]">
+                      <Cpu className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Output Completion</span>
+                    <span className="text-[11px] font-mono text-neutral-400 uppercase">Completion Tokens</span>
                   </div>
-                  <div className="text-xl font-bold text-white pt-0.5 font-mono">
+                  <div className="text-xl font-bold font-mono text-white">
                     {totalCompletionTokens.toLocaleString()}
                   </div>
-                  <div className="text-[10.5px] text-emerald-400 font-medium">Generated tokens</div>
+                  <div className="text-[10.5px] text-neutral-500 font-mono">Generated Output Volume</div>
                 </div>
               </div>
 
-              {/* Card 4: Cached Tokens */}
-              <div className="p-3.5 rounded-2xl bg-[#0c0e16] border border-[#1a1d2b] flex items-center justify-between relative overflow-hidden group hover:border-[#2a2f45] transition-all">
+              {/* Card 4: Incurred Token Spend */}
+              <div className="p-3.5 rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-md bg-purple-950/40 border border-purple-800/30 flex items-center justify-center text-purple-400">
-                      <Database className="w-3.5 h-3.5" />
+                    <div className="w-6 h-6 rounded-md bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-[#10B981]">
+                      <Zap className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-[11.5px] text-[#8e93a6] font-medium">Cached Deflection</span>
+                    <span className="text-[11px] font-mono text-neutral-400 uppercase">Metered Spend</span>
                   </div>
-                  <div className="text-xl font-bold text-emerald-400 pt-0.5 font-mono">
-                    {totalCachedTokens.toLocaleString()}
+                  <div className="text-xl font-bold font-mono text-[#10B981]">
+                    ${totalSpend.toFixed(2)}
                   </div>
-                  <div className="text-[10.5px] text-[#8e93a6]">{cacheHitRate.toFixed(1)}% deflection rate</div>
+                  <div className="text-[10.5px] text-neutral-500 font-mono">Calculated at 1M Rates</div>
                 </div>
               </div>
             </div>
 
-            {/* Model Usage Table */}
-            <div className="rounded-2xl border border-[#1a1d2b] bg-[#0c0e16] p-4.5 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#161824]">
+            {/* Main Token Meters Table */}
+            <div className="rounded-2xl border border-[#1A1A1A] bg-[#0E0E0E] p-4.5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#161616]">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-[#dfba82]/15 text-[#dfba82] flex items-center justify-center">
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                  </div>
-                  <h3 className="text-xs font-bold text-white">Model Consumption Breakdown</h3>
+                  <Cpu className="w-4 h-4 text-[#DFB277]" />
+                  <h3 className="text-sm font-bold text-white uppercase font-mono">Model Token Consumption Breakdown</h3>
                 </div>
 
-                {/* Filter tabs */}
-                <div className="flex items-center gap-1 p-0.5 rounded-xl bg-[#141624] border border-[#23273a] text-xs">
-                  {(["all", "OpenAI", "Anthropic", "Gemini"] as const).map((prov) => (
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#0A0A0A] border border-[#161616] text-xs font-mono">
+                  {(["all", "openai", "anthropic", "gemini", "kimi"] as const).map((prov) => (
                     <button
                       key={prov}
                       type="button"
-                      onClick={() => setActiveFilter(prov.toLowerCase() as any)}
-                      className={`px-3 py-1 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
-                        activeFilter === prov.toLowerCase()
-                          ? "bg-[#dfba82] text-black font-bold shadow-[0_0_10px_rgba(223,186,130,0.25)]"
-                          : "text-[#8e93a6] hover:text-white"
+                      onClick={() => setActiveFilter(prov)}
+                      className={`px-2.5 py-1 rounded-md capitalize transition-colors cursor-pointer ${
+                        activeFilter === prov
+                          ? "bg-[#DFB277] text-[#0E0E0E] font-bold"
+                          : "text-neutral-400 hover:text-white"
                       }`}
                     >
                       {prov}
@@ -268,49 +178,81 @@ export default function BillingUsagePage() {
                 </div>
               </div>
 
-              {/* Table / Empty State */}
-              <div className="overflow-x-auto">
-                {loading ? (
-                  <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
-                    <div>Aggregating token meter logs...</div>
+              {filteredModels.length === 0 ? (
+                <div className="p-12 text-center space-y-3 bg-[#0A0A0A] rounded-xl border border-[#161616]">
+                  <div className="w-10 h-10 rounded-xl bg-[#141414] border border-[#222222] flex items-center justify-center mx-auto text-[#DFB277]">
+                    <Terminal className="w-5 h-5" />
                   </div>
-                ) : filteredModels.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[#73788c] bg-[#090b12] rounded-xl border border-[#161824]">
-                    No metered token activity recorded for this filter
+                  <div className="text-sm font-semibold text-white">No token consumption recorded yet</div>
+                  <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+                    Token meters populate dynamically with exact input and output counts once requests are proxied.
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/dashboard/models"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#DFB277] text-[#0E0E0E] text-xs font-semibold hover:bg-[#E5C38E] transition-all"
+                    >
+                      <span>Connect Provider Key</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
-                ) : (
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-[#161824] text-[10.5px] uppercase tracking-wider text-[#555a6d] font-semibold">
-                        <th className="py-2.5 px-3">Model</th>
-                        <th className="py-2.5 px-3">Prompt Tokens</th>
-                        <th className="py-2.5 px-3">Completion Tokens</th>
-                        <th className="py-2.5 px-3 text-right">Total Tokens</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#141724]">
-                      {filteredModels.map((m) => (
-                        <tr key={m.model} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3 px-3">
-                            <div className="font-mono text-white font-bold text-[11.5px]">{m.model}</div>
-                            <div className="text-[10px] text-[#6b7082] uppercase">{m.provider}</div>
-                          </td>
-                          <td className="py-3 px-3 font-mono text-[#c5c9d6]">
-                            {m.promptTokens.toLocaleString()}
-                          </td>
-                          <td className="py-3 px-3 font-mono text-[#c5c9d6]">
-                            {m.completionTokens.toLocaleString()}
-                          </td>
-                          <td className="py-3 px-3 text-right font-mono font-bold text-[#dfba82]">
-                            {m.totalTokens.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredModels.map((m) => {
+                    const pctOfTokens = totalMeteredTokens > 0
+                      ? Math.round((m.totalTokens / totalMeteredTokens) * 100)
+                      : 0;
+
+                    return (
+                      <div
+                        key={m.model}
+                        className="p-4 rounded-xl bg-[#0A0A0A] border border-[#161616] hover:border-[#222222] transition-all space-y-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <ModelProviderLogo provider={m.provider} modelId={m.model} size="md" />
+                            <div>
+                              <div className="font-mono font-bold text-white text-sm">{m.model}</div>
+                              <div className="text-xs text-neutral-500 uppercase font-mono">{m.provider} · {m.requests.toLocaleString()} calls</div>
+                            </div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="text-sm font-bold text-white">{m.totalTokens.toLocaleString()} tokens</div>
+                            <div className="text-xs text-[#DFB277] font-semibold">${m.spendUsd.toFixed(4)}</div>
+                          </div>
+                        </div>
+
+                        {/* Split Bar: Prompt vs Completion */}
+                        <div className="space-y-1">
+                          <div className="w-full bg-[#161616] h-2 rounded-full overflow-hidden flex">
+                            <div
+                              className="bg-[#DFB277] h-full"
+                              style={{ width: `${m.totalTokens > 0 ? (m.inputTokens / m.totalTokens) * 100 : 50}%` }}
+                              title={`Prompt tokens: ${m.inputTokens.toLocaleString()}`}
+                            />
+                            <div
+                              className="bg-[#10B981] h-full"
+                              style={{ width: `${m.totalTokens > 0 ? (m.outputTokens / m.totalTokens) * 100 : 50}%` }}
+                              title={`Completion tokens: ${m.outputTokens.toLocaleString()}`}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10.5px] font-mono text-neutral-400">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-[#DFB277]" />
+                              <span>Prompt: {m.inputTokens.toLocaleString()}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                              <span>Completion: {m.outputTokens.toLocaleString()}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </ContentTransition>

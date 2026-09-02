@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function UsageRedirect() {
-  redirect("/dashboard/billing/usage");
+import BillingUsagePage from "@/app/dashboard/billing/usage/page";
+
+export default function UsagePage() {
+  return <BillingUsagePage />;
 }

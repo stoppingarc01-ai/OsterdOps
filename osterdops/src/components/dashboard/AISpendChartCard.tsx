@@ -1,66 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ChevronDown, MoreVertical, LineChart, Loader2 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { apiRequest } from "@/lib/api/client";
+import React, { useState } from "react";
+import { LineChart, Loader2 } from "lucide-react";
+import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
 
-interface TimeSeriesPoint {
-  date: string;
-  spendUsd: number;
-  requests: number;
-  tokens: number;
+interface AISpendChartCardProps {
+  telemetry?: LiveTelemetryData;
+  isLoading?: boolean;
 }
 
-export function AISpendChartCard() {
-  const { currentOrg, getIdToken } = useAuth();
+export function AISpendChartCard({ telemetry: externalTelemetry, isLoading: externalLoading }: AISpendChartCardProps) {
+  const internalHook = useLiveTelemetry();
+  const data = externalTelemetry || internalHook.data;
+  const loading = externalLoading !== undefined ? externalLoading : internalHook.isLoading;
+
   const [activeTab, setActiveTab] = useState<"Spend" | "Tokens" | "Requests">("Spend");
-  const [points, setPoints] = useState<TimeSeriesPoint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const points = data.timeSeries || [];
 
-    async function fetchTimeSeries() {
-      if (!currentOrg?.id) return;
-      setLoading(true);
-
-      try {
-        const token = await getIdToken();
-        const res = await apiRequest<any>("/api/v1/analytics/overview", {
-          params: { organizationId: currentOrg.id, timeRange: "30d" },
-          token,
-        });
-
-        if (!isMounted) return;
-
-        if (res.data && Array.isArray(res.data.timeSeries)) {
-          const mapped: TimeSeriesPoint[] = res.data.timeSeries.map((pt: any) => ({
-            date: pt.date ? new Date(pt.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "",
-            spendUsd: pt.spendUsd ?? 0,
-            requests: pt.requests ?? 0,
-            tokens: pt.tokens ?? 0,
-          }));
-          setPoints(mapped);
-        } else {
-          setPoints([]);
-        }
-      } catch (err) {
-        if (isMounted) setPoints([]);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    fetchTimeSeries();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentOrg?.id, getIdToken]);
-
-  const getValue = (pt: TimeSeriesPoint) => {
+  const getValue = (pt: (typeof points)[0]) => {
     if (activeTab === "Spend") return pt.spendUsd;
     if (activeTab === "Tokens") return pt.tokens;
     return pt.requests;
@@ -68,32 +27,34 @@ export function AISpendChartCard() {
 
   const formatValue = (val: number) => {
     if (activeTab === "Spend") return `$${val.toFixed(2)}`;
-    if (activeTab === "Tokens") return val >= 1_000_000 ? `${(val / 1_000_000).toFixed(1)}M` : val.toLocaleString();
+    if (activeTab === "Tokens") return val >= 1_000_000 ? `${(val / 1_000_000).toFixed(2)}M` : val.toLocaleString();
     return val.toLocaleString();
   };
 
-  const maxVal = points.length > 0 ? Math.max(...points.map(getValue), 1) : 1;
+  const values = points.map(getValue);
+  const maxVal = values.length > 0 ? Math.max(...values, 1) : 1;
+  const hasData = points.length > 0 && values.some((v) => v > 0);
 
   return (
-    <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl flex flex-col justify-between space-y-4">
+    <div className="p-5 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between space-y-4 transition-all">
       {/* Top Header & Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
-          <h3 className="text-base font-semibold text-[#f4efe6]">
+          <h3 className="text-sm font-bold text-white tracking-tight">
             AI Spend Over Time
           </h3>
 
           {/* Toggle Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-[#121422] rounded-xl border border-[#1f2233]">
+          <div className="flex items-center gap-1 p-1 bg-[#0A0A0A] rounded-xl border border-[#161616]">
             {(["Spend", "Tokens", "Requests"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
                   activeTab === tab
-                    ? "bg-[#dfba82] text-[#090a0f] font-bold shadow-xs"
-                    : "text-[#8e93a6] hover:text-white"
+                    ? "bg-[#DFB277] text-[#0E0E0E] font-bold shadow-xs"
+                    : "text-neutral-400 hover:text-white"
                 }`}
               >
                 {tab}
@@ -102,123 +63,116 @@ export function AISpendChartCard() {
           </div>
         </div>
 
-        {/* Granularity & Options */}
+        {/* Granularity Label */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121422] border border-[#1f2233] text-xs text-[#c5c9d6]">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0A0A0A] border border-[#161616] text-xs font-mono text-neutral-400">
             <span>Last 30 Days</span>
           </div>
         </div>
       </div>
 
-      {/* Main Area Chart or Empty State */}
+      {/* Main Area Chart or Zero State */}
       <div className="h-64 w-full relative pt-2">
         {loading ? (
-          <div className="h-full flex flex-col items-center justify-center text-xs text-[#8e93a6] space-y-2">
-            <Loader2 className="w-6 h-6 animate-spin text-[#dfba82]" />
-            <span>Loading telemetry...</span>
+          <div className="h-full flex flex-col items-center justify-center text-xs text-neutral-400 space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-[#DFB277]" />
+            <span className="font-mono">Syncing real-time telemetry...</span>
           </div>
-        ) : points.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 border border-[#171a27] rounded-xl bg-[#090b12]">
-            <div className="w-9 h-9 rounded-xl bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82]">
+        ) : !hasData ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 border border-[#161616] rounded-xl bg-[#0A0A0A]">
+            <div className="w-9 h-9 rounded-xl bg-[#DFB277]/10 border border-[#DFB277]/20 flex items-center justify-center text-[#DFB277]">
               <LineChart className="w-4 h-4" />
             </div>
             <div className="text-xs font-semibold text-white">No spend data recorded for this period</div>
-            <p className="text-[11px] text-[#73788c] max-w-xs">
+            <p className="text-[11px] text-neutral-400 max-w-xs">
               Usage and model spend will appear dynamically once requests are routed through the proxy gateway.
             </p>
           </div>
         ) : (
-          <svg className="w-full h-full overflow-visible" viewBox="0 0 800 220">
-            <defs>
-              <linearGradient id="mainSpendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#dfba82" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#dfba82" stopOpacity="0" />
-              </linearGradient>
-            </defs>
+          <div className="w-full h-full relative">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 800 220">
+              <defs>
+                <linearGradient id="mainSpendGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#DFB277" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#DFB277" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
 
-            {/* Horizontal Grid lines */}
-            {[0, 50, 100, 150, 200].map((yVal, i) => (
-              <line
-                key={i}
-                x1="40"
-                y1={yVal}
-                x2="780"
-                y2={yVal}
-                stroke="#1b1e2c"
-                strokeDasharray="4 4"
-              />
-            ))}
+              {/* Horizontal Grid lines */}
+              {[20, 65, 110, 155, 200].map((yVal, i) => (
+                <line
+                  key={i}
+                  x1="30"
+                  y1={yVal}
+                  x2="790"
+                  y2={yVal}
+                  stroke="#161616"
+                  strokeWidth="1"
+                />
+              ))}
 
-            {/* Path */}
-            {(() => {
-              const coords = points.map((pt, idx) => {
-                const x = 50 + (idx / Math.max(1, points.length - 1)) * 720;
-                const val = getValue(pt);
-                const y = 200 - (val / maxVal) * 170;
-                return { x, y, label: formatValue(val), date: pt.date };
-              });
+              {/* Dynamic Path Generator */}
+              {(() => {
+                const count = points.length;
+                const coords = points.map((pt, i) => {
+                  const x = 30 + (i / Math.max(1, count - 1)) * 750;
+                  const val = getValue(pt);
+                  const y = 200 - (val / maxVal) * 175;
+                  return { x, y, pt, val };
+                });
 
-              const pathD = coords.reduce(
-                (acc, c, idx) => (idx === 0 ? `M ${c.x},${c.y}` : `${acc} L ${c.x},${c.y}`),
-                ""
-              );
-              const areaD = `${pathD} L ${coords[coords.length - 1].x},200 L ${coords[0].x},200 Z`;
+                const linePath = coords.reduce(
+                  (acc, c, i) => (i === 0 ? `M ${c.x},${c.y}` : `${acc} L ${c.x},${c.y}`),
+                  ""
+                );
+                const areaPath = `${linePath} L ${coords[coords.length - 1].x},200 L ${coords[0].x},200 Z`;
 
-              return (
-                <>
-                  <path d={areaD} fill="url(#mainSpendGradient)" />
-                  <path d={pathD} fill="none" stroke="#dfba82" strokeWidth="2.5" strokeLinecap="round" />
+                return (
+                  <>
+                    <path d={areaPath} fill="url(#mainSpendGradient)" />
+                    <path
+                      d={linePath}
+                      fill="none"
+                      stroke="#DFB277"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
 
-                  {coords.map((c, idx) => (
-                    <g key={idx} className="cursor-pointer">
-                      <circle
-                        cx={c.x}
-                        cy={c.y}
-                        r="4"
-                        fill="#dfba82"
-                        stroke="#0d0f18"
-                        strokeWidth="2"
-                        onMouseEnter={() => setHoveredPoint(idx)}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                      />
-                      {hoveredPoint === idx && (
-                        <g>
-                          <rect
-                            x={c.x - 35}
-                            y={c.y - 30}
-                            width="70"
-                            height="20"
-                            rx="5"
-                            fill="#181b2a"
-                            stroke="#dfba82"
-                            strokeWidth="1"
-                          />
-                          <text
-                            x={c.x}
-                            y={c.y - 16}
-                            fill="#ffffff"
-                            fontSize="10"
-                            fontWeight="bold"
-                            textAnchor="middle"
-                          >
-                            {c.label}
-                          </text>
-                        </g>
-                      )}
-                    </g>
-                  ))}
-                </>
-              );
-            })()}
-          </svg>
-        )}
+                    {/* Data Points */}
+                    {coords.map((c, i) => (
+                      <g
+                        key={i}
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      >
+                        <circle
+                          cx={c.x}
+                          cy={c.y}
+                          r={hoveredIndex === i ? 6 : 3.5}
+                          fill="#0E0E0E"
+                          stroke="#DFB277"
+                          strokeWidth="2"
+                          className="transition-all"
+                        />
+                      </g>
+                    ))}
+                  </>
+                );
+              })()}
+            </svg>
 
-        {/* X Axis Dates Row */}
-        {points.length > 0 && (
-          <div className="flex items-center justify-between text-[11px] text-[#6e7387] px-4 pt-1 font-mono">
-            {points.map((d, i) => (
-              <span key={i}>{d.date}</span>
-            ))}
+            {/* Hover Tooltip */}
+            {hoveredIndex !== null && points[hoveredIndex] && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[#DFB277]/40 text-xs font-mono text-white shadow-xl pointer-events-none"
+              >
+                <div className="text-[10px] text-neutral-400">{points[hoveredIndex].date}</div>
+                <div className="font-bold text-[#E5C38E] mt-0.5">
+                  {formatValue(getValue(points[hoveredIndex]))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

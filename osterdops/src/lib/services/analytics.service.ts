@@ -469,6 +469,50 @@ export async function getOrganizationOverviewAnalytics(
     };
   }).sort((a, b) => a.date.localeCompare(b.date));
 
+  const recentRequests: UsageRecord[] = usageSnap.docs.slice(0, 25).map((doc) => {
+    const d = doc.data() as Record<string, unknown>;
+    const toDateStr = (val: unknown): string => {
+      if (!val) return new Date().toISOString();
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && val !== null && "toDate" in val && typeof (val as { toDate: () => Date }).toDate === "function") {
+        return (val as { toDate: () => Date }).toDate().toISOString();
+      }
+      return new Date().toISOString();
+    };
+    const reqId = String(d.requestId || doc.id);
+    const costRecord = costMap.get(reqId);
+    let costUsd = d.costUsd !== undefined ? Number(d.costUsd) : undefined;
+    if (costRecord && costRecord.totalCostUsd !== null) {
+      costUsd = costRecord.totalCostUsd;
+    }
+    const inTokens = Number(d.inputTokens) || 0;
+    const outTokens = Number(d.outputTokens) || 0;
+    const totTokens = Number(d.totalTokens) || (inTokens + outTokens);
+
+    return {
+      id: doc.id,
+      requestId: reqId,
+      organizationId: String(d.organizationId || orgId),
+      projectId: String(d.projectId || ""),
+      apiKeyId: String(d.apiKeyId || ""),
+      provider: String(d.provider || "openai"),
+      model: String(d.model || "unknown"),
+      inputTokens: inTokens,
+      outputTokens: outTokens,
+      totalTokens: totTokens,
+      cachedTokens: d.cachedTokens !== undefined ? Number(d.cachedTokens) : undefined,
+      reasoningTokens: d.reasoningTokens !== undefined ? Number(d.reasoningTokens) : undefined,
+      costUsd,
+      costType: d.costType as UsageRecord["costType"],
+      latencyMs: Number(d.latencyMs) || 0,
+      statusCode: Number(d.statusCode) || 200,
+      status: (d.status as UsageRecord["status"]) || (Number(d.statusCode) < 400 ? "SUCCESS" : "ERROR"),
+      errorCode: d.errorCode ? String(d.errorCode) : undefined,
+      timestamp: toDateStr(d.timestamp),
+      datePartition: String(d.datePartition || new Date().toISOString().slice(0, 10)),
+    };
+  });
+
   return {
     organizationId: orgId,
     projectId: filterOpts.projectId,
@@ -482,6 +526,7 @@ export async function getOrganizationOverviewAnalytics(
     byApiKey,
     byStatusCode: statusCodeDist,
     timeSeries,
+    recentRequests,
   };
 }
 
