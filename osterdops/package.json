@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "eslint",
-    "test": "tsx tests/run-tests.ts"
+    "test": "tsx tests/run-tests.ts",
+    "simulate": "tsx scripts/simulate-traffic.ts"
   },
   "dependencies": {
     "firebase": "^12.18.0",

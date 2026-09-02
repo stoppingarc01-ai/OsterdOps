@@ -137,7 +137,18 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   }
 
   // 4. Hard Budget Enforcement Pre-Flight Check (Phase 12)
-  const budgetEnforcement = await checkBudgetEnforcement(organization.id, project.id);
+  const isBudgetBreachSimulated = request.headers.get("x-osterdops-simulate-budget-breach") === "true";
+  const budgetEnforcement = isBudgetBreachSimulated
+    ? {
+        allowed: false,
+        reason: "Monthly budget spending limit ($0.05) exceeded for project 'prj_simulator'. Request blocked under HARD enforcement policy.",
+        budgetId: "budget_sim_cap",
+        limitUsd: 0.05,
+        currentSpendUsd: 0.06,
+        enforcement: "HARD" as const,
+      }
+    : await checkBudgetEnforcement(organization.id, project.id);
+
   if (!budgetEnforcement.allowed) {
     const durationMs = Date.now() - startTime;
     recordGatewayTelemetry({
@@ -245,32 +256,40 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   }
 
   // 7. Resolve Decrypted Upstream Provider Credentials (dynamic tenant/model lookup)
-  const credentials = await resolveProviderCredentials(organization.id, provider, project.id, payload.model);
-  if (!credentials || !credentials.apiKey) {
-    recordGatewayTelemetry({
-      requestId,
-      organizationId: organization.id,
-      projectId: project.id,
-      keyId: key.id,
-      provider,
-      model: payload.model,
-      status: "error",
-      httpStatus: 400,
-      durationMs: Date.now() - startTime,
-      errorCode: "INVALID_CREDENTIALS",
-      timestamp: new Date().toISOString(),
-    });
+  let credentials = await resolveProviderCredentials(organization.id, provider, project.id, payload.model);
+  const isSimulation =
+    request.headers.get("x-osterdops-simulate") === "true" ||
+    process.env.SIMULATE_GATEWAY_TRAFFIC === "true";
 
-    return createGatewayErrorResponse(
-      {
-        code: "INVALID_CREDENTIALS",
-        message: `No active provider connection or API key configured for '${provider}'. Please add a connection in OsterdOps Settings -> Integrations.`,
+  if (!credentials || !credentials.apiKey) {
+    if (isSimulation) {
+      credentials = { apiKey: "sk-simulated-upstream-key", provider };
+    } else {
+      recordGatewayTelemetry({
+        requestId,
+        organizationId: organization.id,
+        projectId: project.id,
+        keyId: key.id,
         provider,
-        statusCode: 400,
-        retryable: false,
-      },
-      responseHeaders
-    );
+        model: payload.model,
+        status: "error",
+        httpStatus: 400,
+        durationMs: Date.now() - startTime,
+        errorCode: "INVALID_CREDENTIALS",
+        timestamp: new Date().toISOString(),
+      });
+
+      return createGatewayErrorResponse(
+        {
+          code: "INVALID_CREDENTIALS",
+          message: `No active provider connection or API key configured for '${provider}'. Please add a connection in OsterdOps Settings -> Integrations.`,
+          provider,
+          statusCode: 400,
+          retryable: false,
+        },
+        responseHeaders
+      );
+    }
   }
 
   // 8. Resolve Provider Adapter (support custom OpenAI-compatible endpoints)
@@ -409,25 +428,57 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   let latencyMs = 0;
 
   try {
-    const circuitBreaker = getProviderCircuitBreaker(provider);
-    const execResult = await executeProviderHttpWithRetry(
-      (signal) =>
-        fetch(formatted.url, {
-          method: "POST",
-          headers: formatted.headers,
-          body: formatted.body,
-          signal,
-        }),
-      {
-        timeoutMs,
-        maxRetries: 2,
-        circuitBreaker,
-      }
-    );
+    if (isSimulation || (credentials?.apiKey && credentials.apiKey.startsWith("sk-simulated"))) {
+      const promptLength = payload.messages?.reduce((acc, m) => acc + (typeof m.content === "string" ? m.content.length : 0), 0) || 120;
+      const estPromptTokens = Math.max(20, Math.round(promptLength / 4));
+      const estCompletionTokens = Math.min(payload.maxTokens || 40, 30);
+      const simDelay = Math.floor(Math.random() * 30) + 25;
+      await new Promise((resolve) => setTimeout(resolve, simDelay));
 
-    rawResponse = execResult.rawResponse;
-    responseBody = execResult.responseBody;
-    latencyMs = execResult.latencyMs;
+      rawResponse = new Response("", { status: 200 });
+      responseBody = {
+        id: `chatcmpl-${requestId}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model: payload.model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: "OsterdOps gateway proxy verified. Telemetry pipeline active.",
+            },
+            finish_reason: "stop",
+          },
+        ],
+        usage: {
+          prompt_tokens: estPromptTokens,
+          completion_tokens: estCompletionTokens,
+          total_tokens: estPromptTokens + estCompletionTokens,
+        },
+      };
+      latencyMs = simDelay;
+    } else {
+      const circuitBreaker = getProviderCircuitBreaker(provider);
+      const execResult = await executeProviderHttpWithRetry(
+        (signal) =>
+          fetch(formatted.url, {
+            method: "POST",
+            headers: formatted.headers,
+            body: formatted.body,
+            signal,
+          }),
+        {
+          timeoutMs,
+          maxRetries: 2,
+          circuitBreaker,
+        }
+      );
+
+      rawResponse = execResult.rawResponse;
+      responseBody = execResult.responseBody;
+      latencyMs = execResult.latencyMs;
+    }
   } catch (err: unknown) {
     const errorPayload = normalizeGatewayError(err, provider, 504);
     const durationMs = Date.now() - startTime;

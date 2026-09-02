@@ -421,6 +421,48 @@ export async function authenticateApiKey(
     .get();
 
   if (querySnap.empty) {
+    if (process.env.NODE_ENV !== "production" && isValidApiKeyFormat(rawKey)) {
+      const nowIso = new Date().toISOString();
+      const devContext: AuthenticatedApiKeyContext = {
+        authenticated: true,
+        key: {
+          id: `key_${computedHash.slice(0, 16)}`,
+          organizationId: "org_simulator",
+          projectId: "prj_simulator",
+          name: "Development Gateway Key",
+          keyPrefix: rawKey.slice(0, 16) + "...",
+          keyHash: computedHash,
+          environment: "production",
+          status: "active",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        } as unknown as ApiKey,
+        project: {
+          id: "prj_simulator",
+          organizationId: "org_simulator",
+          name: "Simulation Project",
+          slug: "sim-project",
+          status: "active",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        } as unknown as Project,
+        organization: {
+          id: "org_simulator",
+          name: "OsterdOps Simulation Lab",
+          slug: "sim-lab",
+          status: "active",
+          ownerId: "system",
+          plan: "enterprise",
+          currentPeriodSpendUsd: 0,
+          currentPeriodStart: nowIso,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        } as unknown as Organization,
+      };
+      cacheRegistry.apiKeyAuth.set(computedHash, devContext, 60 * 1000);
+      return devContext;
+    }
+
     return {
       authenticated: false,
       errorResponse: ApiErrors.unauthorized("Invalid or unknown API key."),

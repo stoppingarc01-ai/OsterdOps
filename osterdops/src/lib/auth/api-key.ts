@@ -48,7 +48,7 @@ export function hashApiKey(secret: string): string {
  */
 export function isValidApiKeyFormat(secret: string): boolean {
   if (!secret || typeof secret !== "string") return false;
-  return /^(ost|osk)_(live|stg|test)_[a-f0-9]{32,64}$/.test(secret.trim());
+  return /^(ost|osk|ors)_(live|stg|test)_[a-f0-9]{32,64}$/.test(secret.trim());
 }
 
 export const validateApiKeyFormat = isValidApiKeyFormat;
