@@ -21,6 +21,7 @@ import {
   Layers,
   Terminal,
 } from "lucide-react";
+import { ModelProviderLogo } from "@/components/ui/ModelLogos";
 import { useAuth } from "@/context/AuthContext";
 import type { ProviderConnection } from "@/types";
 
@@ -532,10 +533,11 @@ main().catch(console.error);`,
                           : "bg-[#141414] border-[#262626] text-neutral-300 hover:border-neutral-700 hover:bg-[#161616]"
                       }`}
                     >
-                      <div className="mt-0.5">
+                      <div className="mt-0.5 flex items-center gap-2">
                         <Radio
-                          className={`w-4 h-4 ${isSelected ? "text-amber-400 fill-amber-400/20" : "text-neutral-600"}`}
+                          className={`w-4 h-4 shrink-0 ${isSelected ? "text-amber-400 fill-amber-400/20" : "text-neutral-600"}`}
                         />
+                        <ModelProviderLogo provider={preset.id} size="sm" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -761,10 +763,8 @@ main().catch(console.error);`,
             <div className="space-y-4">
               {/* Status Header Badge */}
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <Check className="w-4 h-4" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <ModelProviderLogo provider={selectedProvider.id} modelId={getEffectiveModel()} size="md" />
                   <div>
                     <div className="text-xs font-semibold text-emerald-300">
                       Successfully Connected to {selectedProvider.name}
