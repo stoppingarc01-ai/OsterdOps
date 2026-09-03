@@ -1,70 +1,49 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Copy, Terminal, Code2, Cpu, CheckCircle2, ArrowRight } from "lucide-react";
+import { Check, Copy, Zap, ArrowRight, ShieldCheck } from "lucide-react";
 
 export function ProxySwitcher() {
-  const [activeTab, setActiveTab] = useState<"python" | "nodejs" | "curl" | "langchain">("python");
+  const [activeTab, setActiveTab] = useState<"python" | "nodejs" | "curl">("python");
   const [copied, setCopied] = useState(false);
 
   const codeSnippets = {
-    python: `# 1-line change: point baseURL to OsterdOps proxy perimeter
-from openai import OpenAI
+    python: `import openai
 
-client = OpenAI(
-    base_url="https://gateway.osterdops.com/api/v1/gateway",  # <- only change needed
-    api_key="ost_live_9f82ab73c0914de6b02a"                    # <- your OsterdOps project key
+client = openai.OpenAI(
+    base_url="https://gateway.osterdops.com/v1",
+    api_key="sk_live_your_key_here"
 )
 
-# Outgoing requests are automatically routed, metered, and protected
 response = client.chat.completions.create(
-    model="gpt-4o",  # Auto-downgrades to gpt-4o-mini if 80% spend reached
-    messages=[{"role": "user", "content": "Analyze quarterly EBITDA projections."}]
+    model="gpt-4o",  # or claude-3-5-sonnet, deepseek-r1
+    messages=[{"role": "user", "content": "Hello, production AI!"}]
 )
 print(response.choices[0].message.content)`,
 
-    nodejs: `// 1-line change: point baseURL to OsterdOps proxy perimeter
-import OpenAI from "openai";
+    nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://gateway.osterdops.com/api/v1/gateway", // <- only change needed
-  apiKey: "ost_live_9f82ab73c0914de6b02a",                // <- your OsterdOps project key
+  baseURL: "https://gateway.osterdops.com/v1",
+  apiKey: "sk_live_your_key_here",
 });
 
-// Outgoing requests are automatically routed, metered, and protected
-const completion = await client.chat.completions.create({
-  model: "claude-3-5-sonnet-20241022", // Handled via unified gateway adapter
-  messages: [{ role: "user", content: "Summarize distributed transaction logs." }],
+const response = await client.chat.completions.create({
+  model: "gpt-4o", // or claude-3-5-sonnet, deepseek-r1
+  messages: [{ role: "user", content: "Hello, production AI!" }],
 });
 
-console.log(completion.choices[0].message.content);`,
+console.log(response.choices[0].message.content);`,
 
-    curl: `# Drop-in cURL execution through OsterdOps Gateway
-curl https://gateway.osterdops.com/api/v1/gateway/chat/completions \\
-  -H "Authorization: Bearer ost_live_9f82ab73c0914de6b02a" \\
+    curl: `curl https://gateway.osterdops.com/v1/chat/completions \\
+  -H "Authorization: Bearer sk_live_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "kimi-k1.5",
+    "model": "gpt-4o",
     "messages": [
-      {"role": "system", "content": "You are a quantitative FinOps engine."},
-      {"role": "user", "content": "Optimize GPU token throughput."}
+      {"role": "user", "content": "Hello, production AI!"}
     ]
   }'`,
-
-    langchain: `// LangChain & LlamaIndex Drop-in Configuration
-import { ChatOpenAI } from "@langchain/openai";
-
-const model = new ChatOpenAI({
-  configuration: {
-    baseURL: "https://gateway.osterdops.com/api/v1/gateway",
-    apiKey: process.env.OSTERDOPS_API_KEY,
-  },
-  modelName: "gpt-4o",
-  temperature: 0.2,
-});
-
-const res = await model.invoke("Plan Kubernetes auto-scaler limits.");
-console.log(res.content);`,
   };
 
   const handleCopy = () => {
@@ -73,52 +52,91 @@ console.log(res.content);`,
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const steps = [
+    {
+      num: "01",
+      title: "Copy endpoint",
+      desc: "Point client to gateway.osterdops.com/v1",
+    },
+    {
+      num: "02",
+      title: "Set API Key",
+      desc: "Pass your scoped OsterdOps virtual key",
+    },
+    {
+      num: "03",
+      title: "Route traffic",
+      desc: "Dispatch to 64+ frontier models with zero SDK changes",
+    },
+  ];
+
   return (
-    <section className="py-20 bg-[#080808]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-          {/* Left Explanatory Column */}
-          <div className="space-y-5 lg:max-w-md">
-            <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
-              Integration
+    <section className="py-20 bg-[#080808] border-b border-[#161720]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Left Column: 3-step vertical stepper */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="space-y-2">
+              <div className="text-xs font-mono font-bold text-[#DFB277] uppercase tracking-wider">
+                ONE ENDPOINT. ANY MODEL.
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
+                1-Minute Drop-in Proxy
+              </h2>
+
+              <p className="text-sm sm:text-base text-neutral-400 font-sans leading-relaxed">
+                Zero proprietary SDK lock-in. Swap two lines of code in your existing client and immediately gain hard budgets, auto-downgrades, and sub-15µs pre-flight controls.
+              </p>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Drop-in Proxy. <br />
-              <span className="text-[#DFB277]">One Line of Code.</span>
-            </h2>
+            {/* 3-Step Vertical Stepper */}
+            <div className="space-y-4 pt-2">
+              {steps.map((step, idx) => (
+                <div
+                  key={step.num}
+                  className="p-3.5 rounded-xl bg-[#0D0E14] border border-[#1A1C28] flex items-start gap-3.5 group hover:border-[#DFB277]/40 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[#DFB277]/10 border border-[#DFB277]/30 text-[#DFB277] font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                    {step.num}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-white font-sans group-hover:text-[#DFB277] transition-colors">
+                      {step.title}
+                    </h3>
+                    <p className="text-[11px] text-neutral-400 font-sans mt-0.5">
+                      {step.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-            <p className="text-sm text-neutral-400 leading-relaxed">
-              OsterdOps is fully OpenAI-compatible. Point your existing SDK or HTTP client to our base URL to enforce budgets, cache responses, and route traffic without SDK lock-in.
-            </p>
-
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-2.5 text-xs font-mono text-neutral-300">
-                <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                <span>Compatible with OpenAI, Anthropic, Gemini, Kimi, &amp; Bedrock</span>
+            <div className="p-3 rounded-xl bg-[#0F1017] border border-[#1A1C27] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#DFB277]/15 border border-[#DFB277]/30 flex items-center justify-center text-[#DFB277] shrink-0">
+                <Zap className="w-4 h-4" />
               </div>
-              <div className="flex items-center gap-2.5 text-xs font-mono text-neutral-300">
-                <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                <span>Works natively with LangChain, LlamaIndex, &amp; Vercel AI SDK</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs font-mono text-neutral-300">
-                <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                <span>Sub-5ms inline latency overhead (P95 verified)</span>
+              <div>
+                <div className="text-xs font-bold text-white font-sans">
+                  Native OpenAI Protocol Compatibility
+                </div>
+                <div className="text-[11px] text-neutral-400 font-sans">
+                  Works seamlessly with LangChain, LlamaIndex, CrewAI, Vercel AI SDK
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right Code Sandbox Card */}
-          <div className="w-full lg:max-w-2xl rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] shadow-[0_15px_40px_rgba(0,0,0,0.6)] overflow-hidden">
-            {/* Tab Bar */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-[#0A0A0A] border-b border-[#1A1A1A]">
-              <div className="flex items-center gap-1 sm:gap-2">
+          {/* Right Column: Code Sandbox */}
+          <div className="lg:col-span-7 w-full rounded-2xl bg-[#0D0E14] border border-[#1A1C28] shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden">
+            {/* Tab Bar Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#08080B] border-b border-[#181A26]">
+              <div className="flex items-center gap-1.5">
                 {(
                   [
                     { id: "python", label: "Python" },
                     { id: "nodejs", label: "Node.js" },
                     { id: "curl", label: "cURL" },
-                    { id: "langchain", label: "LangChain" },
                   ] as const
                 ).map((tab) => (
                   <button
@@ -126,7 +144,7 @@ console.log(res.content);`,
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
                       activeTab === tab.id
-                        ? "bg-[#1A1A1A] text-[#DFB277] font-bold border border-[#DFB277]/30"
+                        ? "bg-[#161822] text-[#DFB277] font-semibold border border-[#262A3B]"
                         : "text-neutral-400 hover:text-white"
                     }`}
                   >
@@ -135,40 +153,39 @@ console.log(res.content);`,
                 ))}
               </div>
 
-              {/* Copy Code Button */}
+              {/* Copy Button */}
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#141414] hover:bg-[#1E1E1E] border border-[#222222] text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161822] hover:bg-[#1E2130] border border-[#262A3B] text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
               >
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-[#10B981]" />
-                    <span className="text-[#10B981]">Copied!</span>
+                    <span className="text-[#10B981]">Copied</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 text-neutral-400" />
                     <span>Copy</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Code Body */}
-            <div className="p-4 sm:p-5 overflow-x-auto bg-[#080808]">
-              <pre className="text-xs font-mono text-neutral-300 leading-relaxed">
+            {/* Code Content */}
+            <div className="p-4 sm:p-5 overflow-x-auto bg-[#07080B]">
+              <pre className="text-xs sm:text-[13px] font-mono text-neutral-200 leading-relaxed">
                 <code>{codeSnippets[activeTab]}</code>
               </pre>
             </div>
 
-            {/* Bottom Difference Banner */}
-            <div className="px-4 py-2.5 bg-[#0A0A0A] border-t border-[#161616] flex items-center justify-between text-[11px] font-mono">
-              <div className="flex items-center gap-2">
-                <span className="text-red-400">- api.openai.com</span>
-                <ArrowRight className="w-3 h-3 text-[#DFB277]" />
-                <span className="text-[#10B981] font-bold">+ gateway.osterdops.com</span>
-              </div>
-              <span className="text-neutral-500">1 line modified</span>
+            {/* Code Footer info */}
+            <div className="px-4 py-2.5 bg-[#090A0E] border-t border-[#181A26] flex items-center justify-between text-[11px] font-mono text-neutral-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                Target Base URL: https://gateway.osterdops.com/v1
+              </span>
+              <span className="text-neutral-500">Latency Overhead: &lt;15µs</span>
             </div>
           </div>
         </div>

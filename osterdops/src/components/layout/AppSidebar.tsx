@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -176,18 +177,22 @@ export function AppSidebar() {
       <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-140px)] pr-1 custom-scrollbar">
         {/* Brand Header Logo */}
         <Link href="/" className="flex items-center gap-3 px-2 py-1.5 group">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#dfba82] via-[#f3ebd9] to-[#b8860b] p-0.5 shadow-[0_0_15px_rgba(223,186,130,0.35)] shrink-0">
-            <div className="w-full h-full bg-[#07080c] rounded-full flex items-center justify-center">
-              <div className="w-3.5 h-3.5 rounded-full border-2 border-[#dfba82] border-t-transparent animate-spin-slow" />
-            </div>
+          <div className="relative w-8 h-8 flex items-center justify-center shrink-0 drop-shadow-[0_0_12px_rgba(223,178,119,0.4)] group-hover:scale-105 transition-transform">
+            <Image
+              src="/osterdops-logo.png"
+              alt="OsterdOps"
+              width={32}
+              height={32}
+              className="object-contain w-full h-full"
+            />
           </div>
           {!collapsed && (
             <div>
-              <div className="text-[14px] font-bold tracking-wider text-[#f4efe6] font-serif">
-                OSTERDOPS
+              <div className="text-[15px] font-bold tracking-tight text-white font-sans">
+                Osterd<span className="text-[#DFB277]">Ops</span>
               </div>
-              <div className="text-[9.5px] text-[#dfba82] font-medium tracking-tight">
-                Enterprise AI Control
+              <div className="text-[9.5px] text-[#DFB277] font-medium tracking-tight">
+                AI Gateway &amp; FinOps
               </div>
             </div>
           )}

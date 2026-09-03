@@ -155,15 +155,15 @@ export function Footer() {
               <ShieldCheck className="h-3 w-3" />
               <span>Admin Console</span>
             </Link>
-            <a href="#" className="hover:text-[#9ca3af] transition-colors">
+            <Link href="/terms" className="hover:text-[#9ca3af] transition-colors">
               Terms of Service
-            </a>
-            <a href="#" className="hover:text-[#9ca3af] transition-colors">
+            </Link>
+            <Link href="/privacy" className="hover:text-[#9ca3af] transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="hover:text-[#9ca3af] transition-colors">
+            </Link>
+            <Link href="/dashboard/security" className="hover:text-[#9ca3af] transition-colors">
               Security Portal
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -603,13 +604,13 @@ export function DashboardMockup() {
                   </div>
                 ))}
               </div>
-              <a
-                href="#optimization"
+              <Link
+                href="/optimization"
                 className="inline-flex items-center gap-1 text-[7.5px] font-semibold text-[#dfba82] hover:text-[#faeedb] mt-1 transition-colors"
               >
                 <span>View all opportunities</span>
                 <ArrowRight className="h-2 w-2" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -1,70 +1,66 @@
 "use client";
 
 import React from "react";
-import { Check, X, ShieldAlert, Sparkles, ShieldCheck, Flame, Zap } from "lucide-react";
+import { Check, X, ShieldCheck } from "lucide-react";
 
 export function HeliconeComparison() {
   const comparisonRows = [
     {
       feature: "Budget Enforcement",
-      passive: "Passive alert email sent after money is already spent",
-      active: "Inline Pre-Flight Hard Block (halts call before provider hits credit card)",
+      passive: "Passive alert email sent hours after budget limit is already breached",
+      active: "Active Pre-Flight Block (<15µs): Halts call before provider bills credit card",
       category: "FinOps",
     },
     {
       feature: "Dynamic Model Downgrade",
-      passive: "No automatic downgrade (requires manual developer code deployment)",
-      active: "Automatic real-time rewrite (e.g. gpt-4o → gpt-4o-mini at 80% ceiling)",
+      passive: "No automated downgrade (requires developer code push & redeploy)",
+      active: "Real-time payload mutation (e.g. gpt-4o → gpt-4o-mini at 80% ceiling)",
       category: "Routing",
     },
     {
-      feature: "Runaway Agent Loop Breaker",
-      passive: "None. Rogue agents can drain entire monthly budgets in minutes",
-      active: "30s Velocity Breaker freezes key after 15 identical requests for 5 minutes",
+      feature: "Runaway Loop Breaker",
+      passive: "None. Rogue autonomous agents can drain entire monthly quotas in minutes",
+      active: "30s Velocity Circuit Breaker: Freezes key after 15 identical calls for 300s",
       category: "Reliability",
     },
     {
       feature: "Data Privacy & Prompt Egress",
-      passive: "Raw user prompts & completions stored on third-party cloud servers",
-      active: "Zero-egress telemetry with automated regex/NER PII scrubbing",
+      passive: "Raw customer prompts & completions stored on third-party cloud disks",
+      active: "Zero-Data Retention (ZDR): In-memory regex & NER sanitization, zero disk write",
       category: "Security",
     },
     {
       feature: "Proxy Overhead SLA",
-      passive: "Variable (15ms - 50ms typical proxy latency)",
-      active: "< 5ms guaranteed via O(1) in-memory LRU cache checks",
+      passive: "Variable (15ms – 65ms typical proxy latency)",
+      active: "< 15µs deterministic memory evaluation via compiled Rust/Go data plane",
       category: "Performance",
     },
     {
-      feature: "Self-Hosted / VPC Deployment",
-      passive: "SaaS-only or complex enterprise bespoke setup",
-      active: "1-Click Docker/Kubernetes container in your private VPC",
+      feature: "Deployment Topology",
+      passive: "SaaS-only or bespoke complex enterprise contracts",
+      active: "Managed Global Anycast Edge or 1-Click Self-Hosted VPC Helm Chart",
       category: "Architecture",
     },
   ];
 
   return (
-    <section className="py-20 bg-[#080808]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section className="py-24 bg-[#080808] border-t border-[#161720] relative">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-2">
-          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
-            Comparison
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Active Enforcement vs Passive Logging
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight font-sans">
+            Active Pre-Flight Firewall vs. <span className="text-[#DFB277]">Passive Logging</span>
           </h2>
 
-          <p className="text-sm text-neutral-400">
-            Passive tools record metrics after money is already spent. OsterdOps enforces hard limits inline before requests reach the provider.
+          <p className="text-sm sm:text-base text-neutral-400 font-sans leading-relaxed">
+            Passive tools record metrics after money is already spent. OsterdOps enforces deterministic policies inline before requests ever reach upstream providers.
           </p>
         </div>
 
         {/* Comparison Table / Cards */}
-        <div className="max-w-5xl mx-auto rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+        <div className="max-w-5xl mx-auto rounded-2xl bg-[#0D0E14] border border-[#1A1C28] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
           {/* Table Header */}
-          <div className="grid grid-cols-1 md:grid-cols-12 bg-[#0A0A0A] border-b border-[#1A1A1A] p-4 text-xs font-mono">
+          <div className="grid grid-cols-1 md:grid-cols-12 bg-[#08080B] border-b border-[#181A26] p-4 text-xs font-mono">
             <div className="md:col-span-4 text-neutral-400 uppercase tracking-wider font-semibold">
               Capability
             </div>
@@ -77,25 +73,25 @@ export function HeliconeComparison() {
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-[#161616]">
+          <div className="divide-y divide-[#151722]">
             {comparisonRows.map((row, idx) => (
               <div
                 key={idx}
-                className="grid grid-cols-1 md:grid-cols-12 p-4 sm:p-5 gap-3 md:gap-4 hover:bg-[#121212]/60 transition-colors"
+                className="grid grid-cols-1 md:grid-cols-12 p-4 sm:p-5 gap-3 md:gap-4 hover:bg-[#11131C]/60 transition-colors"
               >
                 {/* Feature Name */}
                 <div className="md:col-span-4 space-y-1">
                   <div className="text-sm font-bold font-mono text-white flex items-center gap-2">
                     <span>{row.feature}</span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161616] text-neutral-400">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#131520] text-neutral-400 border border-[#1D2030]">
                     {row.category}
                   </span>
                 </div>
 
                 {/* Passive Logger (Helicone) Column */}
                 <div className="md:col-span-4 flex items-start gap-2.5 text-xs text-neutral-400 leading-relaxed">
-                  <div className="w-5 h-5 rounded-md bg-red-950/30 border border-red-800/30 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-md bg-rose-950/30 border border-rose-800/30 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
                     <X className="w-3.5 h-3.5" />
                   </div>
                   <span>{row.passive}</span>
@@ -113,13 +109,13 @@ export function HeliconeComparison() {
           </div>
 
           {/* Bottom Summary Bar */}
-          <div className="p-4 bg-[#0A0A0A] border-t border-[#161616] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
+          <div className="p-4 bg-[#08080B] border-t border-[#161722] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
             <span className="text-neutral-400">
-              Stop paying for post-mortems. Guard your LLM infrastructure in real-time.
+              Stop paying for incident post-mortems. Guard your LLM infrastructure in real-time.
             </span>
             <div className="flex items-center gap-2 text-[#DFB277] font-semibold">
               <ShieldCheck className="w-4 h-4 text-[#10B981]" />
-              <span>Full Active Governance Included on All Tiers</span>
+              <span>Full Active Pre-Flight Governance On All Tiers</span>
             </div>
           </div>
         </div>

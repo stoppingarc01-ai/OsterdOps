@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { LiveTickerBar } from "@/components/dashboard/LiveTickerBar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatCardsBar } from "@/components/dashboard/StatCardsBar";
@@ -121,10 +122,10 @@ export default function DashboardPage() {
               <footer className="pt-6 border-t border-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 font-mono">
                 <div>OsterdOps AI Cost Governance Enterprise Platform v2.4</div>
                 <div className="flex items-center gap-4">
-                  <a href="#" className="hover:text-[#DFB277] transition-colors">Docs</a>
-                  <a href="#" className="hover:text-[#DFB277] transition-colors">API</a>
-                  <a href="#" className="hover:text-[#DFB277] transition-colors">Status</a>
-                  <a href="#" className="hover:text-[#DFB277] transition-colors">Support</a>
+                  <Link href="/developers" className="hover:text-[#DFB277] transition-colors">Docs</Link>
+                  <Link href="/developers/api" className="hover:text-[#DFB277] transition-colors">API</Link>
+                  <Link href="/admin/system" className="hover:text-[#DFB277] transition-colors">Status</Link>
+                  <Link href="/contact" className="hover:text-[#DFB277] transition-colors">Support</Link>
                 </div>
               </footer>
             </div>

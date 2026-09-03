@@ -2,64 +2,102 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ArrowRight } from "lucide-react";
+import { ChevronDown, ArrowRight, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OsterdOpsLogo } from "./OsterdOpsLogo";
-import { useThemeCustomizer } from "@/context/ThemeCustomizerContext";
 
-const navLinks = [
+interface NavItem {
+  label: string;
+  hasDropdown: boolean;
+  href?: string;
+  items?: { title: string; desc: string; badge?: string; href?: string }[];
+}
+
+const navLinks: NavItem[] = [
   {
     label: "Product",
     hasDropdown: true,
+    href: "/#simulator",
     items: [
-      { title: "Real-time Observability", desc: "Live spend and latency tracking" },
-      { title: "Smart Guardrails", desc: "Proactive budget & rate limits" },
-      { title: "AI Routing & Optimization", desc: "Intelligent model fallback & caching" },
-      { title: "Enterprise Governance", desc: "Granular RBAC and SOC2 audit logs" },
+      { title: "Real-time AI Observability", desc: "Live spend, token rate, and P95 latency tracking", href: "/dashboard/analytics" },
+      { title: "Smart Guardrails & FinOps", desc: "Proactive hard budgets & runaway loop breakers", href: "/dashboard/budgets" },
+      { title: "Dynamic Routing & Fallbacks", desc: "Sub-15µs multi-provider automated failover", href: "/models" },
+      { title: "Enterprise Zero-PII Egress", desc: "Inline SHA-256 telemetry & data perimeter", href: "/dashboard/security" },
     ],
   },
   {
     label: "Solutions",
     hasDropdown: true,
+    href: "/#pricing",
     items: [
-      { title: "For Engineering Teams", desc: "Unified LLM gateway & debugging" },
-      { title: "For FinOps & Finance", desc: "Accurate cost allocation & forecasting" },
-      { title: "For AI Startups", desc: "Scale without runway surprises" },
+      { title: "For Engineering & Platform Teams", desc: "Unified LLM proxy & zero-maintenance gateway", href: "/developers" },
+      { title: "For FinOps & Finance Leaders", desc: "Accurate cost attribution & department chargebacks", href: "/budgets" },
+      { title: "For High-Growth AI Startups", desc: "Protect runway and prevent surprise token spikes", href: "/pricing" },
     ],
   },
-  { label: "Integrations", hasDropdown: false, href: "#integrations" },
-  { label: "Pricing", hasDropdown: false, href: "#pricing" },
-  { label: "Docs", hasDropdown: false, href: "#docs" },
   {
     label: "Resources",
     hasDropdown: true,
+    href: "/blog",
     items: [
-      { title: "Blog & Guides", desc: "Best practices for LLM cost management" },
-      { title: "Customer Stories", desc: "How top teams save 30%+ on AI spend" },
-      { title: "API Reference", desc: "REST & SDK integration docs" },
+      { title: "Guides & Architecture", desc: "Production best practices for frontier LLM routing", href: "/blog" },
+      { title: "Customer Case Studies", desc: "How top teams slash AI inferencing spend by 40%", href: "/reports" },
+      { title: "API Reference & SDKs", desc: "OpenAI-compatible endpoints and client libraries", href: "/developers/api" },
+    ],
+  },
+  {
+    label: "Pricing",
+    hasDropdown: true,
+    href: "/pricing",
+    items: [
+      { title: "Developer Tier ($0/mo)", desc: "50k requests/mo, 100% free forever", badge: "Free", href: "/sign-up" },
+      { title: "Growth & Team ($49/mo)", desc: "Unlimited models, custom alerts, & PII firewall", badge: "Popular", href: "/sign-up?plan=growth" },
+      { title: "Scale Tier ($159/mo)", desc: "Multi-region anycast edge, semantic caching & failover", href: "/sign-up?plan=scale" },
+      { title: "Enterprise Custom", desc: "VPC data plane, dedicated edge nodes, & 99.99% SLA", href: "/contact" },
+    ],
+  },
+  {
+    label: "Docs",
+    hasDropdown: true,
+    href: "/developers",
+    items: [
+      { title: "Quickstart Guide", desc: "Deploy your proxy perimeter in under 60 seconds", href: "/developers/quickstart" },
+      { title: "Supported 64+ Models", desc: "OpenAI, Anthropic, Gemini, DeepSeek, Grok, Meta", href: "/models" },
+      { title: "Pre-Flight Rules Engine", desc: "Configure velocity triggers and auto-downgrades", href: "/dashboard/automation" },
+    ],
+  },
+  {
+    label: "Changelog",
+    hasDropdown: true,
+    href: "/reports",
+    items: [
+      { title: "v2.4: DeepSeek-R1 & Grok-2 Support", desc: "Sub-8ms routing added for latest reasoning models", badge: "Latest", href: "/models" },
+      { title: "v2.3: Zero-Egress In-Memory Sanitizer", desc: "Local regex and NER PII stripping engine", href: "/dashboard/security" },
+      { title: "v2.2: Multi-Org Billing Hierarchies", desc: "Tag-based department budget caps and alerts", href: "/dashboard/billing" },
     ],
   },
 ];
 
 export function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const { accent, setIsModalOpen } = useThemeCustomizer();
 
   return (
     <motion.header
-      initial={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="sticky top-0 z-50 w-full bg-[#06070b]/90 backdrop-blur-md border-b border-[#181a24]"
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="sticky top-0 z-50 w-full bg-[#080808]/90 backdrop-blur-md border-b border-[#1A1A1A]"
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
-        {/* Left: Brand Logo */}
-        <a href="#" className="flex items-center gap-2 group">
-          <OsterdOpsLogo size="md" />
-        </a>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Left: Brand Logo + Subtext */}
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-90">
+            <OsterdOpsLogo size="md" subtitle="AI Gateway & FinOps" />
+          </Link>
+        </div>
 
         {/* Center navigation */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1">
           {navLinks.map((link) => (
             <div
               key={link.label}
@@ -67,23 +105,21 @@ export function Navbar() {
               onMouseEnter={() => link.hasDropdown && setActiveDropdown(link.label)}
               onMouseLeave={() => link.hasDropdown && setActiveDropdown(null)}
             >
-              <a
-                href={link.href || "#"}
-                className={`flex items-center gap-1 px-3.5 py-1.5 text-[13.5px] font-medium transition-colors duration-200 rounded-lg ${
+              <Link
+                href={link.href || "/"}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium transition-colors duration-150 rounded-lg ${
                   activeDropdown === link.label
-                    ? "text-[#dfba82] bg-white/[0.04]"
-                    : "text-[#9da1b2] hover:text-[#f4efe6] hover:bg-white/[0.03]"
+                    ? "text-[#DFB277] bg-[#0D0D0D]"
+                    : "text-neutral-400 hover:text-white hover:bg-[#0D0D0D]/60"
                 }`}
               >
-                {link.label}
-                {link.hasDropdown && (
-                  <ChevronDown
-                    className={`h-3 w-3 transition-transform duration-200 opacity-60 ${
-                      activeDropdown === link.label ? "rotate-180 text-[#dfba82]" : ""
-                    }`}
-                  />
-                )}
-              </a>
+                <span>{link.label}</span>
+                <ChevronDown
+                  className={`h-3 w-3 transition-transform duration-200 opacity-60 ${
+                    activeDropdown === link.label ? "rotate-180 text-[#DFB277]" : ""
+                  }`}
+                />
+              </Link>
 
               {/* Dropdown Menu */}
               <AnimatePresence>
@@ -92,23 +128,31 @@ export function Navbar() {
                     initial={{ opacity: 0, y: 6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="absolute left-0 top-full mt-1.5 w-64 p-2 rounded-xl bg-[#0c0e16] border border-[#212435] shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-50"
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="absolute left-0 top-full mt-1.5 w-72 p-2 rounded-xl bg-[#0D0D0D] border border-[#1A1A1A] shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-50"
                   >
                     <div className="space-y-1">
                       {link.items.map((item) => (
-                        <a
+                        <Link
                           key={item.title}
-                          href="#"
-                          className="block p-2.5 rounded-lg hover:bg-white/[0.05] transition-colors group/item"
+                          href={item.href || link.href || "/"}
+                          onClick={() => setActiveDropdown(null)}
+                          className="block p-2.5 rounded-lg hover:bg-[#141414] transition-colors group/item"
                         >
-                          <div className="text-[12.5px] font-medium text-[#e4e0d8] group-hover/item:text-[#dfba82]">
-                            {item.title}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12.5px] font-medium text-neutral-200 group-hover/item:text-[#DFB277] transition-colors">
+                              {item.title}
+                            </span>
+                            {item.badge && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#DFB277]/15 text-[#DFB277] border border-[#DFB277]/30">
+                                {item.badge}
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px] text-[#717688] mt-0.5">
+                          <div className="text-[11px] text-neutral-500 mt-0.5 leading-snug">
                             {item.desc}
                           </div>
-                        </a>
+                        </Link>
                       ))}
                     </div>
                   </motion.div>
@@ -120,20 +164,20 @@ export function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3">
-          {/* Sign in text */}
+          {/* Ghost Log in button */}
           <Link
             href="/sign-in"
-            className="px-3.5 py-1.5 text-[13.5px] font-medium text-[#c5c8d4] hover:text-[#f4efe6] transition-colors"
+            className="px-3.5 py-1.5 text-[13px] font-medium text-neutral-400 hover:text-white transition-colors"
           >
-            Sign in
+            Log in
           </Link>
 
-          {/* Get Started Button */}
+          {/* Solid Champagne Gold CTA */}
           <Link
             href="/sign-up"
-            className="group flex items-center gap-1.5 px-4 py-2 text-[13.5px] font-semibold text-[#090a0f] bg-[#f2e7d3] hover:bg-[#faeedb] rounded-lg transition-all duration-200 shadow-[0_2px_12px_rgba(223,186,130,0.2)] hover:shadow-[0_4px_18px_rgba(223,186,130,0.35)] hover:-translate-y-0.5"
+            className="group flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#080808] bg-[#DFB277] hover:bg-[#D4A362] rounded-lg transition-all duration-200 shadow-[0_2px_14px_rgba(223,178,119,0.25)] hover:shadow-[0_4px_20px_rgba(223,178,119,0.4)] hover:-translate-y-0.5"
           >
-            <span>Get Started</span>
+            <span>Get Started Free</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>

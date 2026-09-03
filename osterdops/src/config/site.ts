@@ -36,7 +36,7 @@ export const siteConfig = {
         { title: "Dashboard", href: "/dashboard", icon: "layout-dashboard" },
         { title: "Projects", href: "/dashboard/projects", icon: "folder-kanban" },
         { title: "Usage", href: "/dashboard/usage", icon: "activity" },
-        { title: "Optimization", href: "/dashboard/optimization", icon: "sparkles" },
+        { title: "Optimization", href: "/optimization", icon: "sparkles" },
       ],
     },
     {
@@ -50,8 +50,8 @@ export const siteConfig = {
     {
       label: "Organization",
       items: [
-        { title: "Teams & Developers", href: "/dashboard/teams", icon: "users" },
-        { title: "Reports", href: "/dashboard/reports", icon: "file-bar-chart" },
+        { title: "Teams & Developers", href: "/teams", icon: "users" },
+        { title: "Reports", href: "/reports", icon: "file-bar-chart" },
         { title: "Billing", href: "/dashboard/billing", icon: "credit-card" },
       ],
     },

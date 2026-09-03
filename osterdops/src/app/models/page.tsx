@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ModelsHeader } from "@/components/models/ModelsHeader";
 import { ModelsTopMetrics } from "@/components/models/ModelsTopMetrics";
@@ -51,10 +52,10 @@ export default function ModelsPage() {
             <footer className="pt-6 border-t border-[#161824] flex items-center justify-between text-xs text-[#555a6d]">
               <div>OsterdOps AI Model Analytics Engine v2.4</div>
               <div className="flex items-center gap-4">
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Docs</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">API</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Status</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Support</a>
+                <Link href="/developers" className="hover:text-[#dfba82] transition-colors">Docs</Link>
+                <Link href="/developers/api" className="hover:text-[#dfba82] transition-colors">API</Link>
+                <Link href="/admin/system" className="hover:text-[#dfba82] transition-colors">Status</Link>
+                <Link href="/contact" className="hover:text-[#dfba82] transition-colors">Support</Link>
               </div>
             </footer>
           </div>

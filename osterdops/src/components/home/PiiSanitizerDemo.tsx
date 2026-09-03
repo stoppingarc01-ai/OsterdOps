@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, EyeOff, ShieldCheck, Zap, Sparkles, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, CheckCircle2, Lock, EyeOff } from "lucide-react";
 
 export function PiiSanitizerDemo() {
   const [sanitizerOn, setSanitizerOn] = useState(true);
@@ -23,27 +23,23 @@ export function PiiSanitizerDemo() {
   const renderedSanitized = sanitizeText(inputPrompt);
 
   return (
-    <section className="py-20 bg-[#0A0A0A] border-y border-[#1A1A1A]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+    <section className="py-24 bg-[#080808] border-t border-[#161720] relative">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-2">
-          <div className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
-            Security
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Inline PII &amp; Secret Redaction
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight font-sans">
+            Zero-Data Retention (ZDR) &amp; <span className="text-[#DFB277]">Security Sanitizer</span>
           </h2>
 
-          <p className="text-sm text-neutral-400">
-            Scrub credit cards, social security numbers, and internal secrets at wire speed before requests reach model providers.
+          <p className="text-sm sm:text-base text-neutral-400 font-sans leading-relaxed">
+            Client-side and wire-level in-memory PII scrubbing (API keys, SSNs, credit cards, emails) executed at wire speed before upstream proxying.
           </p>
         </div>
 
         {/* Demo Box */}
-        <div className="max-w-4xl mx-auto rounded-2xl bg-[#0E0E0E] border border-[#1A1A1A] p-6 lg:p-8 space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+        <div className="max-w-4xl mx-auto rounded-2xl bg-[#0D0E14] border border-[#1A1C28] p-6 lg:p-8 space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
           {/* Top Controls Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-[#1A1A1A]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-[#181A26]">
             <div className="flex items-center gap-2 text-xs font-mono">
               <span className="text-neutral-400">Security Engine:</span>
               <span className="text-white font-bold">Regex + Cryptographic Tokenizer</span>
@@ -78,13 +74,13 @@ export function PiiSanitizerDemo() {
             <div className="space-y-2">
               <label className="text-xs font-mono text-neutral-400 flex items-center justify-between">
                 <span>Inbound Client Prompt (Edit text below):</span>
-                <span className="text-red-400 text-[11px] font-mono">Raw Payload</span>
+                <span className="text-rose-400 text-[11px] font-mono">Raw Payload</span>
               </label>
               <textarea
                 rows={5}
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-[#080808] border border-[#1A1A1A] text-xs font-mono text-neutral-200 focus:border-[#DFB277]/60 outline-none resize-none leading-relaxed"
+                className="w-full p-3.5 rounded-xl bg-[#08080B] border border-[#1A1C28] text-xs font-mono text-neutral-200 focus:border-[#DFB277]/60 outline-none resize-none leading-relaxed"
               />
             </div>
 
@@ -96,7 +92,7 @@ export function PiiSanitizerDemo() {
                   {sanitizerOn ? "Protected Perimeter" : "Unprotected (Raw)"}
                 </span>
               </label>
-              <div className="w-full h-[126px] p-3.5 rounded-xl bg-[#080808] border border-[#1A1A1A] text-xs font-mono text-neutral-200 overflow-y-auto leading-relaxed">
+              <div className="w-full h-[126px] p-3.5 rounded-xl bg-[#08080B] border border-[#1A1C28] text-xs font-mono text-neutral-200 overflow-y-auto leading-relaxed">
                 {renderedSanitized.split(/(«[^»]+»)/g).map((chunk, i) => {
                   if (chunk === "«REDACTED_SSN»") {
                     return (
@@ -112,7 +108,7 @@ export function PiiSanitizerDemo() {
                     return (
                       <span
                         key={i}
-                        className="px-1.5 py-0.5 rounded bg-red-950/60 border border-red-500/40 text-red-300 font-bold mx-0.5"
+                        className="px-1.5 py-0.5 rounded bg-rose-950/60 border border-rose-500/40 text-rose-300 font-bold mx-0.5"
                       >
                         [REDACTED_SECRET]
                       </span>
@@ -122,7 +118,7 @@ export function PiiSanitizerDemo() {
                     return (
                       <span
                         key={i}
-                        className="px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold mx-0.5"
+                        className="px-1.5 py-0.5 rounded bg-sky-950/60 border border-sky-500/40 text-sky-300 font-bold mx-0.5"
                       >
                         [REDACTED_EMAIL]
                       </span>

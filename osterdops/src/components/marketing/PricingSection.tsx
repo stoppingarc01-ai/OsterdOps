@@ -198,8 +198,8 @@ export function PricingSection() {
     {
       id: "scale",
       name: "SCALE",
-      priceMonthly: "$199",
-      priceAnnual: "$159",
+      priceMonthly: "$159",
+      priceAnnual: "$129",
       period: "/ month",
       desc: "For production AI teams",
       badge: null,

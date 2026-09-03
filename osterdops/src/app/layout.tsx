@@ -43,6 +43,10 @@ export const metadata: Metadata = {
     template: `%s — ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  icons: {
+    icon: "/osterdops-logo.png",
+    apple: "/osterdops-logo.png",
+  },
   keywords: [
     "AI cost management",
     "AI operations",

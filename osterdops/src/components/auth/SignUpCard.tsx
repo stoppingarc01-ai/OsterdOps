@@ -483,13 +483,13 @@ export function SignUpCard() {
             </button>
             <span className="text-[11.5px] leading-tight text-[#494e60] select-none">
               I agree to the{" "}
-              <a href="#" className="font-semibold text-[#b8860b] hover:underline">
+              <Link href="/terms" className="font-semibold text-[#b8860b] hover:underline">
                 Terms of Service
-              </a>{" "}
+              </Link>{" "}
               and{" "}
-              <a href="#" className="font-semibold text-[#b8860b] hover:underline">
+              <Link href="/privacy" className="font-semibold text-[#b8860b] hover:underline">
                 Privacy Policy
-              </a>
+              </Link>
             </span>
           </div>
 
@@ -632,13 +632,13 @@ export function SignUpCard() {
                 </button>
                 <span className="text-[11.5px] leading-tight text-[#494e60] select-none">
                   I agree to the{" "}
-                  <a href="#" className="font-semibold text-[#b8860b] hover:underline">
+                  <Link href="/terms" className="font-semibold text-[#b8860b] hover:underline">
                     Terms of Service
-                  </a>{" "}
+                  </Link>{" "}
                   and{" "}
-                  <a href="#" className="font-semibold text-[#b8860b] hover:underline">
+                  <Link href="/privacy" className="font-semibold text-[#b8860b] hover:underline">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </span>
               </div>
 

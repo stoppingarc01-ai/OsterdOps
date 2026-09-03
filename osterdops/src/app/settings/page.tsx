@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 import {
@@ -125,10 +126,10 @@ export default function SettingsPage() {
             <footer className="pt-6 border-t border-[#161824] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#555a6d]">
               <div>OsterdOps Workspace Governance & Access Control Engine v2.4</div>
               <div className="flex items-center gap-4">
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Docs</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Security Audit</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Compliance</a>
-                <a href="#" className="hover:text-[#dfba82] transition-colors">Support</a>
+                <Link href="/developers" className="hover:text-[#dfba82] transition-colors">Docs</Link>
+                <Link href="/dashboard/security/audit" className="hover:text-[#dfba82] transition-colors">Security Audit</Link>
+                <Link href="/dashboard/security" className="hover:text-[#dfba82] transition-colors">Compliance</Link>
+                <Link href="/contact" className="hover:text-[#dfba82] transition-colors">Support</Link>
               </div>
             </footer>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   ShieldCheck,
   RotateCw,
@@ -924,13 +925,13 @@ export default function WebhooksPage() {
                   <div className="text-white text-xs font-medium flex items-center justify-between">
                     <span>{selectedWebhook.signingAlgorithm}</span>
                   </div>
-                  <a
-                    href="#docs"
+                  <Link
+                    href="/developers/api"
                     className="inline-flex items-center gap-1 text-[11.5px] text-[#dfba82] hover:underline pt-0.5 font-medium"
                   >
                     <span>Learn more</span>
                     <ExternalLink className="w-3 h-3" />
-                  </a>
+                  </Link>
                 </div>
 
                 {/* Timestamps */}
