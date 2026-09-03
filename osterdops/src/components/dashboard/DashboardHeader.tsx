@@ -4,17 +4,20 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Calendar, ChevronDown, Sun, Moon, Bell, Search, X, Zap, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { QuickstartModal } from "./QuickstartModal";
 
 interface DashboardHeaderProps {
   userName?: string;
   onOpenCommandPalette: () => void;
   onOpenSimulator: () => void;
+  onOpenQuickstart?: () => void;
 }
 
 export function DashboardHeader({
   userName,
   onOpenCommandPalette,
   onOpenSimulator,
+  onOpenQuickstart,
 }: DashboardHeaderProps) {
   const { user, userProfile } = useAuth();
   const activeUserName = userName || userProfile?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || (user?.email ? user.email.split("@")[0] : "Commander");
@@ -25,6 +28,7 @@ export function DashboardHeader({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [showQuickstart, setShowQuickstart] = useState(false);
 
   const notifications = [
     {
@@ -66,8 +70,20 @@ export function DashboardHeader({
         </p>
       </div>
 
-      {/* Right Controls Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
+        {/* Drop-in Proxy Quickstart Trigger Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenQuickstart) onOpenQuickstart();
+            else setShowQuickstart(true);
+          }}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#DFB277] hover:bg-[#D4A362] text-[12.5px] font-bold text-[#080808] transition-all duration-200 cursor-pointer shadow-[0_2px_12px_rgba(223,178,119,0.25)] hover:shadow-[0_4px_18px_rgba(223,178,119,0.4)] hover:-translate-y-0.5"
+          title="Open 1-Minute Drop-in Proxy Quickstart Modal"
+        >
+          <Zap className="w-3.5 h-3.5 fill-current" />
+          <span>+ Connect Gateway</span>
+        </button>
+
         {/* Command Palette Trigger Button */}
         <button
           type="button"
@@ -226,8 +242,13 @@ export function DashboardHeader({
               </div>
             </div>
           )}
-        </div>
       </div>
+
+      {/* Quickstart Modal Mount */}
+      <QuickstartModal
+        isOpen={showQuickstart}
+        onClose={() => setShowQuickstart(false)}
+      />
     </header>
   );
 }

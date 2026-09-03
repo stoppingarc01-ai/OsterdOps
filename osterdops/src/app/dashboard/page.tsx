@@ -18,6 +18,7 @@ import { SavingsImpactCard } from "@/components/dashboard/SavingsImpactCard";
 import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
 import { CommandPaletteModal } from "@/components/dashboard/CommandPaletteModal";
 import { CostSimulatorDrawer } from "@/components/dashboard/CostSimulatorDrawer";
+import { QuickstartModal } from "@/components/dashboard/QuickstartModal";
 import { RequestsTable } from "@/components/analytics/RequestsTable";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isQuickstartOpen, setIsQuickstartOpen] = useState(false);
 
   // Prompt plan selection if current workspace has no planTier set
   React.useEffect(() => {
@@ -48,6 +50,8 @@ export default function DashboardPage() {
   const handleSelectAction = (actionTitle: string) => {
     if (actionTitle.includes("Simulator")) {
       setIsSimulatorOpen(true);
+    } else if (actionTitle.includes("Gateway") || actionTitle.includes("Quickstart") || actionTitle.includes("Proxy") || actionTitle.includes("API Key")) {
+      setIsQuickstartOpen(true);
     }
   };
 
@@ -69,6 +73,7 @@ export default function DashboardPage() {
                 userName={displayName}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 onOpenSimulator={() => setIsSimulatorOpen(true)}
+                onOpenQuickstart={() => setIsQuickstartOpen(true)}
               />
 
               {/* Top 5 Stat Cards Bar */}
@@ -143,6 +148,12 @@ export default function DashboardPage() {
       <CostSimulatorDrawer
         isOpen={isSimulatorOpen}
         onClose={() => setIsSimulatorOpen(false)}
+      />
+
+      {/* 1-Minute Drop-in Proxy Quickstart Modal */}
+      <QuickstartModal
+        isOpen={isQuickstartOpen}
+        onClose={() => setIsQuickstartOpen(false)}
       />
 
       {/* Mandatory Plan Selection Modal */}
