@@ -42,6 +42,7 @@ import {
   GitMerge,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { TrialBadge } from "@/components/billing/TrialBadge";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import type { OrganizationRole } from "@/types";
 
@@ -304,6 +305,13 @@ export function AppSidebar() {
           >
             <Building2 className="w-4 h-4" />
           </button>
+        )}
+
+        {/* Trial Badge */}
+        {!collapsed && (
+          <div className="px-1">
+            <TrialBadge />
+          </div>
         )}
 
         {/* User Card */}

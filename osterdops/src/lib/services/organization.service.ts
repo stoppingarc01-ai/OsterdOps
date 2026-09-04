@@ -64,8 +64,9 @@ function createSimulatedOrganization(
     name: params.name,
     slug,
     ownerId,
-    plan: "starter",
-    status: "active",
+    plan: "trial",
+    planTier: "trial",
+    status: "trialing",
     currentPeriodSpendUsd: 0,
     currentPeriodStart: now,
     settings: {
@@ -150,8 +151,9 @@ export async function createOrganization(
       name: params.name,
       slug,
       ownerId,
-      plan: "starter",
-      status: "active",
+      plan: "trial",
+      planTier: "trial",
+      status: "trialing",
       currentPeriodSpendUsd: 0,
       currentPeriodStart: now as unknown as string,
       settings: {

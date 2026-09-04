@@ -30,6 +30,7 @@ import { createGatewayStreamResponse } from "./stream";
 import { executeProviderHttpWithRetry } from "./retry-client";
 import { getProviderCircuitBreaker, evaluateGovernanceRules } from "./circuit-breaker";
 import { calculateRequestCost } from "@/lib/cost/calculator";
+import { checkSubscriptionAccess, SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/billing/access";
 import type {
   GatewayRequestPayload,
   GatewayResponsePayload,
@@ -88,6 +89,49 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   }
 
   const { key, project, organization } = authResult;
+
+  // 2b. Validate 7-Day Free Trial & Subscription Entitlement Gating
+  const isSimulationExpired = request.headers.get("x-simulate-trial-expired") === "true";
+  const subscriptionAccess = isSimulationExpired
+    ? { hasAccess: false, reason: SUBSCRIPTION_REQUIRED_MESSAGE }
+    : await checkSubscriptionAccess(organization.id);
+
+  if (!subscriptionAccess.hasAccess) {
+    const durationMs = Date.now() - startTime;
+    recordGatewayTelemetry({
+      requestId,
+      organizationId: organization.id,
+      projectId: project.id,
+      keyId: key.id,
+      provider: "openai",
+      model: "unknown",
+      status: "error",
+      httpStatus: 403,
+      durationMs,
+      errorCode: "SUBSCRIPTION_REQUIRED",
+      timestamp: new Date().toISOString(),
+    });
+
+    return new NextResponse(
+      JSON.stringify({
+        type: "https://osterdops.com/errors/subscription-required",
+        title: "Subscription Required",
+        status: 403,
+        detail: subscriptionAccess.reason || SUBSCRIPTION_REQUIRED_MESSAGE,
+        error: {
+          code: "SUBSCRIPTION_REQUIRED",
+          message: subscriptionAccess.reason || SUBSCRIPTION_REQUIRED_MESSAGE,
+        },
+      }),
+      {
+        status: 403,
+        headers: {
+          ...responseHeaders,
+          "Content-Type": "application/problem+json; charset=utf-8",
+        },
+      }
+    );
+  }
 
   // 3. Sliding Window Rate Limiting
   const rateLimitResult = rateLimit(key.id, 120, 60000);

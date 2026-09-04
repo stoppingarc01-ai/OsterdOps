@@ -34,10 +34,19 @@ export function hasEntitlement(
   subscription: OrganizationSubscription | null | undefined,
   entitlement: keyof BillingEntitlement
 ): boolean {
-  // If subscription is PAST_DUE or CANCELED or UNPAID, falls back to FREE entitlements
-  const status = String(subscription?.status || "ACTIVE").toUpperCase();
+  if (!subscription) return false;
+  const status = String(subscription.status || "").toUpperCase();
+
+  // Check if trial has expired
+  if (status === "TRIALING" && subscription.trialEnd) {
+    const expired = new Date(subscription.trialEnd).getTime() <= Date.now();
+    if (expired) return false;
+  }
+
   const isActive = status === "ACTIVE" || status === "TRIALING";
-  const planId = isActive ? subscription?.planId : "FREE";
+  if (!isActive) return false;
+
+  const planId = subscription.planId || "TRIAL";
   const entitlements = getPlanEntitlements(planId);
 
   const value = entitlements[entitlement];

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getGatewayMetricsUrl } from "@/config/gateway";
+import { getAuthenticatedUser } from "@/lib/auth/server";
+import { checkSubscriptionAccess, createSubscriptionRequiredResponse } from "@/lib/billing/access";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +58,22 @@ const FALLBACK_TELEMETRY: TelemetryApiResponse = {
   timestamp: new Date().toISOString(),
 };
 
-export async function GET(): Promise<NextResponse<TelemetryApiResponse>> {
+export async function GET(request: Request): Promise<NextResponse> {
+  // Subscription verification & 7-Day Free Trial gating
+  const simulateExpired = request.headers.get("x-simulate-trial-expired") === "true";
+  if (simulateExpired) {
+    return createSubscriptionRequiredResponse();
+  }
+
+  const user = await getAuthenticatedUser(request);
+  const orgId = request.headers.get("x-organization-id");
+  if (user || orgId) {
+    const access = await checkSubscriptionAccess(orgId, user);
+    if (!access.hasAccess) {
+      return createSubscriptionRequiredResponse(access.reason);
+    }
+  }
+
   const metricsUrl = getGatewayMetricsUrl();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 800);

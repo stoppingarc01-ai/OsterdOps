@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export function PlanTierCard() {
   const { currentOrg } = useAuth();
-  const plan = currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} TIER` : "FREE STARTER";
+  const plan = currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} TIER` : "7-DAY TRIAL";
 
   const features = [
     "High-throughput model gateway proxy",

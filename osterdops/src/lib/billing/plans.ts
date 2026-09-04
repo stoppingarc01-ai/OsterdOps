@@ -9,18 +9,19 @@ import type { BillingPlan, BillingPlanId } from "@/types";
    1. Multi-Tier Subscription Engine (Developer, Growth, Scale, Enterprise)
    ========================================================================= */
 
-export type PlanTier = "free" | "growth" | "scale" | "enterprise";
+export type PlanTier = "trial" | "growth" | "scale" | "enterprise" | "free";
 
 export interface PlanFeatureDefinition {
   id: PlanTier;
   name: string;
   priceMonthly: number | "custom";
   description: string;
+  durationDays?: number;
   badge?: string;
   limits: {
-    monthlyRequestLimit: number; // e.g., 50_000, 500_000, 2_500_000, Infinity
-    maxProviderConnections: number; // e.g., 3, 10, 50, Infinity
-    maxProjects: number; // e.g., 1, 5, 20, Infinity
+    monthlyRequestLimit: number; // e.g., 1_000, 500_000, 2_500_000, Infinity
+    maxProviderConnections: number; // e.g., 5, 10, 50, Infinity
+    maxProjects: number; // e.g., 3, 5, 20, Infinity
   };
   features: {
     autoDowngradeEnabled: boolean; // Dynamic model fallback
@@ -34,21 +35,46 @@ export interface PlanFeatureDefinition {
 }
 
 export const PRICING_PLANS: Record<PlanTier, PlanFeatureDefinition> = {
-  free: {
-    id: "free",
-    name: "Developer",
+  trial: {
+    id: "trial",
+    name: "7-Day Free Trial",
     priceMonthly: 0,
-    description: "For solo developers and prototypes.",
+    durationDays: 7,
+    description: "Strict 7-day full access trial to evaluate OsterdOps Firewall & Telemetry.",
+    badge: "7 Days Free",
     limits: {
-      monthlyRequestLimit: 50_000,
-      maxProviderConnections: 3,
-      maxProjects: 1,
+      monthlyRequestLimit: 1_000,
+      maxProviderConnections: 5,
+      maxProjects: 3,
     },
     features: {
-      autoDowngradeEnabled: false,
+      autoDowngradeEnabled: true,
       runawayLoopBreaker: true,
-      semanticCaching: false,
-      zeroDataRetentionToggle: false,
+      semanticCaching: true,
+      zeroDataRetentionToggle: true,
+      customEgressIp: false,
+      prioritySupport: false,
+      slaGuarantee: "Best Effort",
+    },
+  },
+  /** @deprecated Replaced by trial */
+  free: {
+    id: "trial",
+    name: "7-Day Free Trial",
+    priceMonthly: 0,
+    durationDays: 7,
+    description: "Strict 7-day full access trial to evaluate OsterdOps Firewall & Telemetry.",
+    badge: "7 Days Free",
+    limits: {
+      monthlyRequestLimit: 1_000,
+      maxProviderConnections: 5,
+      maxProjects: 3,
+    },
+    features: {
+      autoDowngradeEnabled: true,
+      runawayLoopBreaker: true,
+      semanticCaching: true,
+      zeroDataRetentionToggle: true,
       customEgressIp: false,
       prioritySupport: false,
       slaGuarantee: "Best Effort",
@@ -121,13 +147,13 @@ export const PRICING_PLANS: Record<PlanTier, PlanFeatureDefinition> = {
  * Normalizes raw plan ID or tier string into a valid PlanTier.
  */
 export function normalizePlanTier(rawTier?: string | null): PlanTier {
-  if (!rawTier) return "free";
+  if (!rawTier) return "trial";
   const lower = rawTier.toLowerCase().trim();
-  if (lower === "developer" || lower === "free" || lower === "starter") return "free";
+  if (lower === "trial" || lower === "trial-7d" || lower === "developer" || lower === "free" || lower === "starter") return "trial";
   if (lower === "growth" || lower === "pro") return "growth";
   if (lower === "scale" || lower === "business") return "scale";
   if (lower === "enterprise" || lower === "custom") return "enterprise";
-  return "free";
+  return "trial";
 }
 
 /**
@@ -168,30 +194,59 @@ export function isWithinLimit(
    ========================================================================= */
 
 export const BILLING_PLANS: Record<string, BillingPlan> = {
-  FREE: {
-    planId: "FREE",
-    displayName: "Free",
-    description: "Essential AI gateway and cost tracking for developers.",
+  TRIAL: {
+    planId: "TRIAL",
+    displayName: "7-Day Free Trial",
+    description: "Strict 7-day full access trial for OsterdOps Firewall & Telemetry.",
     monthlyPriceUsd: 0,
     annualPriceUsd: 0,
-    includedTokens: 100_000,
+    includedTokens: 50_000,
     includedRequests: 1_000,
-    includedProjects: 2,
-    includedMembers: 2,
-    gatewayRateLimitRpm: 60,
+    includedProjects: 3,
+    includedMembers: 3,
+    gatewayRateLimitRpm: 120,
     analyticsAccess: true,
     budgetAccess: true,
-    advancedAnalytics: false,
-    auditLogAccess: false,
+    advancedAnalytics: true,
+    auditLogAccess: true,
     apiAccess: true,
     overageEnabled: false,
     overageRatePerMillionTokensUsd: 0,
     features: [
-      "1 Project",
-      "2 Team Members",
-      "50k Monthly Requests",
-      "Standard Gateway",
-      "Runaway Loop Breaker",
+      "Sub-microsecond Pre-Flight Guard Latency (< 15µs)",
+      "Live Nanodollar Cost Engine & PII Scrubber",
+      "Automated Runaway Loop & Rate Limit Breaker",
+      "Multi-Provider Pass-Through (OpenAI, DeepSeek, Anthropic)",
+      "1,000 Included Requests / 50k Tokens",
+      "7-Day Full Platform Evaluation",
+    ],
+  },
+  /** @deprecated Replaced by TRIAL */
+  FREE: {
+    planId: "TRIAL",
+    displayName: "7-Day Free Trial",
+    description: "Strict 7-day full access trial for OsterdOps Firewall & Telemetry.",
+    monthlyPriceUsd: 0,
+    annualPriceUsd: 0,
+    includedTokens: 50_000,
+    includedRequests: 1_000,
+    includedProjects: 3,
+    includedMembers: 3,
+    gatewayRateLimitRpm: 120,
+    analyticsAccess: true,
+    budgetAccess: true,
+    advancedAnalytics: true,
+    auditLogAccess: true,
+    apiAccess: true,
+    overageEnabled: false,
+    overageRatePerMillionTokensUsd: 0,
+    features: [
+      "Sub-microsecond Pre-Flight Guard Latency (< 15µs)",
+      "Live Nanodollar Cost Engine & PII Scrubber",
+      "Automated Runaway Loop & Rate Limit Breaker",
+      "Multi-Provider Pass-Through (OpenAI, DeepSeek, Anthropic)",
+      "1,000 Included Requests / 50k Tokens",
+      "7-Day Full Platform Evaluation",
     ],
   },
   PRO: {
@@ -278,14 +333,17 @@ export const BILLING_PLANS: Record<string, BillingPlan> = {
 };
 
 /**
- * Resolves a plan by ID with safe fallback to FREE.
+ * Resolves a plan by ID with safe fallback to TRIAL.
  */
 export function getBillingPlan(rawPlanId?: string): BillingPlan {
-  if (!rawPlanId) return BILLING_PLANS.FREE;
+  if (!rawPlanId) return BILLING_PLANS.TRIAL;
   const normalizedKey = rawPlanId.trim().toUpperCase();
+  if (normalizedKey === "TRIAL" || normalizedKey === "TRIAL-7D" || normalizedKey === "FREE" || normalizedKey === "STARTER") {
+    return BILLING_PLANS.TRIAL;
+  }
   if (normalizedKey === "GROWTH") return BILLING_PLANS.PRO;
   if (normalizedKey === "SCALE") return BILLING_PLANS.BUSINESS;
-  return BILLING_PLANS[normalizedKey] || BILLING_PLANS.FREE;
+  return BILLING_PLANS[normalizedKey] || BILLING_PLANS.TRIAL;
 }
 
 /**
@@ -300,5 +358,11 @@ export function listBillingPlans(): BillingPlan[] {
  */
 export function isValidPlanId(planId: string): planId is BillingPlanId {
   const norm = planId.trim().toUpperCase();
-  return norm in BILLING_PLANS || norm === "GROWTH" || norm === "SCALE";
+  return (
+    norm in BILLING_PLANS ||
+    norm === "TRIAL" ||
+    norm === "TRIAL-7D" ||
+    norm === "GROWTH" ||
+    norm === "SCALE"
+  );
 }

@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return authResult.errorResponse;
     }
 
-    const planId: BillingPlanId = body.planId || "FREE";
+    const planId: BillingPlanId = body.planId || "TRIAL";
     const interval: BillingInterval = body.interval || "MONTHLY";
 
     const subscription = await createSubscription(

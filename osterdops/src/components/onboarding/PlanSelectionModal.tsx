@@ -27,7 +27,7 @@ interface PlanSelectionModalProps {
 export function PlanSelectionModal({
   isOpen,
   orgId,
-  currentPlanTier = "free",
+  currentPlanTier = "trial",
   onPlanSelected,
   isMandatory = true,
 }: PlanSelectionModalProps) {
@@ -66,7 +66,7 @@ export function PlanSelectionModal({
     }
   };
 
-  const planTiers: PlanTier[] = ["free", "growth", "scale", "enterprise"];
+  const planTiers: PlanTier[] = ["trial", "growth", "scale", "enterprise"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-none overflow-y-auto">

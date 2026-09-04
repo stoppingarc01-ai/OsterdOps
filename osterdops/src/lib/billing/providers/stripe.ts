@@ -36,14 +36,18 @@ export class StripeBillingProvider implements BillingProvider {
     const plan = getBillingPlan(params.planId);
     const sessionId = `cs_stripe_${params.organizationId}_${Date.now()}`;
     const price = params.interval.toUpperCase() === "ANNUAL" ? plan.annualPriceUsd : plan.monthlyPriceUsd;
+    const trialDays = params.subscription_data?.trial_period_days ?? 7;
 
-    // Build secure checkout redirect URL
-    const url = `${params.successUrl}?session_id=${sessionId}&plan=${plan.planId}&amount=${price}`;
+    // Build secure checkout redirect URL with 7-day trial parameter
+    const url = `${params.successUrl}?session_id=${sessionId}&plan=${plan.planId}&amount=${price}&trial_days=${trialDays}`;
 
     return {
       sessionId,
       url,
       provider: "stripe",
+      subscription_data: {
+        trial_period_days: trialDays,
+      },
     };
   }
 

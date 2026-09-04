@@ -21,8 +21,8 @@ export default function PricingPage() {
       a: "By default, we send instant warnings to your Slack or email channels. On Growth and Scale plans, you can configure automatic throttling to cheaper models (like gpt-4o-mini) or hard stops.",
     },
     {
-      q: "Is there a free trial for the Growth plan?",
-      a: "Yes! You can start a 14-day free trial on the Growth plan with no credit card required upfront.",
+      q: "How does the 7-Day Free Trial work?",
+      a: "Every newly registered account automatically receives a strict 7-Day Free Trial with full access to the sub-microsecond firewall, live nanodollar cost engine, runaway loop breaker, and multi-provider proxying with no credit card required upfront.",
     },
   ];
 

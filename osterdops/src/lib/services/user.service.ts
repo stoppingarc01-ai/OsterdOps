@@ -27,12 +27,21 @@ function syncSimulatedUser(uid: string, data: SyncUserData): User {
   const existing = simulatedUsers.get(uid);
   const now = new Date().toISOString();
   if (!existing) {
+    const trialStartsAt = now;
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const newUser: User = {
       id: uid,
       email: data.email,
       name: data.displayName || data.email.split("@")[0] || "User",
       avatarUrl: data.photoURL || "",
       role: "member",
+      subscription: {
+        status: "trialing",
+        trialStartsAt,
+        trialEndsAt,
+        planId: "trial-7d",
+        isActive: true,
+      },
       createdAt: now,
       updatedAt: now,
     };
@@ -40,10 +49,19 @@ function syncSimulatedUser(uid: string, data: SyncUserData): User {
     return newUser;
   }
 
+  const existingSubscription = existing.subscription || {
+    status: "trialing" as const,
+    trialStartsAt: existing.createdAt || now,
+    trialEndsAt: new Date(new Date(existing.createdAt || now).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    planId: "trial-7d",
+    isActive: true,
+  };
+
   const updated: User = {
     ...existing,
     name: data.displayName || existing.name,
     avatarUrl: data.photoURL !== undefined ? data.photoURL : existing.avatarUrl,
+    subscription: existingSubscription,
     updatedAt: now,
   };
   simulatedUsers.set(uid, updated);
@@ -71,6 +89,16 @@ export async function syncUserRecord(
     const now = FieldValue.serverTimestamp();
 
     if (!snap.exists) {
+      const trialStartsAt = new Date().toISOString();
+      const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const initialSubscription = {
+        status: "trialing" as const,
+        trialStartsAt,
+        trialEndsAt,
+        planId: "trial-7d",
+        isActive: true,
+      };
+
       const newUser = {
         id: uid,
         uid,
@@ -81,12 +109,14 @@ export async function syncUserRecord(
         avatarUrl: data.photoURL || "",
         defaultOrgId: data.defaultOrgId || "",
         role: "member" as const,
+        subscription: initialSubscription,
         createdAt: now,
         updatedAt: now,
       };
       await userRef.set(newUser);
       return {
         ...newUser,
+        subscription: initialSubscription,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -108,6 +138,18 @@ export async function syncUserRecord(
       updates.defaultOrgId = data.defaultOrgId;
     }
 
+    if (!existing?.subscription) {
+      const existingCreated = existing?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
+      const trialEndsAt = new Date(new Date(existingCreated).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      updates.subscription = {
+        status: "trialing",
+        trialStartsAt: existingCreated,
+        trialEndsAt,
+        planId: "trial-7d",
+        isActive: true,
+      };
+    }
+
     await userRef.update(updates);
 
     return {
@@ -116,6 +158,13 @@ export async function syncUserRecord(
       email: existing?.email || data.email,
       avatarUrl: (updates.photoURL as string) || existing?.photoURL || existing?.avatarUrl,
       role: existing?.role || "member",
+      subscription: (updates.subscription as User["subscription"]) || existing?.subscription || {
+        status: "trialing",
+        trialStartsAt: new Date().toISOString(),
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        planId: "trial-7d",
+        isActive: true,
+      },
       createdAt: existing?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -143,6 +192,7 @@ export async function getUserById(uid: string): Promise<User | null> {
       email: data?.email || "",
       avatarUrl: data?.photoURL || data?.avatarUrl,
       role: data?.role || "member",
+      subscription: data?.subscription || undefined,
       createdAt: data?.createdAt?.toDate?.()?.toISOString() || "",
       updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || "",
     };

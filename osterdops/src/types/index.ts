@@ -3,6 +3,9 @@
    ============================================================ */
 
 export * from "./backend";
+export * from "./subscription";
+
+import type { UserSubscriptionMetadata } from "./subscription";
 
 /** Generic API response envelope */
 export type ApiResponse<T = unknown> = {
@@ -33,6 +36,7 @@ export type User = BaseEntity & {
   email: string;
   avatarUrl?: string;
   role: "owner" | "admin" | "member" | "viewer" | "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
+  subscription?: UserSubscriptionMetadata;
 };
 
 /** Navigation item (UI) */

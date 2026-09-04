@@ -13,7 +13,7 @@ export type OrganizationRole = "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
 
 export type MembershipStatus = "active" | "invited" | "suspended";
 
-export type OrganizationPlan = "starter" | "team" | "enterprise";
+export type OrganizationPlan = "trial" | "starter" | "team" | "pro" | "enterprise";
 
 export type OrganizationStatus = "active" | "suspended" | "trialing";
 
@@ -648,10 +648,13 @@ export interface OptimizationRecommendation {
    ============================================================ */
 
 export type BillingPlanId =
+  | "TRIAL"
   | "FREE"
   | "PRO"
   | "BUSINESS"
   | "ENTERPRISE"
+  | "trial"
+  | "trial-7d"
   | "free"
   | "pro"
   | "business"
@@ -664,12 +667,14 @@ export type SubscriptionStatus =
   | "CANCELED"
   | "INCOMPLETE"
   | "UNPAID"
+  | "EXPIRED"
   | "trialing"
   | "active"
   | "past_due"
   | "canceled"
   | "incomplete"
-  | "unpaid";
+  | "unpaid"
+  | "expired";
 
 export type InvoiceStatus =
   | "DRAFT"
@@ -843,12 +848,18 @@ export interface BillingCheckoutParams {
   interval: BillingInterval;
   successUrl: string;
   cancelUrl: string;
+  subscription_data?: {
+    trial_period_days?: number;
+  };
 }
 
 export interface BillingCheckoutResult {
   sessionId: string;
   url: string;
   provider: "stripe" | "simulation";
+  subscription_data?: {
+    trial_period_days: number;
+  };
 }
 
 /* ============================================================

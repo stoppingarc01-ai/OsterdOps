@@ -62,7 +62,7 @@ export function AdminCustomersTableCard() {
                     <span>{org.name || "Workspace"}</span>
                   </td>
                   <td className="py-3 font-mono text-[#c5c8d4]">
-                    {org.planTier ? org.planTier.toUpperCase() : "FREE"}
+                    {org.planTier ? org.planTier.toUpperCase() : "TRIAL"}
                   </td>
                   <td className="py-3">
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">

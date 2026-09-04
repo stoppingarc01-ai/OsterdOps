@@ -64,7 +64,7 @@ export function AdminKpiCards() {
     {
       id: "subscriptions",
       title: "TIER STATUS",
-      value: currentOrg?.planTier ? currentOrg.planTier.toUpperCase() : "FREE",
+      value: currentOrg?.planTier ? currentOrg.planTier.toUpperCase() : "TRIAL",
       trendLabel: "Workspace plan",
       icon: CreditCard,
     },

@@ -40,6 +40,9 @@ export async function POST(request: Request) {
       interval,
       successUrl,
       cancelUrl,
+      subscription_data: {
+        trial_period_days: 7,
+      },
     });
 
     await recordAuditLog({

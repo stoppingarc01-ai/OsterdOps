@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, ChevronDown, Sun, Moon, Bell, Search, X, Zap, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGatewayTelemetry } from "@/hooks/useGatewayTelemetry";
+import { TrialBadge } from "@/components/billing/TrialBadge";
 import { QuickstartModal } from "./QuickstartModal";
 
 interface DashboardHeaderProps {
@@ -104,6 +105,9 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
+        {/* Trial Days Remaining Badge */}
+        <TrialBadge />
+
         {/* Drop-in Proxy Quickstart Trigger Button */}
         <button
           type="button"

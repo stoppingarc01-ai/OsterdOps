@@ -40,16 +40,17 @@ function sanitizeSubscription(
     return new Date().toISOString();
   };
 
-  const rawPlanId = String(data.planId || "FREE").toUpperCase();
+  const rawPlanId = String(data.planId || "TRIAL").toUpperCase();
   const plan = getBillingPlan(rawPlanId);
 
-  const rawStatus = String(data.status || "ACTIVE").toUpperCase();
+  const rawStatus = String(data.status || "TRIALING").toUpperCase();
   const status: SubscriptionStatus = (
-    rawStatus === "TRIALING" ? "TRIALING" :
+    rawStatus === "ACTIVE" ? "ACTIVE" :
     rawStatus === "PAST_DUE" ? "PAST_DUE" :
     rawStatus === "CANCELED" ? "CANCELED" :
     rawStatus === "INCOMPLETE" ? "INCOMPLETE" :
-    rawStatus === "UNPAID" ? "UNPAID" : "ACTIVE"
+    rawStatus === "UNPAID" ? "UNPAID" :
+    rawStatus === "EXPIRED" ? "EXPIRED" : "TRIALING"
   ) as SubscriptionStatus;
 
   const rawInterval = String(data.interval || "MONTHLY").toUpperCase();
@@ -91,18 +92,22 @@ export async function getSubscription(orgId: string): Promise<OrganizationSubscr
 
   if (!doc.exists) {
     const period = getCurrentBillingPeriod("MONTHLY");
+    const now = new Date();
+    const trialEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return {
-      id: `sub_${orgId}_free`,
+      id: `sub_${orgId}_trial`,
       organizationId: orgId,
-      planId: "FREE",
-      status: "ACTIVE",
+      planId: "TRIAL",
+      status: "TRIALING",
       interval: "MONTHLY",
       currentPeriodStart: period.periodStart,
       currentPeriodEnd: period.periodEnd,
+      trialStart: now.toISOString(),
+      trialEnd: trialEnd.toISOString(),
       cancelAtPeriodEnd: false,
       provider: "simulation",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     };
   }
 
@@ -117,7 +122,7 @@ export async function createSubscription(
   params: CreateSubscriptionParams,
   actorId?: string
 ): Promise<OrganizationSubscription> {
-  const planId = isValidPlanId(params.planId) ? params.planId.toUpperCase() as BillingPlanId : "FREE";
+  const planId = isValidPlanId(params.planId) ? params.planId.toUpperCase() as BillingPlanId : "TRIAL";
   const interval = (params.interval?.toUpperCase() === "ANNUAL" ? "ANNUAL" : "MONTHLY") as BillingInterval;
   const period = getCurrentBillingPeriod(interval);
 
@@ -258,7 +263,7 @@ export async function cancelSubscription(
 
   if (immediate) {
     updates.status = "CANCELED";
-    updates.planId = "FREE";
+    updates.planId = "TRIAL";
   }
 
   await subRef.set(updates, { merge: true });

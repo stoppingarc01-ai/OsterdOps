@@ -23,11 +23,14 @@ import { RequestsTable } from "@/components/analytics/RequestsTable";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { PlanSelectionModal } from "@/components/onboarding/PlanSelectionModal";
+import { SubscriptionPaywallModal } from "@/components/billing/SubscriptionPaywallModal";
 import { useAuth } from "@/context/AuthContext";
 import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 
 export default function DashboardPage() {
   const { user, userProfile, currentOrg, refreshUser } = useAuth();
+  const subscriptionAccess = useSubscriptionAccess();
   const displayName = userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Lead");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
@@ -36,10 +39,10 @@ export default function DashboardPage() {
 
   // Prompt plan selection if current workspace has no planTier set
   React.useEffect(() => {
-    if (currentOrg && !currentOrg.planTier) {
+    if (currentOrg && !currentOrg.planTier && !subscriptionAccess.isExpired) {
       setIsPlanModalOpen(true);
     }
-  }, [currentOrg]);
+  }, [currentOrg, subscriptionAccess.isExpired]);
 
   // Global Real-Time Telemetry Pipeline
   const { data: telemetry, isLoading, refetch, lastUpdated } = useLiveTelemetry({
@@ -166,6 +169,11 @@ export default function DashboardPage() {
           await refreshUser();
         }}
         isMandatory={true}
+      />
+
+      {/* Subscription Paywall Modal for Expired Trial Accounts */}
+      <SubscriptionPaywallModal
+        isOpen={subscriptionAccess.isExpired || !subscriptionAccess.hasAccess}
       />
     </div>
   );
