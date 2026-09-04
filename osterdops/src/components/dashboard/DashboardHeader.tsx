@@ -78,12 +78,12 @@ export function DashboardHeader({
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-mono font-medium border transition-all cursor-default self-start sm:self-auto ${
             isLive
               ? "bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
-              : "bg-[#0c0e17] text-neutral-400 border-[#1b1e2c]"
+              : "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
           }`}
           title={
             isLive
               ? `C++ LLM Gateway Active (${gatewayTelemetry.service} v${gatewayTelemetry.version}) — Measured Guard Latency: ${gatewayTelemetry.preflightLatencyUs}µs`
-              : "C++ LLM Gateway Engine Standby (Run gateway-cpp to activate live low-latency proxy)"
+              : "Gateway Offline — Automatically serving baseline cached spend ledger without disruption"
           }
         >
           {isLive ? (
@@ -96,8 +96,8 @@ export function DashboardHeader({
             </>
           ) : (
             <>
-              <span className="w-1.5 h-1.5 rounded-full border border-neutral-500" />
-              <span>○ Engine Standby</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] animate-pulse" />
+              <span>○ Gateway Offline (Serving Cached Ledger)</span>
             </>
           )}
         </div>

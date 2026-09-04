@@ -1,5 +1,19 @@
 import type { NextConfig } from "next";
 
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com data:;
+  img-src 'self' data: https: blob:;
+  connect-src 'self' http://localhost:8080 http://127.0.0.1:8080 https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.osterdops.com ws://localhost:* http://localhost:*;
+  frame-ancestors 'none';
+  base-uri 'self';
+  form-action 'self';
+`
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -16,6 +30,14 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           {
+            key: "Content-Security-Policy",
+            value: cspHeader,
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
@@ -29,7 +51,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=()",
+            value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
           },
           {
             key: "Cross-Origin-Opener-Policy",

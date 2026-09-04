@@ -231,11 +231,14 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}) {
 
   useEffect(() => {
     isMountedRef.current = true;
-    fetchTelemetry(true);
+    const initialTimer = setTimeout(() => {
+      fetchTelemetry(true);
+    }, 0);
 
     if (!enabled || pollIntervalMs <= 0) {
       return () => {
         isMountedRef.current = false;
+        clearTimeout(initialTimer);
       };
     }
 
@@ -246,9 +249,10 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}) {
 
     return () => {
       isMountedRef.current = false;
+      clearTimeout(initialTimer);
       clearInterval(intervalTimer);
     };
-  }, [fetchTelemetry, enabled, pollIntervalMs]);
+  }, [enabled, pollIntervalMs, fetchTelemetry]);
 
   return {
     data,
