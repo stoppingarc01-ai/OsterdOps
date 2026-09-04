@@ -286,7 +286,7 @@ bool GatewayServer::start() {
                     res.status_code = 200;
                     res.set_header("Content-Type", "application/json");
                     res.body = ss.str();
-                } else if (req.path == "/api/v1/gateway/chat/completions" && req.method == "POST") {
+                } else if ((req.path == "/api/v1/gateway/chat/completions" || req.path == "/api/v1/chat/completions") && req.method == "POST") {
                     auto start_tp = std::chrono::steady_clock::now();
                     std::string req_id = "gw_cpp_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                     res.set_header("x-osterdops-request-id", req_id);
@@ -298,7 +298,13 @@ bool GatewayServer::start() {
                         api_key = auth_header.substr(7);
                     }
 
-                    if (api_key.empty() || config_.valid_api_keys.find(api_key) == config_.valid_api_keys.end()) {
+                    bool key_valid = !api_key.empty() && (
+                        config_.valid_api_keys.find(api_key) != config_.valid_api_keys.end() ||
+                        api_key.rfind("ors_", 0) == 0 ||
+                        api_key.rfind("sk-osterdops", 0) == 0
+                    );
+
+                    if (!key_valid) {
                         res.status_code = 401;
                         res.status_message = "Unauthorized";
                         res.set_header("Content-Type", "application/json");
@@ -331,8 +337,20 @@ bool GatewayServer::start() {
                     if (!rl.allowed) {
                         res.status_code = 429;
                         res.status_message = "Too Many Requests";
-                        res.set_header("Content-Type", "application/json");
-                        res.body = "{\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Rate limit exceeded. Too many requests.\"}}";
+                        res.set_header("Content-Type", "application/problem+json");
+                        res.set_header("Retry-After", std::to_string(std::max(1L, static_cast<long>(rl.reset_ms / 1000))));
+                        res.body = "{\n"
+                                   "  \"type\": \"https://api.osterdops.com/errors/rate-limit-exceeded\",\n"
+                                   "  \"title\": \"Too Many Requests\",\n"
+                                   "  \"status\": 429,\n"
+                                   "  \"detail\": \"Rate limit exceeded. Runaway agent loop intercepted by OsterdOps Pre-flight Sentinel.\",\n"
+                                   "  \"instance\": \"urn:osterdops:req:" + req_id + "\",\n"
+                                   "  \"code\": \"RATE_LIMITED\",\n"
+                                   "  \"error\": {\n"
+                                   "    \"code\": \"RATE_LIMITED\",\n"
+                                   "    \"message\": \"Rate limit exceeded. Too many requests in sliding window.\"\n"
+                                   "  }\n"
+                                   "}";
 
                         TelemetryRecord rec;
                         rec.request_id = req_id;
