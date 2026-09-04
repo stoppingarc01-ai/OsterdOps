@@ -1,0 +1,49 @@
+{
+  "service": "osterdops-gateway-cpp",
+  "version": "1.0.0",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "worker_threads": 8,
+    "timeout_ms": 60000
+  },
+  "governance": {
+    "rate_limiting": {
+      "default_requests_per_minute": 120,
+      "window_ms": 60000
+    },
+    "default_budget": {
+      "limit_usd": 50.0,
+      "enforcement": "HARD",
+      "warning_thresholds": [0.50, 0.75, 0.90, 1.00]
+    }
+  },
+  "providers": {
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "timeout_ms": 60000,
+      "max_retries": 3
+    },
+    "anthropic": {
+      "base_url": "https://api.anthropic.com/v1",
+      "timeout_ms": 60000,
+      "max_retries": 3
+    },
+    "gemini": {
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "timeout_ms": 60000,
+      "max_retries": 3
+    },
+    "ollama": {
+      "base_url": "http://localhost:11434/v1",
+      "timeout_ms": 60000,
+      "max_retries": 2
+    }
+  },
+  "authentication": {
+    "allowed_keys": [
+      "osterdops_live_demo_key",
+      "sk-osterdops-default"
+    ]
+  }
+}

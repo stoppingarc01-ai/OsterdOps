@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Calendar, ChevronDown, Sun, Moon, Bell, Search, X, Zap, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useGatewayTelemetry } from "@/hooks/useGatewayTelemetry";
 import { QuickstartModal } from "./QuickstartModal";
 
 interface DashboardHeaderProps {
@@ -20,6 +21,7 @@ export function DashboardHeader({
   onOpenQuickstart,
 }: DashboardHeaderProps) {
   const { user, userProfile } = useAuth();
+  const { data: gatewayTelemetry, isLive } = useGatewayTelemetry(3000);
   const activeUserName = userName || userProfile?.name?.split(" ")[0] || user?.displayName?.split(" ")[0] || (user?.email ? user.email.split("@")[0] : "Commander");
 
   const [selectedDateRange, setSelectedDateRange] = useState("May 10 – May 16, 2025");
@@ -56,20 +58,52 @@ export function DashboardHeader({
 
   return (
     <header className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#161824]">
-      {/* Left: Greeting */}
-      <div>
-        <h1
-          className="text-2xl sm:text-[26px] font-medium tracking-tight text-[#f4efe6] flex items-center gap-2"
-          style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+      {/* Left: Greeting & Engine Overhead Status Pill */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div>
+          <h1
+            className="text-2xl sm:text-[26px] font-medium tracking-tight text-[#f4efe6] flex items-center gap-2"
+            style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+          >
+            <span>Good morning, {activeUserName}!</span>
+            <span className="text-xl">👋</span>
+          </h1>
+          <p className="text-[13px] text-[#8e93a6] mt-0.5">
+            Here&apos;s your AI infrastructure overview.
+          </p>
+        </div>
+
+        {/* Live C++ Engine Pre-Flight Guard Overhead Pill */}
+        <div
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-mono font-medium border transition-all cursor-default self-start sm:self-auto ${
+            isLive
+              ? "bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+              : "bg-[#0c0e17] text-neutral-400 border-[#1b1e2c]"
+          }`}
+          title={
+            isLive
+              ? `C++ LLM Gateway Active (${gatewayTelemetry.service} v${gatewayTelemetry.version}) — Measured Guard Latency: ${gatewayTelemetry.preflightLatencyUs}µs`
+              : "C++ LLM Gateway Engine Standby (Run gateway-cpp to activate live low-latency proxy)"
+          }
         >
-          <span>Good morning, {activeUserName}!</span>
-          <span className="text-xl">👋</span>
-        </h1>
-        <p className="text-[13px] text-[#8e93a6] mt-0.5">
-          Here&apos;s your AI infrastructure overview.
-        </p>
+          {isLive ? (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]" />
+              </span>
+              <span className="font-semibold">● Pre-flight: {gatewayTelemetry.preflightLatencyUs}µs</span>
+            </>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full border border-neutral-500" />
+              <span>○ Engine Standby</span>
+            </>
+          )}
+        </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2.5">
         {/* Drop-in Proxy Quickstart Trigger Button */}
         <button
           type="button"
@@ -242,6 +276,7 @@ export function DashboardHeader({
               </div>
             </div>
           )}
+        </div>
       </div>
 
       {/* Quickstart Modal Mount */}

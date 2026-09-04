@@ -15,6 +15,8 @@ import {
   Lock,
 } from "lucide-react";
 
+import { getGatewayBaseUrl, getGatewayCompletionsUrl } from "@/config/gateway";
+
 export interface QuickstartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -85,7 +87,8 @@ export function QuickstartModal({
   };
 
   // Code Snippets Generation
-  const gatewayUrl = "https://gateway.osterdops.com/api/v1/gateway";
+  const gatewayUrl = getGatewayBaseUrl();
+  const completionsUrl = getGatewayCompletionsUrl();
 
   const getCodeSnippet = useCallback(() => {
     switch (activeTab) {
@@ -125,7 +128,7 @@ for await (const chunk of stream) {
 }`;
 
       case "curl":
-        return `curl ${gatewayUrl}/chat/completions \\
+        return `curl ${completionsUrl} \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer ${apiKey}" \\
   -d '{
@@ -134,7 +137,7 @@ for await (const chunk of stream) {
     "temperature": 0.7
   }'`;
     }
-  }, [activeTab, apiKey, gatewayUrl]);
+  }, [activeTab, apiKey, gatewayUrl, completionsUrl]);
 
   // Copy Code Snippet
   const handleCopyCode = async () => {

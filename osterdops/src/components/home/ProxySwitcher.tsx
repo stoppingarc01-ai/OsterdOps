@@ -2,16 +2,20 @@
 
 import React, { useState } from "react";
 import { Check, Copy, Zap, ArrowRight, ShieldCheck } from "lucide-react";
+import { getGatewayBaseUrl, getGatewayCompletionsUrl } from "@/config/gateway";
 
 export function ProxySwitcher() {
   const [activeTab, setActiveTab] = useState<"python" | "nodejs" | "curl">("python");
   const [copied, setCopied] = useState(false);
 
+  const gatewayBaseUrl = getGatewayBaseUrl();
+  const gatewayChatUrl = getGatewayCompletionsUrl();
+
   const codeSnippets = {
     python: `import openai
 
 client = openai.OpenAI(
-    base_url="https://gateway.osterdops.com/v1",
+    base_url="${gatewayBaseUrl}",
     api_key="sk_live_your_key_here"
 )
 
@@ -24,7 +28,7 @@ print(response.choices[0].message.content)`,
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://gateway.osterdops.com/v1",
+  baseURL: "${gatewayBaseUrl}",
   apiKey: "sk_live_your_key_here",
 });
 
@@ -35,7 +39,7 @@ const response = await client.chat.completions.create({
 
 console.log(response.choices[0].message.content);`,
 
-    curl: `curl https://gateway.osterdops.com/v1/chat/completions \\
+    curl: `curl ${gatewayChatUrl} \\
   -H "Authorization: Bearer sk_live_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{

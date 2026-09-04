@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { TrendingUp, DollarSign, Cpu, BarChart3, Sparkles, Loader2, ArrowUpRight } from "lucide-react";
+import { TrendingUp, DollarSign, Cpu, BarChart3, Sparkles, Loader2, Zap } from "lucide-react";
 import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
+import { useGatewayTelemetry } from "@/hooks/useGatewayTelemetry";
 
 interface StatCardsBarProps {
   telemetry?: LiveTelemetryData;
@@ -11,25 +12,57 @@ interface StatCardsBarProps {
 
 export function StatCardsBar({ telemetry: externalTelemetry, isLoading: externalLoading }: StatCardsBarProps) {
   const internalHook = useLiveTelemetry();
-  const data = externalTelemetry || internalHook.data;
-  const loading = externalLoading !== undefined ? externalLoading : internalHook.isLoading;
+  const { data: gatewayData, isLive, isLoading: gatewayLoading } = useGatewayTelemetry(3000);
 
-  const spendFormatted = `$${data.totalSpendUsd.toFixed(2)}`;
-  const projectedFormatted = `$${data.projectedSpendUsd.toFixed(2)}`;
+  const data = externalTelemetry || internalHook.data;
+  const loading = (externalLoading !== undefined ? externalLoading : internalHook.isLoading) && gatewayLoading;
+
+  // Real-Time Spend: computed USD with nanodollar precision ($X.XXXXXX) when live
+  const spendFormatted = isLive
+    ? `$${gatewayData.totalSpendUsd.toFixed(6)}`
+    : `$${data.totalSpendUsd.toFixed(2)}`;
+
+  // System Overhead: P50 / P95 latency from engine buffer when live, else projected run rate
+  const overheadFormatted = isLive
+    ? `${gatewayData.p50LatencyMs}ms / ${gatewayData.p95LatencyMs}ms`
+    : `$${data.projectedSpendUsd.toFixed(2)}`;
+
+  // Token volume with prompt vs. completion breakdown
+  const totalTokens = isLive ? gatewayData.totalTokens : data.totalTokens;
   const tokensFormatted =
-    data.totalTokens >= 1_000_000
-      ? `${(data.totalTokens / 1_000_000).toFixed(2)}M`
-      : data.totalTokens.toLocaleString();
-  const requestsFormatted = data.totalRequests.toLocaleString();
-  const savingsFormatted = `$${data.cacheSavingsUsd.toFixed(2)}`;
+    totalTokens >= 1_000_000
+      ? `${(totalTokens / 1_000_000).toFixed(2)}M`
+      : totalTokens.toLocaleString();
+
+  const tokenBreakdown = isLive
+    ? `${gatewayData.promptTokens.toLocaleString()} in · ${gatewayData.completionTokens.toLocaleString()} out`
+    : "Input + Output Volume";
+
+  // Total Requests with live count & error percentage
+  const totalRequests = isLive ? gatewayData.totalRequests : data.totalRequests;
+  const requestsFormatted = totalRequests.toLocaleString();
+  const requestBreakdown = isLive
+    ? `${gatewayData.errorRatePercent}% err rate (${gatewayData.failedRequests} errs)`
+    : "Gateway Completions";
+
+  // Cache & FinOps savings
+  const savingsFormatted = isLive
+    ? `$${gatewayData.cacheSavingsUsd.toFixed(4)}`
+    : `$${data.cacheSavingsUsd.toFixed(2)}`;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-      {/* Stat 1: Total Spend (This Month) */}
-      <div className="p-4 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between transition-all duration-200 group">
+      {/* Stat 1: Real-Time Spend */}
+      <div className="p-4 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between transition-all duration-200 group relative overflow-hidden">
+        {isLive && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#10B981]/10 text-[9.5px] font-mono text-[#10B981] border border-[#10B981]/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+            <span>LIVE</span>
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between text-[11px] font-mono uppercase text-neutral-400">
-            <span>Total Spend (30d)</span>
+            <span>Real-Time Spend</span>
             <div className="w-6 h-6 rounded-lg bg-[#141414] border border-[#222222] flex items-center justify-center text-[#D4A362] group-hover:scale-105 transition-transform">
               <DollarSign className="w-3.5 h-3.5" />
             </div>
@@ -38,7 +71,7 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : spendFormatted}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>Real-time Incurred Spend</span>
+            <span>{isLive ? "Nanodollar Precision ($1 = 10⁹ nanos)" : "Incurred Gateway Spend"}</span>
           </div>
         </div>
 
@@ -59,20 +92,30 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
         </div>
       </div>
 
-      {/* Stat 2: Projected Spend */}
-      <div className="p-4 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between transition-all duration-200 group">
+      {/* Stat 2: System Overhead (P50/P95 Latency) */}
+      <div className="p-4 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between transition-all duration-200 group relative overflow-hidden">
+        {isLive && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#10B981]/10 text-[9.5px] font-mono text-[#10B981] border border-[#10B981]/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+            <span>P50/P95</span>
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between text-[11px] font-mono uppercase text-neutral-400">
-            <span>Projected Spend</span>
+            <span>{isLive ? "System Overhead" : "Projected Spend"}</span>
             <div className="w-6 h-6 rounded-lg bg-[#141414] border border-[#222222] flex items-center justify-center text-[#D4A362] group-hover:scale-105 transition-transform">
-              <TrendingUp className="w-3.5 h-3.5" />
+              {isLive ? <Zap className="w-3.5 h-3.5 text-[#DFB277]" /> : <TrendingUp className="w-3.5 h-3.5" />}
             </div>
           </div>
           <div className="text-2xl font-bold text-white tracking-tight mt-1.5 font-mono">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : projectedFormatted}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : overheadFormatted}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>Month-end Run Rate</span>
+            <span>
+              {isLive
+                ? `Pre-flight: ${gatewayData.preflightLatencyUs}µs guard`
+                : "Month-end Run Rate"}
+            </span>
           </div>
         </div>
 
@@ -94,7 +137,7 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
         </div>
       </div>
 
-      {/* Stat 3: Total Metered Tokens */}
+      {/* Stat 3: Token Volume (Prompt vs. Completion Breakdown) */}
       <div className="p-4 bg-[#0E0E0E] border border-[#1A1A1A] hover:border-[#262626] rounded-2xl flex flex-col justify-between transition-all duration-200 group">
         <div>
           <div className="flex items-center justify-between text-[11px] font-mono uppercase text-neutral-400">
@@ -106,8 +149,8 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
           <div className="text-2xl font-bold text-white tracking-tight mt-1.5 font-mono">
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : tokensFormatted}
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>Input + Output Volume</span>
+          <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1 truncate" title={tokenBreakdown}>
+            <span>{tokenBreakdown}</span>
           </div>
         </div>
 
@@ -140,8 +183,8 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
           <div className="text-2xl font-bold text-white tracking-tight mt-1.5 font-mono">
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : requestsFormatted}
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>Gateway Completions</span>
+          <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1 truncate" title={requestBreakdown}>
+            <span>{requestBreakdown}</span>
           </div>
         </div>
 
@@ -175,7 +218,7 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#10B981] mt-1" /> : savingsFormatted}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>{data.cacheHitRatePercent}% hit efficiency</span>
+            <span>{isLive ? `${gatewayData.cachedTokens.toLocaleString()} cached tokens` : `${data.cacheHitRatePercent}% hit efficiency`}</span>
           </div>
         </div>
 
