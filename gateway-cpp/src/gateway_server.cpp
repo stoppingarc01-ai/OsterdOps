@@ -423,9 +423,39 @@ bool GatewayServer::start() {
                                                  "x-osterdops-request-id: " + req_id + "\r\n\r\n";
                         send(client_sock, sse_header.c_str(), static_cast<int>(sse_header.size()), 0);
 
-                        upstream_client_.execute_chat_stream(provider, model, req.body, [client_sock](const std::string& chunk) {
+                        int64_t comp_tokens = 0;
+                        upstream_client_.execute_chat_stream(provider, model, req.body, [client_sock, &comp_tokens](const std::string& chunk) {
                             send(client_sock, chunk.c_str(), static_cast<int>(chunk.size()), 0);
+                            if (chunk.find("\"content\":") != std::string::npos) {
+                                comp_tokens++;
+                            }
                         });
+
+                        circuit_breaker_.record_success(provider);
+
+                        int64_t prompt_tokens = static_cast<int64_t>(req.body.length() / 4) + 12;
+                        if (comp_tokens == 0) comp_tokens = 20;
+                        auto cost = CostEngine::instance().calculate_cost(model, provider, prompt_tokens, comp_tokens);
+                        BudgetManager::instance().record_spend(org_id, proj_id, cost.total_cost_usd);
+
+                        auto end_tp = std::chrono::steady_clock::now();
+                        int64_t latency = std::chrono::duration_cast<std::chrono::milliseconds>(end_tp - start_tp).count();
+
+                        TelemetryRecord rec;
+                        rec.request_id = req_id;
+                        rec.organization_id = org_id;
+                        rec.project_id = proj_id;
+                        rec.key_id = api_key;
+                        rec.provider = provider;
+                        rec.model = model;
+                        rec.http_status = 200;
+                        rec.duration_ms = latency;
+                        rec.usage.input_tokens = prompt_tokens;
+                        rec.usage.output_tokens = comp_tokens;
+                        rec.usage.total_tokens = prompt_tokens + comp_tokens;
+                        rec.cost_usd = cost.total_cost_usd;
+                        rec.status = "success";
+                        TelemetryCollector::instance().record(rec);
 
                         CLOSE_SOCKET(client_sock);
                         return;
