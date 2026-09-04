@@ -22,17 +22,30 @@
     "openai": {
       "base_url": "https://api.openai.com/v1",
       "timeout_ms": 60000,
-      "max_retries": 3
+      "max_retries": 3,
+      "api_key_env": "OPENAI_API_KEY"
     },
     "anthropic": {
       "base_url": "https://api.anthropic.com/v1",
       "timeout_ms": 60000,
-      "max_retries": 3
+      "max_retries": 3,
+      "api_key_env": "ANTHROPIC_API_KEY"
+    },
+    "deepseek": {
+      "base_url": "https://api.deepseek.com/v1",
+      "timeout_ms": 60000,
+      "max_retries": 3,
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "circuit_breaker": {
+        "failure_threshold": 3,
+        "recovery_timeout_ms": 30000
+      }
     },
     "gemini": {
       "base_url": "https://generativelanguage.googleapis.com/v1beta",
       "timeout_ms": 60000,
-      "max_retries": 3
+      "max_retries": 3,
+      "api_key_env": "GEMINI_API_KEY"
     },
     "ollama": {
       "base_url": "http://localhost:11434/v1",
@@ -45,5 +58,8 @@
       "osterdops_live_demo_key",
       "sk-osterdops-default"
     ]
+  },
+  "notes": {
+    "provider_credentials": "Upstream API keys are resolved from environment variables: OPENAI_API_KEY, DEEPSEEK_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY"
   }
 }
