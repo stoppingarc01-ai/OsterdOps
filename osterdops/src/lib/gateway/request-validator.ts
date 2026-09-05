@@ -53,12 +53,9 @@ export function validateGatewayRequest(body: unknown): ValidationResult {
     }
   }
 
-  // 3. Streaming Guard
-  if (payload.stream === true) {
-    return {
-      valid: false,
-      error: "Streaming ('stream: true') is not currently supported in this gateway phase. Please send non-streaming requests.",
-    };
+  // 3. Streaming Validation
+  if (payload.stream !== undefined && typeof payload.stream !== "boolean") {
+    return { valid: false, error: "Field 'stream' must be a boolean." };
   }
 
   // 4. Validate Provider Resolution

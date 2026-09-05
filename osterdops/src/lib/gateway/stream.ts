@@ -6,6 +6,7 @@
 
 import type { AIProviderAdapter, TokenUsageBreakdown } from "@/lib/adapters/types";
 import { recordGatewayTelemetry } from "./telemetry";
+import { calculateRequestCost } from "@/lib/cost/calculator";
 
 export interface GatewayStreamContext {
   requestId: string;
@@ -171,6 +172,15 @@ export function createGatewayStreamResponse(
           }
         }
 
+        const finalCost = calculateRequestCost({
+          provider: context.provider,
+          model: context.model,
+          inputTokens: accumulatedUsage.inputTokens,
+          outputTokens: accumulatedUsage.outputTokens,
+          cachedTokens: accumulatedUsage.cachedTokens,
+          reasoningTokens: accumulatedUsage.reasoningTokens,
+        });
+
         // Emit final chunk with finish reason and usage if available
         const finalChunk = {
           id: context.requestId,
@@ -189,8 +199,11 @@ export function createGatewayStreamResponse(
                 prompt_tokens: accumulatedUsage.inputTokens,
                 completion_tokens: accumulatedUsage.outputTokens,
                 total_tokens: accumulatedUsage.totalTokens,
+                cost_usd: finalCost.totalCostUsd,
               }
             : undefined,
+          cost_usd: finalCost.totalCostUsd,
+          latency_ms: Date.now() - context.startTime,
         };
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`));
@@ -226,6 +239,17 @@ export function createGatewayStreamResponse(
   responseHeaders.set("X-Accel-Buffering", "no");
   responseHeaders.set("x-osterdops-request-id", context.requestId);
   responseHeaders.set("x-request-id", context.requestId);
+
+  const initialCost = calculateRequestCost({
+    provider: context.provider,
+    model: context.model,
+    inputTokens: Math.max(1, Math.ceil((context.inputCharacterCount || 40) / 3.8)),
+    outputTokens: 0,
+  });
+  if (initialCost.totalCostUsd !== null) {
+    responseHeaders.set("x-osterdops-cost-usd", initialCost.totalCostUsd.toFixed(8));
+  }
+  responseHeaders.set("x-osterdops-latency-ms", String(Date.now() - context.startTime));
 
   return new Response(readable, {
     status: 200,

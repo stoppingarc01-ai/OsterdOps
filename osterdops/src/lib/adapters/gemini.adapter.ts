@@ -95,7 +95,10 @@ export class GeminiAdapter implements AIProviderAdapter {
   ): { url: string; headers: Record<string, string>; body: string } {
     const baseUrl =
       credentials.baseUrl || "https://generativelanguage.googleapis.com/v1beta";
-    const cleanModel = request.model.replace(/^models\//, "");
+    let cleanModel = request.model.replace(/^models\//, "");
+    if (cleanModel === "gemini-flash-latest" || cleanModel === "gemini-2.5-flash") {
+      cleanModel = "gemini-3.5-flash-lite";
+    }
     const url = `${baseUrl.replace(/\/+$/, "")}/models/${cleanModel}:generateContent?key=${credentials.apiKey}`;
 
     const headers: Record<string, string> = {
@@ -144,6 +147,11 @@ export class GeminiAdapter implements AIProviderAdapter {
     }
 
     if (Object.keys(generationConfig).length > 0) {
+      if (request.thinkingConfig) {
+        generationConfig.thinkingConfig = request.thinkingConfig;
+      } else if (cleanModel === "gemini-3.8-flash" && request.reasoning_effort !== "high") {
+        generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
       payload.generationConfig = generationConfig;
     }
 
@@ -157,7 +165,10 @@ export class GeminiAdapter implements AIProviderAdapter {
     const base = this.formatRequest(request, credentials);
     const baseUrl =
       credentials.baseUrl || "https://generativelanguage.googleapis.com/v1beta";
-    const cleanModel = request.model.replace(/^models\//, "");
+    let cleanModel = request.model.replace(/^models\//, "");
+    if (cleanModel === "gemini-flash-latest" || cleanModel === "gemini-2.5-flash") {
+      cleanModel = "gemini-3.5-flash-lite";
+    }
     const url = `${baseUrl.replace(/\/+$/, "")}/models/${cleanModel}:streamGenerateContent?alt=sse&key=${credentials.apiKey}`;
 
     return {
@@ -250,11 +261,14 @@ export class GeminiAdapter implements AIProviderAdapter {
     const totalTokens = Number(meta.totalTokenCount) || inputTokens + outputTokens;
     const cachedTokens = Number(meta.cachedContentTokenCount) || 0;
 
+    const reasoningTokens = Number((meta as Record<string, unknown>).thoughtsTokenCount) || 0;
+
     return {
       inputTokens,
       outputTokens,
       totalTokens,
       cachedTokens,
+      reasoningTokens,
     };
   }
 

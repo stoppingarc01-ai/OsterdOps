@@ -27,7 +27,7 @@ import { validateGatewayRequest } from "./request-validator";
 import { createGatewayErrorResponse, normalizeGatewayError } from "./errors";
 import { recordGatewayTelemetry } from "./telemetry";
 import { createGatewayStreamResponse } from "./stream";
-import { executeProviderHttpWithRetry } from "./retry-client";
+import { executeProviderHttpWithRetry, calculateJitteredBackoff, parseRetryAfterHeader } from "./retry-client";
 import { getProviderCircuitBreaker, evaluateGovernanceRules } from "./circuit-breaker";
 import { calculateRequestCost } from "@/lib/cost/calculator";
 import { checkSubscriptionAccess, SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/billing/access";
@@ -462,26 +462,56 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
 
     try {
       circuitBreaker.checkExecution();
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let upstreamResponse: Response | null = null;
+      const maxStreamAttempts = 4;
 
-      const upstreamResponse = await fetch(formatted.url, {
-        method: "POST",
-        headers: formatted.headers,
-        body: formatted.body,
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer));
+      for (let attempt = 1; attempt <= maxStreamAttempts; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-      if (!upstreamResponse.ok) {
-        if (upstreamResponse.status >= 500) {
+        if (request.signal) {
+          request.signal.addEventListener("abort", () => controller.abort(), { once: true });
+        }
+
+        try {
+          upstreamResponse = await fetch(formatted.url, {
+            method: "POST",
+            headers: formatted.headers,
+            body: formatted.body,
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timer));
+
+          if (upstreamResponse.ok) {
+            break;
+          }
+
+          if (upstreamResponse.status === 429 || upstreamResponse.status >= 500) {
+            if (attempt < maxStreamAttempts && !request.signal?.aborted) {
+              const retryAfter = parseRetryAfterHeader(upstreamResponse.headers.get("retry-after"));
+              const backoffMs = retryAfter || calculateJitteredBackoff(attempt, 800, 4000);
+              await new Promise((r) => setTimeout(r, backoffMs));
+              continue;
+            }
+          }
+          break;
+        } catch (fetchErr) {
+          if (request.signal?.aborted) throw fetchErr;
+          if (attempt >= maxStreamAttempts) throw fetchErr;
+          await new Promise((r) => setTimeout(r, calculateJitteredBackoff(attempt, 800, 4000)));
+        }
+      }
+
+      if (!upstreamResponse || !upstreamResponse.ok) {
+        const status = upstreamResponse?.status || 504;
+        if (status >= 500) {
           circuitBreaker.recordFailure();
         }
-        const errorBody = await upstreamResponse.json().catch(() => ({}));
-        const providerErr = adapter.handleProviderError(upstreamResponse.status, errorBody);
+        const errorBody = (await upstreamResponse?.json().catch(() => ({}))) || {};
+        const providerErr = adapter.handleProviderError(status, errorBody);
         const errorPayload = normalizeGatewayError(
           new Error(providerErr.message),
           provider,
-          upstreamResponse.status
+          status
         );
 
         return createGatewayErrorResponse(errorPayload, responseHeaders);
@@ -502,6 +532,15 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
           startTime,
           inputCharacterCount: JSON.stringify(payload.messages).length,
           onStreamComplete: async (usage, durationMs, status, errorCode) => {
+            const cost = calculateRequestCost({
+              provider,
+              model: payload.model,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              cachedTokens: usage.cachedTokens,
+              reasoningTokens: usage.reasoningTokens,
+            });
+
             recordGatewayUsage({
               requestId,
               organizationId: organization.id,
@@ -514,6 +553,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
               totalTokens: usage.totalTokens,
               cachedTokens: usage.cachedTokens,
               reasoningTokens: usage.reasoningTokens,
+              costUsd: cost.totalCostUsd ?? undefined,
+              costType: "calculated",
               latencyMs: durationMs,
               statusCode: status === "SUCCESS" ? 200 : 500,
               status,
