@@ -5,7 +5,7 @@
 
 import { requireAuth } from "@/lib/auth/server";
 import { syncUserRecord } from "@/lib/services/user.service";
-import { getUserOrganizations, createOrganization } from "@/lib/services/organization.service";
+import { getUserOrganizations, createDefaultOrganizationForUser } from "@/lib/services/organization.service";
 import { apiSuccess } from "@/lib/api/response";
 
 export async function GET(request: Request) {
@@ -62,16 +62,23 @@ export async function GET(request: Request) {
     photoURL: user.photoURL,
   });
 
-  // Fetch active memberships
-  let organizations = await getUserOrganizations(user.uid);
+  // Fetch active memberships (with automatic lazy healing if missing)
+  let organizations = await getUserOrganizations(user.uid, {
+    email: userEmail,
+    displayName: user.displayName,
+    autoHeal: true,
+  });
 
-  // Auto-provision initial workspace if user has none yet (e.g. initial Google sign-in)
+  // Ensure user always has a valid workspace
   if (organizations.length === 0) {
-    const companyName = `${profile.name || "My"}'s Workspace`;
-    const created = await createOrganization(user.uid, user.email, profile.name, {
-      name: companyName,
+    const defaultOrg = await createDefaultOrganizationForUser({
+      userId: user.uid,
+      name: `${profile.name || user.displayName || (userEmail ? userEmail.split("@")[0] : "My")}'s Org`,
+      email: userEmail,
+      displayName: profile.name || user.displayName,
+      tier: "free",
     });
-    organizations = [{ organization: created.organization, membership: created.member }];
+    organizations = [{ organization: defaultOrg.organization, membership: defaultOrg.member }];
   }
 
   return apiSuccess({

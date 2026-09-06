@@ -5,6 +5,7 @@ import {
   User as FirebaseUser,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  deleteUser,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
   updateProfile,
@@ -253,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (params: SignUpParams) => {
       setError(null);
       setIsLoading(true);
+      let createdUser: FirebaseUser | null = null;
       try {
         const auth = getFirebaseAuth();
         const displayName = `${params.firstName} ${params.lastName}`.trim();
@@ -263,17 +265,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           params.email.trim(),
           params.password
         );
+        createdUser = credential.user;
 
         // 2. Update display name in Firebase Auth profile
         if (displayName) {
-          await updateProfile(credential.user, { displayName });
+          try {
+            await updateProfile(createdUser, { displayName });
+          } catch {
+            // Non-fatal
+          }
         }
 
         // 3. Obtain fresh ID token
-        const idToken = await credential.user.getIdToken(true);
+        const idToken = await createdUser.getIdToken(true);
+        if (typeof document !== "undefined") {
+          document.cookie = `__session=${idToken}; path=/; max-age=3600; SameSite=Lax`;
+        }
 
         // 4. Initialize Firestore user profile, organization, and OWNER membership on server
-        const res = await fetch("/api/v1/auth/register", {
+        // Attempt atomic signup endpoint (with fallback to register)
+        let res = await fetch("/api/v1/auth/signup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -285,14 +296,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }),
         });
 
+        if (!res.ok && res.status === 404) {
+          res = await fetch("/api/v1/auth/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              displayName,
+              companyName: params.companyName.trim(),
+            }),
+          });
+        }
+
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || "Failed to initialize organization profile.");
+          throw new Error(errData?.error?.message || "Failed to initialize organization profile. Please try again.");
         }
 
         const payload = await res.json();
         if (payload.success && payload.data) {
-          setUser(credential.user);
+          setUser(createdUser);
           setUserProfile(payload.data.user);
           setCurrentOrg(payload.data.organization);
           setCurrentMembership(payload.data.member);
@@ -304,6 +329,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ]);
         }
       } catch (err: unknown) {
+        // Option A (Rollback): Delete newly created Firebase Auth user immediately so user can cleanly retry without "Email already exists"
+        if (createdUser) {
+          console.warn("[OsterdOps Auth] Rolling back auth user account due to initialization failure");
+          try {
+            await deleteUser(createdUser);
+          } catch (rollbackErr) {
+            console.warn("[OsterdOps Auth] Client deleteUser rollback failed, requesting server rollback:", rollbackErr);
+            try {
+              await fetch("/api/v1/auth/rollback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid: createdUser.uid }),
+              });
+            } catch {}
+          }
+        }
+
         const fbErr = err as { code?: string; message?: string };
         let userMessage = (err as Error).message || "Failed to create account.";
 

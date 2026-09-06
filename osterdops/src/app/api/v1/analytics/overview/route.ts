@@ -7,8 +7,7 @@ import { requirePermission } from "@/lib/auth/rbac";
 import { getOrganizationOverviewAnalytics } from "@/lib/services/analytics.service";
 import { apiSuccess, ApiErrors } from "@/lib/api/response";
 import type { AnalyticsTimeRange } from "@/types";
-
-import { generateBenchmarkTelemetry } from "@/hooks/useLiveTelemetry";
+import { generateBenchmarkTelemetry } from "@/lib/telemetry/benchmark";
 
 export async function GET(request: Request) {
   try {

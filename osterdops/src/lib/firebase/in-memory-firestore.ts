@@ -147,7 +147,8 @@ export class InMemoryCollectionReference extends InMemoryQuery {
   constructor(
     public readonly id: string,
     public readonly path: string,
-    private readonly _store: InMemoryFirestore
+    private readonly _store: InMemoryFirestore,
+    public readonly parent?: InMemoryDocumentReference
   ) {
     super(() => _store.getDocsInPath(path));
   }
@@ -175,7 +176,7 @@ export class InMemoryDocumentReference {
 
   collection(subCollectionName: string): InMemoryCollectionReference {
     const subPath = `${this.path}/${subCollectionName}`;
-    return new InMemoryCollectionReference(subCollectionName, subPath, this._store);
+    return new InMemoryCollectionReference(subCollectionName, subPath, this._store, this);
   }
 
   async get(): Promise<InMemoryDocumentSnapshot> {
@@ -304,7 +305,14 @@ export class InMemoryFirestore {
           const idx = parts.lastIndexOf(collectionName);
           if (idx !== -1 && idx === parts.length - 2) {
             const docId = parts[parts.length - 1];
-            const docRef = new InMemoryDocumentReference(docId, key, this);
+            // key is e.g. "organizations/org_123/members/usr_456"
+            const collPath = parts.slice(0, parts.length - 1).join("/");
+            const parentDocPath = parts.slice(0, parts.length - 2).join("/");
+            const parentDocId = parts[parts.length - 3] || "";
+
+            const parentDocRef = parentDocPath ? new InMemoryDocumentReference(parentDocId, parentDocPath, this) : undefined;
+            const collRef = new InMemoryCollectionReference(collectionName, collPath, this, parentDocRef);
+            const docRef = new InMemoryDocumentReference(docId, key, this, collRef);
             docs.push(new InMemoryDocumentSnapshot(docId, val, docRef));
           }
         }

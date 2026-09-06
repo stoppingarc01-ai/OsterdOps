@@ -8,6 +8,7 @@
  */
 
 import { requireAuth } from "@/lib/auth/server";
+import { getAdminAuth } from "@/lib/firebase/admin";
 import { syncUserRecord } from "@/lib/services/user.service";
 import { createOrganization, getUserOrganizations } from "@/lib/services/organization.service";
 import { apiSuccess, ApiErrors } from "@/lib/api/response";
@@ -88,7 +89,17 @@ export async function POST(request: Request) {
       201
     );
   } catch (err) {
-    console.error("[OsterdOps Register API] Registration failed:", err);
-    return ApiErrors.internalError("Failed to initialize user organization account.");
+    console.error("[OsterdOps Register API] Registration failed, executing rollback:", err);
+
+    // Option A: Rollback auth creation to avoid orphan auth accounts
+    try {
+      const adminAuth = getAdminAuth();
+      await adminAuth.deleteUser(user.uid);
+      console.log(`[OsterdOps Register API] Successfully rolled back orphaned user ${user.uid}`);
+    } catch (delErr) {
+      console.warn("[OsterdOps Register API] Admin deleteUser rollback note:", delErr);
+    }
+
+    return ApiErrors.internalError("Failed to initialize organization profile. Please try again.");
   }
 }

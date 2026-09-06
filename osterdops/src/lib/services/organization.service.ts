@@ -1,18 +1,25 @@
 /**
  * OsterdOps — Organization & Membership Service Layer
  * Supports Firestore multi-tenant persistence with simulated in-memory fallback for local development.
- */
-
-import "server-only";
-import { getAdminFirestore } from "@/lib/firebase/admin";
+ */import "server-only";
+import { getAdminFirestore, getAdminAuth } from "@/lib/firebase/admin";
 import { getFirebaseAdminConfig } from "@/lib/firebase/config";
 import { FieldValue } from "firebase-admin/firestore";
 import { invalidateApiKeyAuthCache } from "@/lib/cache";
-import type { Organization, OrganizationMember, OrganizationRole } from "@/types";
+import type { Organization, OrganizationMember, OrganizationRole, OrganizationPlan } from "@/types";
 
 export interface CreateOrganizationParams {
   name: string;
   slug?: string;
+  tier?: "free" | "trial" | "starter" | "scale" | "enterprise";
+}
+
+export interface CreateDefaultOrgParams {
+  userId: string;
+  name?: string;
+  tier?: "free" | "starter" | "scale" | "enterprise" | "trial";
+  email?: string;
+  displayName?: string;
 }
 
 // In-memory simulated storage for local development (persisted across HMR on globalThis)
@@ -25,6 +32,15 @@ const simulatedMembers = globalForSim.simulatedMembers || new Map<string, Organi
 if (process.env.NODE_ENV !== "production") {
   globalForSim.simulatedOrgs = simulatedOrgs;
   globalForSim.simulatedMembers = simulatedMembers;
+}
+
+function normalizePlan(tier?: string): OrganizationPlan {
+  if (!tier || tier === "trial") return "trial";
+  if (tier === "free" || tier === "starter") return "starter";
+  if (tier === "team") return "team";
+  if (tier === "pro" || tier === "scale") return "pro";
+  if (tier === "enterprise") return "enterprise";
+  return "starter";
 }
 
 function createSimulatedOrganization(
@@ -60,14 +76,17 @@ function createSimulatedOrganization(
       .replace(/^-+|-+$/g, "") + `-${orgId.slice(4, 9)}`;
 
   const now = new Date().toISOString();
+  const planTier = params.tier || "trial";
+  const plan = normalizePlan(params.tier);
+  const status = planTier === "free" || planTier === "starter" ? "active" : "trialing";
   const organization: Organization = {
     id: orgId,
     name: params.name,
     slug,
     ownerId,
-    plan: "trial",
-    planTier: "trial",
-    status: "trialing",
+    plan,
+    planTier,
+    status,
     currentPeriodSpendUsd: 0,
     currentPeriodStart: now,
     settings: {
@@ -104,7 +123,8 @@ function createSimulatedOrganization(
 }
 
 function getSimulatedUserOrganizations(
-  userId: string
+  userId: string,
+  autoHeal = true
 ): Array<{ organization: Organization; membership: OrganizationMember }> {
   const results: Array<{ organization: Organization; membership: OrganizationMember }> = [];
   for (const [orgId, members] of simulatedMembers.entries()) {
@@ -116,7 +136,73 @@ function getSimulatedUserOrganizations(
       }
     }
   }
+
+  // Direct ownership fallback
+  for (const [orgId, org] of simulatedOrgs.entries()) {
+    if (org.ownerId === userId && !results.some((r) => r.organization.id === orgId)) {
+      const member = simulatedMembers.get(orgId)?.find((m) => m.userId === userId) || {
+        userId,
+        email: `${userId}@user.osterdops.internal`,
+        displayName: "Workspace Lead",
+        role: "OWNER",
+        status: "active",
+        joinedAt: org.createdAt,
+        updatedAt: org.updatedAt,
+      };
+      results.push({ organization: org, membership: member });
+    }
+  }
+
+  // Lazy auto-healing in simulated storage
+  if (results.length === 0 && autoHeal) {
+    const defaultOrg = createSimulatedOrganization(
+      userId,
+      `${userId}@user.osterdops.internal`,
+      "Workspace Lead",
+      { name: "My's Org", tier: "free" }
+    );
+    return [{ organization: defaultOrg.organization, membership: defaultOrg.member }];
+  }
+
   return results;
+}
+
+/**
+ * Creates a default Personal/Starter organization for a user.
+ * Used for lazy auto-healing during login or dashboard load when an organization document is missing.
+ */
+export async function createDefaultOrganizationForUser(
+  params: CreateDefaultOrgParams
+): Promise<{ organization: Organization; member: OrganizationMember }> {
+  const { userId, tier = "free" } = params;
+
+  let ownerEmail = params.email || "";
+  let ownerName = params.displayName || "";
+
+  if (!ownerEmail || !ownerName) {
+    try {
+      const adminAuth = getAdminAuth();
+      const fbUser = await adminAuth.getUser(userId);
+      ownerEmail = ownerEmail || fbUser.email || "";
+      ownerName = ownerName || fbUser.displayName || (ownerEmail ? ownerEmail.split("@")[0] : "");
+    } catch {
+      // Non-fatal if admin auth lookup is unavailable
+    }
+  }
+
+  const finalName =
+    params.name ||
+    `${ownerName || (ownerEmail ? ownerEmail.split("@")[0] : "My")}'s Org`;
+
+  return await createOrganization(
+    userId,
+    ownerEmail || `${userId}@user.osterdops.internal`,
+    ownerName || "Workspace Lead",
+    {
+      name: finalName,
+      tier,
+    }
+  );
 }
 
 /**
@@ -147,14 +233,17 @@ export async function createOrganization(
         .replace(/^-+|-+$/g, "") + `-${orgId.slice(0, 5)}`;
 
     const now = FieldValue.serverTimestamp();
+    const planTier = params.tier || "trial";
+    const plan = normalizePlan(params.tier);
+    const status = planTier === "free" || planTier === "starter" ? "active" : "trialing";
 
     const orgData: Omit<Organization, "id"> = {
       name: params.name,
       slug,
       ownerId,
-      plan: "trial",
-      planTier: "trial",
-      status: "trialing",
+      plan,
+      planTier,
+      status,
       currentPeriodSpendUsd: 0,
       currentPeriodStart: now as unknown as string,
       settings: {
@@ -194,41 +283,108 @@ export async function createOrganization(
 
 /**
  * Retrieves all organizations that a user is an active member of.
+ * Features automatic lazy healing: If no organization exists, automatically provisions a default organization.
  */
 export async function getUserOrganizations(
-  userId: string
+  userId: string,
+  fallbackOptions?: { email?: string; displayName?: string; autoHeal?: boolean }
 ): Promise<Array<{ organization: Organization; membership: OrganizationMember }>> {
   const adminConfig = getFirebaseAdminConfig();
   if (!adminConfig) {
-    return getSimulatedUserOrganizations(userId);
+    return getSimulatedUserOrganizations(userId, fallbackOptions?.autoHeal !== false);
   }
 
   try {
     const db = getAdminFirestore();
-    const membersQuerySnap = await db
-      .collectionGroup("members")
-      .where("userId", "==", userId)
-      .where("status", "==", "active")
-      .get();
-
     const results: Array<{ organization: Organization; membership: OrganizationMember }> = [];
 
-    for (const memberDoc of membersQuerySnap.docs) {
-      const orgRef = memberDoc.ref.parent.parent;
-      if (!orgRef) continue;
+    // 1. Check member subcollections
+    try {
+      const membersQuerySnap = await db
+        .collectionGroup("members")
+        .where("userId", "==", userId)
+        .where("status", "==", "active")
+        .get();
 
-      const orgSnap = await orgRef.get();
-      if (orgSnap.exists) {
-        const org = { id: orgSnap.id, ...orgSnap.data() } as Organization;
-        const membership = memberDoc.data() as OrganizationMember;
-        results.push({ organization: org, membership });
+      for (const memberDoc of membersQuerySnap.docs) {
+        const orgRef = memberDoc.ref.parent?.parent;
+        if (!orgRef) continue;
+
+        const orgSnap = await orgRef.get();
+        if (orgSnap.exists) {
+          const org = { id: orgSnap.id, ...orgSnap.data() } as Organization;
+          const membership = memberDoc.data() as OrganizationMember;
+          results.push({ organization: org, membership });
+        }
       }
+    } catch (cgErr) {
+      console.warn("[OsterdOps Org] collectionGroup query note:", (cgErr as Error).message);
+    }
+
+    // 2. Direct ownership lookup to guarantee resilience even if collectionGroup indexing is missing
+    try {
+      const ownerQuerySnap = await db
+        .collection("organizations")
+        .where("ownerId", "==", userId)
+        .get();
+
+      for (const orgDoc of ownerQuerySnap.docs) {
+        const orgId = orgDoc.id;
+        if (!results.some((r) => r.organization.id === orgId)) {
+          const org = { id: orgId, ...orgDoc.data() } as Organization;
+          let membership: OrganizationMember = {
+            userId,
+            email: fallbackOptions?.email || "",
+            displayName: fallbackOptions?.displayName || "",
+            role: "OWNER",
+            status: "active",
+            joinedAt: org.createdAt,
+            updatedAt: org.updatedAt,
+          };
+          try {
+            const memberSnap = await orgDoc.ref.collection("members").doc(userId).get();
+            if (memberSnap.exists) {
+              membership = memberSnap.data() as OrganizationMember;
+            }
+          } catch {}
+          results.push({ organization: org, membership });
+        }
+      }
+    } catch (ownerErr) {
+      console.warn("[OsterdOps Org] ownerId query note:", (ownerErr as Error).message);
+    }
+
+    // 3. Lazy Auto-Healing: If user has no organization, provision one automatically without crashing
+    if (results.length === 0 && fallbackOptions?.autoHeal !== false) {
+      console.log(`[OsterdOps Org] Auto-healing missing organization for user: ${userId}`);
+      let email = fallbackOptions?.email || "";
+      let displayName = fallbackOptions?.displayName || "";
+
+      if (!email || !displayName) {
+        try {
+          const adminAuth = getAdminAuth();
+          const fbUser = await adminAuth.getUser(userId);
+          email = email || fbUser.email || "";
+          displayName = displayName || fbUser.displayName || "";
+        } catch {}
+      }
+
+      const defaultOrgName = `${displayName || (email ? email.split("@")[0] : "My")}'s Org`;
+      const healed = await createDefaultOrganizationForUser({
+        userId,
+        name: defaultOrgName,
+        email,
+        displayName,
+        tier: "free",
+      });
+
+      return [{ organization: healed.organization, membership: healed.member }];
     }
 
     return results;
   } catch (err) {
     console.warn("[OsterdOps Org] Firestore unavailable, using simulated store:", (err as Error).message);
-    return getSimulatedUserOrganizations(userId);
+    return getSimulatedUserOrganizations(userId, fallbackOptions?.autoHeal !== false);
   }
 }
 
