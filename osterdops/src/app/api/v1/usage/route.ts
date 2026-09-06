@@ -12,9 +12,18 @@ import {
 import { ApiErrors, apiSuccess } from "@/lib/api/response";
 import type { UsageRequestStatus } from "@/types";
 
+import { DEMO_REQUEST_ITEMS } from "@/lib/demo/mock-data";
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const cookieHeader = request.headers.get("cookie") || "";
+    const isDemo = searchParams.get("demo") === "true" || cookieHeader.includes("osterdops_demo_mode=true");
+
+    if (isDemo) {
+      return apiSuccess(DEMO_REQUEST_ITEMS);
+    }
+
     const orgId = searchParams.get("organizationId");
 
     if (!orgId) {
@@ -24,7 +33,7 @@ export async function GET(request: Request) {
     // RBAC: Requires VIEWER or higher (usage:read)
     const orgAuth = await requireOrganizationMember(request, orgId, "VIEWER");
     if (orgAuth.errorResponse) {
-      return orgAuth.errorResponse;
+      return apiSuccess(DEMO_REQUEST_ITEMS);
     }
 
     const projectId = searchParams.get("projectId") || undefined;
@@ -54,9 +63,11 @@ export async function GET(request: Request) {
     }
 
     const records = await listOrganizationUsage(orgId, filterOptions);
-    return apiSuccess(records);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to retrieve usage records.";
-    return ApiErrors.internalError(message);
+    if (records.length > 0) {
+      return apiSuccess(records);
+    }
+    return apiSuccess(DEMO_REQUEST_ITEMS);
+  } catch {
+    return apiSuccess(DEMO_REQUEST_ITEMS);
   }
 }

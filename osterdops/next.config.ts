@@ -2,11 +2,12 @@ import type { NextConfig } from "next";
 
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' https://fonts.gstatic.com data:;
   img-src 'self' data: https: blob:;
   connect-src 'self' http://localhost:8080 http://127.0.0.1:8080 https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.osterdops.com ws://localhost:* http://localhost:*;
+  frame-src 'self' https://osterdops.firebaseapp.com https://*.firebaseapp.com https://*.google.com https://www.google.com https://login.microsoftonline.com;
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
@@ -55,7 +56,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Cross-Origin-Opener-Policy",
-            value: "same-origin",
+            value: "same-origin-allow-popups",
           },
           {
             key: "Cross-Origin-Resource-Policy",

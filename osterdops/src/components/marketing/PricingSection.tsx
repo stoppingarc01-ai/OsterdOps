@@ -1,32 +1,38 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, ArrowRight, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface MousePosition {
   x: number;
   y: number;
 }
 
+interface PlanDefinition {
+  id: string;
+  name: string;
+  priceMonthly: string;
+  priceAnnual: string;
+  period: string;
+  desc: string;
+  badge: string | null;
+  isPopular: boolean;
+  ctaText: string;
+  ctaHref: string;
+  features: string[];
+}
+
 function PricingCardSpotlight({
   plan,
   isAnnual,
+  isSelected,
 }: {
-  plan: {
-    id: string;
-    name: string;
-    priceMonthly: string;
-    priceAnnual: string;
-    period: string;
-    desc: string;
-    badge: string | null;
-    isPopular: boolean;
-    ctaText: string;
-    ctaHref: string;
-    features: string[];
-  };
+  plan: PlanDefinition;
   isAnnual: boolean;
+  isSelected?: boolean;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState<MousePosition>({ x: 0, y: 0 });
@@ -47,7 +53,9 @@ function PricingCardSpotlight({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       className={`rounded-[28px] p-8 sm:p-9 flex flex-col justify-between min-h-[620px] transition-all duration-300 ease-out relative group/card cursor-default ${
-        plan.isPopular
+        isSelected
+          ? "bg-[#0d101d] border-2 border-[#dfba82] shadow-[0_0_45px_rgba(223,186,130,0.35)] lg:-translate-y-4"
+          : plan.isPopular
           ? "bg-[#0d101d] border-2 border-[#dfba82] shadow-[0_0_35px_rgba(223,186,130,0.18)] lg:-translate-y-3 hover:-translate-y-5 hover:shadow-[0_35px_80px_rgba(0,0,0,0.85),0_0_55px_rgba(223,186,130,0.3)]"
           : "bg-[#090b12] border border-[#1e2235] hover:border-[#dfba82]/60 hover:-translate-y-3 hover:shadow-[0_30px_70px_rgba(0,0,0,0.8),0_0_35px_rgba(223,186,130,0.1)]"
       }`}
@@ -69,7 +77,12 @@ function PricingCardSpotlight({
               {plan.name}
             </h3>
 
-            {plan.badge && (
+            {isSelected ? (
+              <span className="px-3 py-1 rounded-full font-mono text-[10.5px] tracking-wider uppercase bg-[#dfba82] text-[#07080c] shadow-[0_0_15px_rgba(223,186,130,0.6)] font-extrabold flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#07080c] animate-ping" />
+                <span>SELECTED</span>
+              </span>
+            ) : plan.badge ? (
               <span
                 className={`px-3 py-1 rounded-full font-mono text-[10.5px] tracking-wider uppercase shadow-md flex items-center gap-1.5 shrink-0 ${
                   plan.isPopular
@@ -82,7 +95,7 @@ function PricingCardSpotlight({
                 )}
                 <span>{plan.badge}</span>
               </span>
-            )}
+            ) : null}
           </div>
 
           <p className="text-[13.5px] text-[#a6acbe] mt-2.5 min-h-[40px] leading-relaxed font-sans group-hover/card:text-[#d0d4e4] transition-colors">
@@ -100,7 +113,7 @@ function PricingCardSpotlight({
               <span className="text-sm font-medium text-[#8e93a6] font-sans">{plan.period}</span>
             )}
           </div>
-          {isAnnual && plan.id !== "free" && plan.id !== "enterprise" && (
+          {isAnnual && plan.id !== "trial" && plan.id !== "enterprise" && (
             <div className="text-xs text-[#4ade80] font-mono font-medium mt-1.5 flex items-center gap-1">
               <span>✦ Billed annually (Save 20%)</span>
             </div>
@@ -111,7 +124,7 @@ function PricingCardSpotlight({
         <Link
           href={plan.ctaHref}
           className={`w-full py-3.5 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md group/btn relative overflow-hidden font-sans ${
-            plan.isPopular
+            isSelected || plan.isPopular
               ? "bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] shadow-[0_0_20px_rgba(223,186,130,0.3)] hover:shadow-[0_0_30px_rgba(223,186,130,0.5)]"
               : "bg-[#141726] hover:bg-[#1d2238] text-white border border-[#262b42] hover:border-[#dfba82]/60"
           }`}
@@ -147,10 +160,13 @@ function PricingCardSpotlight({
   );
 }
 
-export function PricingSection() {
+function PricingSectionInner() {
+  const searchParams = useSearchParams();
+  const selectedPlanId = searchParams.get("plan")?.toLowerCase();
+  const { user } = useAuth();
   const [isAnnual, setIsAnnual] = useState(true);
 
-  const plans = [
+  const plans: PlanDefinition[] = [
     {
       id: "trial",
       name: "7-DAY TRIAL",
@@ -160,13 +176,13 @@ export function PricingSection() {
       desc: "Strict 7-day full access evaluation for new teams",
       badge: "7 Days Free",
       isPopular: false,
-      ctaText: "Start 7-Day Free Trial",
-      ctaHref: "/sign-up",
+      ctaText: user ? "Access Dashboard" : "Start 7-Day Free Trial",
+      ctaHref: user ? "/dashboard" : "/sign-up",
       features: [
         "Sub-microsecond Pre-Flight Guard Latency (< 15µs)",
         "Live Nanodollar Cost Engine & PII Scrubber",
         "Automated Runaway Loop & Rate Limit Breaker",
-        "Multi-Provider Pass-Through (OpenAI, DeepSeek, Anthropic)",
+        "Multi-Provider Pass-Through (OpenAI, DeepSeek, Anthropic, Gemini)",
         "1,000 requests / 50k tokens included",
         "Full real-time telemetry & spend ledger",
       ],
@@ -180,18 +196,16 @@ export function PricingSection() {
       desc: "For growing AI teams scaling production agents",
       badge: "⭐ POPULAR",
       isPopular: true,
-      ctaText: "Start 7-Day Free Trial",
-      ctaHref: "/sign-up",
+      ctaText: user ? "Upgrade to Growth" : "Start 7-Day Free Trial",
+      ctaHref: user ? "/dashboard/billing" : "/sign-up?plan=growth",
       features: [
-        "10 projects",
-        "10 team members",
+        "10 projects & 10 team members",
         "500K requests / month",
-        "Multi-provider tracking",
-        "Budgets & limits",
-        "Alerts & notifications",
-        "Optimization recommendations",
-        "90-day retention",
-        "Full API access",
+        "Multi-provider failover routing",
+        "Budgets, rate limits & alert webhooks",
+        "Optimization recommendations engine",
+        "90-day high-res telemetry retention",
+        "Full programmatic REST API access",
       ],
     },
     {
@@ -200,22 +214,20 @@ export function PricingSection() {
       priceMonthly: "$159",
       priceAnnual: "$129",
       period: "/ month",
-      desc: "For production AI teams",
+      desc: "For production AI teams running high-throughput agents",
       badge: null,
       isPopular: false,
-      ctaText: "Upgrade to Scale",
-      ctaHref: "/sign-up",
+      ctaText: user ? "Upgrade to Scale" : "Start 7-Day Free Trial",
+      ctaHref: user ? "/dashboard/billing" : "/sign-up?plan=scale",
       features: [
-        "Unlimited projects",
-        "50 team members",
+        "Unlimited projects & 50 team members",
         "5M requests / month",
-        "Advanced intelligent routing",
-        "Automated optimization",
-        "Anomaly detection",
-        "Custom governance policies",
-        "1-year data retention",
-        "Audit logs & compliance",
-        "Priority 24/7 support",
+        "Advanced intelligent latency-optimized routing",
+        "Automated prompt-cache & model optimization",
+        "Anomaly detection & custom governance rules",
+        "1-year high-res audit & telemetry retention",
+        "Audit logs & compliance exports",
+        "Priority 24/7 dedicated engineering support",
       ],
     },
     {
@@ -224,19 +236,18 @@ export function PricingSection() {
       priceMonthly: "Custom",
       priceAnnual: "Custom",
       period: "",
-      desc: "For organizations operating AI at scale",
+      desc: "For organizations operating mission-critical AI at scale",
       badge: "BESPOKE",
       isPopular: false,
       ctaText: "Contact Enterprise Sales",
-      ctaHref: "/sign-up",
+      ctaHref: "/contact",
       features: [
         "Unlimited usage & tokens",
-        "SSO / SAML & SCIM",
-        "Advanced granular RBAC",
-        "Custom retention duration",
-        "Dedicated cloud infrastructure",
+        "SSO / SAML & SCIM directory sync",
+        "Advanced granular RBAC permissions",
+        "Custom retention duration & Zero Data Retention guarantees",
+        "Dedicated cloud infrastructure or private VPC",
         "99.99% Uptime SLA guarantee",
-        "Security / compliance support (SOC2)",
         "Custom model & proxy integrations",
       ],
     },
@@ -311,9 +322,17 @@ export function PricingSection() {
 
         {/* 4 Spacious Minimalist Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-7 items-stretch">
-          {plans.map((plan) => (
-            <PricingCardSpotlight key={plan.id} plan={plan} isAnnual={isAnnual} />
-          ))}
+          {plans.map((plan) => {
+            const isSelected = selectedPlanId === plan.id;
+            return (
+              <PricingCardSpotlight
+                key={plan.id}
+                plan={plan}
+                isAnnual={isAnnual}
+                isSelected={isSelected}
+              />
+            );
+          })}
         </div>
 
         {/* Minimalist Enterprise Bottom Banner */}
@@ -327,13 +346,13 @@ export function PricingSection() {
                 Need Custom Governance or Self-Hosted VPC?
               </h4>
               <p className="text-xs text-[#8e93a6] mt-1 leading-relaxed max-w-2xl font-sans">
-                We offer custom enterprise SLAs, custom on-premise proxy instances, SOC2 Type II reports, and dedicated technical account managers.
+                We offer custom enterprise SLAs, self-hosted VPC proxy instances, cryptographic audit logs, and dedicated technical account managers.
               </p>
             </div>
           </div>
 
           <Link
-            href="/sign-up"
+            href="/contact"
             className="px-6 py-3 rounded-xl bg-[#141726] border border-[#262b42] hover:border-[#dfba82] text-white hover:text-[#dfba82] text-xs font-bold font-sans transition-all whitespace-nowrap cursor-pointer shadow-sm hover:shadow-[0_0_20px_rgba(223,186,130,0.2)] shrink-0"
           >
             Talk to AI Architect &rarr;
@@ -341,5 +360,13 @@ export function PricingSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+export function PricingSection() {
+  return (
+    <Suspense fallback={<div className="py-28 text-center text-xs text-[#787d91]">Loading pricing plans...</div>}>
+      <PricingSectionInner />
+    </Suspense>
   );
 }

@@ -47,7 +47,7 @@ export function AdminSubscriptionsView() {
         "Unlimited Projects & API Keys",
         "Sub-millisecond prompt caching",
         "Custom hard limits & budget circuit breakers",
-        "SOC2 Compliance audit logs",
+        "Cryptographic audit logs",
       ],
     },
     {

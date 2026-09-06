@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { X, Zap, TrendingDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { apiRequest } from "@/lib/api/client";
 
 interface CostSimulatorDrawerProps {
@@ -13,6 +14,7 @@ interface CostSimulatorDrawerProps {
 
 export function CostSimulatorDrawer({ isOpen, onClose }: CostSimulatorDrawerProps) {
   const { currentOrg, getIdToken } = useAuth();
+  const { formatCurrency } = useCurrency();
   const [currentSpend, setCurrentSpend] = useState<number>(0);
   const [fallbackRatio, setFallbackRatio] = useState(40); // 0% to 100%
   const [cacheRate, setCacheRate] = useState(65); // 0% to 90%
@@ -92,13 +94,13 @@ export function CostSimulatorDrawer({ isOpen, onClose }: CostSimulatorDrawerProp
                 <span>Simulated Spend</span>
               </div>
               <div className="flex items-center justify-between font-mono">
-                <div className="text-lg font-bold text-[#8e93a6] line-through">${currentSpend.toFixed(2)}</div>
-                <div className="text-2xl font-extrabold text-[#dfba82]">${simulatedSpend.toFixed(2)}</div>
+                <div className="text-lg font-bold text-[#8e93a6] line-through">{formatCurrency(currentSpend)}</div>
+                <div className="text-2xl font-extrabold text-[#dfba82]">{formatCurrency(simulatedSpend)}</div>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-[#1f2336] text-xs">
                 <span className="text-[#4ade80] font-bold flex items-center gap-1">
                   <TrendingDown className="w-3.5 h-3.5" />
-                  Save ${totalSavings.toFixed(2)}/mo ({percentageSaved}%)
+                  Save {formatCurrency(totalSavings)}/mo ({percentageSaved}%)
                 </span>
                 <span className="text-[10.5px] text-[#6e7387]">Live Calculation</span>
               </div>

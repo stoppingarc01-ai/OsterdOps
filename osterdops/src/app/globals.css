@@ -1,4 +1,7 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-serif: var(--font-serif-luxury), Georgia, Cambria, "Times New Roman", Times, serif;
   --font-sans: var(--font-sans-main), var(--font-geist-sans), system-ui, -apple-system, sans-serif;
@@ -10,6 +13,27 @@
 }
 
 :root {
+  --db-bg: #f8fafc;
+  --db-sidebar: #ffffff;
+  --db-surface: #ffffff;
+  --db-surface-hover: #f1f5f9;
+  --db-card: #ffffff;
+  --db-border: #e2e8f0;
+  --db-border-light: #cbd5e1;
+  --db-text: #0f172a;
+  --db-text-secondary: #475569;
+  --db-text-muted: #94a3b8;
+  --db-accent: #16a34a;
+  --db-accent-gold: #b48c48;
+  --db-accent-teal: #0d9488;
+  --db-accent-blue: #2563eb;
+  --db-accent-amber: #d97706;
+  --db-accent-red: #dc2626;
+  --db-accent-purple: #9333ea;
+  --db-group-label: #0d9488;
+}
+
+.dark {
   --db-bg: #07080c;
   --db-sidebar: #06070a;
   --db-surface: #0e1017;
@@ -47,6 +71,7 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   margin: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::selection {
@@ -78,3 +103,113 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--db-text-muted);
 }
+
+/* ============================================================
+   Light Theme Adaptive Surface & Contrast Overrides
+   ============================================================ */
+
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html:not(.dark) .bg-\[\#080808\],
+html:not(.dark) .bg-\[\#07080c\],
+html:not(.dark) .bg-\[\#06070a\],
+html:not(.dark) .bg-\[\#0a0c13\] {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-\[\#0E0E0E\],
+html:not(.dark) .bg-\[\#0c0e17\],
+html:not(.dark) .bg-\[\#0d0f18\],
+html:not(.dark) .bg-\[\#0A0A0A\],
+html:not(.dark) .bg-\[\#121422\],
+html:not(.dark) .bg-\[\#141414\],
+html:not(.dark) .bg-\[\#141824\] {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .border-\[\#1A1A1A\],
+html:not(.dark) .border-\[\#161824\],
+html:not(.dark) .border-\[\#1b1e2c\],
+html:not(.dark) .border-\[\#232738\],
+html:not(.dark) .border-\[\#1f2233\],
+html:not(.dark) .border-\[\#222222\],
+html:not(.dark) .border-\[\#161616\],
+html:not(.dark) .border-\[\#232c40\] {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .hover\:border-\[\#262626\]:hover,
+html:not(.dark) .hover\:border-\[\#2a2e40\]:hover {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) h1.text-white,
+html:not(.dark) h2.text-white,
+html:not(.dark) h3.text-white,
+html:not(.dark) h4.text-white,
+html:not(.dark) p.text-white,
+html:not(.dark) div.text-white:not([class*="bg-"]),
+html:not(.dark) span.text-white:not([class*="bg-"]),
+html:not(.dark) .text-\[\#f4efe6\],
+html:not(.dark) .text-\[\#e8eaf0\] {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-neutral-200,
+html:not(.dark) .text-neutral-300,
+html:not(.dark) .text-\[\#c5c9d6\] {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-neutral-400,
+html:not(.dark) .text-neutral-500,
+html:not(.dark) .text-\[\#8e93a6\],
+html:not(.dark) .text-\[\#787d91\],
+html:not(.dark) .text-\[\#73788c\],
+html:not(.dark) .text-\[\#656a7d\] {
+  color: #64748b !important;
+}
+
+/* Explicit Action Buttons & Status Indicators Contrast Protection */
+html:not(.dark) [class*="bg-[#DFB277]"],
+html:not(.dark) [class*="bg-[#dfba82]"] {
+  color: #080808 !important;
+}
+
+html:not(.dark) [class*="bg-blue-600"],
+html:not(.dark) [class*="bg-emerald-600"],
+html:not(.dark) [class*="bg-red-600"],
+html:not(.dark) [class*="bg-indigo-600"],
+html:not(.dark) [class*="bg-violet-600"] {
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   Floating Motion Keyframes for Multi-Layered Mesh
+   ============================================================ */
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(1.5deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(14px) rotate(-1.5deg); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-1deg); }
+}
+
+.animate-float-slow { animation: float-slow 7s ease-in-out infinite; }
+.animate-float-rev { animation: float-reverse 8.5s ease-in-out infinite; }
+.animate-float-fast { animation: float-fast 5.5s ease-in-out infinite; }
+

@@ -327,7 +327,7 @@ export const BILLING_PLANS: Record<string, BillingPlan> = {
       "Unlimited Projects & Connections",
       "Dedicated VPC / Custom Egress IP",
       "99.99% Financial Backed SLA",
-      "SOC2 & HIPAA BAA Legal Guarantee",
+      "Self-Hosted VPC Data Plane Support",
     ],
   },
 };

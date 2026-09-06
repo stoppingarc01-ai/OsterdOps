@@ -164,7 +164,7 @@ export function AdminSettingsView() {
                 onChange={(e) => setLogRetentionDays(e.target.value)}
                 className="w-full bg-[#131722] border border-[#22283a] text-white text-[13px] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#dfba82]"
               />
-              <p className="text-[11px] text-[#555a6d] mt-1">SOC 2 Type II requires a minimum of 365 days immutable retention.</p>
+              <p className="text-[11px] text-[#555a6d] mt-1">Default immutable retention window for production audit ledgers.</p>
             </div>
           </div>
         </div>

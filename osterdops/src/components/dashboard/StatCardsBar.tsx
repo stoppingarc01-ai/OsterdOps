@@ -4,6 +4,7 @@ import React from "react";
 import { TrendingUp, DollarSign, Cpu, BarChart3, Sparkles, Loader2, Zap } from "lucide-react";
 import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
 import { useGatewayTelemetry } from "@/hooks/useGatewayTelemetry";
+import { useCurrency } from "@/context/CurrencyContext";
 
 interface StatCardsBarProps {
   telemetry?: LiveTelemetryData;
@@ -13,19 +14,20 @@ interface StatCardsBarProps {
 export function StatCardsBar({ telemetry: externalTelemetry, isLoading: externalLoading }: StatCardsBarProps) {
   const internalHook = useLiveTelemetry();
   const { data: gatewayData, isLive, isLoading: gatewayLoading } = useGatewayTelemetry(3000);
+  const { formatCurrency, symbol } = useCurrency();
 
   const data = externalTelemetry || internalHook.data;
   const loading = (externalLoading !== undefined ? externalLoading : internalHook.isLoading) && gatewayLoading;
 
-  // Real-Time Spend: computed USD with nanodollar precision ($X.XXXXXX) when live
+  // Real-Time Spend: formatted via global currency context with nanodollar precision when live
   const spendFormatted = isLive
-    ? `$${gatewayData.totalSpendUsd.toFixed(6)}`
-    : `$${data.totalSpendUsd.toFixed(2)}`;
+    ? formatCurrency(gatewayData.totalSpendUsd, { decimals: 6 })
+    : formatCurrency(data.totalSpendUsd, { decimals: 2 });
 
   // System Overhead: P50 / P95 latency from engine buffer when live, else projected run rate
   const overheadFormatted = isLive
     ? `${gatewayData.p50LatencyMs}ms / ${gatewayData.p95LatencyMs}ms`
-    : `$${data.projectedSpendUsd.toFixed(2)}`;
+    : formatCurrency(data.projectedSpendUsd, { decimals: 2 });
 
   // Token volume with prompt vs. completion breakdown
   const totalTokens = isLive ? gatewayData.totalTokens : data.totalTokens;
@@ -47,8 +49,8 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
 
   // Cache & FinOps savings
   const savingsFormatted = isLive
-    ? `$${gatewayData.cacheSavingsUsd.toFixed(4)}`
-    : `$${data.cacheSavingsUsd.toFixed(2)}`;
+    ? formatCurrency(gatewayData.cacheSavingsUsd, { decimals: 4 })
+    : formatCurrency(data.cacheSavingsUsd, { decimals: 2 });
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
@@ -71,7 +73,7 @@ export function StatCardsBar({ telemetry: externalTelemetry, isLoading: external
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#DFB277] mt-1" /> : spendFormatted}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono mt-1">
-            <span>{isLive ? "Nanodollar Precision ($1 = 10⁹ nanos)" : "Incurred Gateway Spend"}</span>
+            <span>{isLive ? `Nanodollar Precision (${symbol}1 = 10⁹ nanos)` : "Incurred Gateway Spend"}</span>
           </div>
         </div>
 

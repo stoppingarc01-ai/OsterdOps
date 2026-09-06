@@ -53,6 +53,28 @@ export function extractAuthToken(request: Request): string | null {
  * Verifies a Firebase ID token and returns the decoded token.
  */
 export async function verifyUserToken(idToken: string): Promise<DecodedIdToken | null> {
+  // Local development / fallback simulation for dev tokens
+  if (process.env.NODE_ENV !== "production" && idToken.startsWith("dev_token_")) {
+    const parts = idToken.split(":");
+    const provider = parts[1] || "google";
+    const uid = parts[2] || `dev_${provider}_user`;
+    const email = parts[3] || (provider === "microsoft" ? "naveen.azure@microsoft.osterdops.internal" : "naveen.google@osterdops.internal");
+    const name = provider === "microsoft" ? "Microsoft Azure Lead" : "Google Workspace Lead";
+    return {
+      uid,
+      email,
+      name,
+      picture: "",
+      aud: "osterdops",
+      auth_time: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 86400 * 30,
+      firebase: { identities: {}, sign_in_provider: provider },
+      iat: Math.floor(Date.now() / 1000),
+      iss: "https://securetoken.google.com/osterdops",
+      sub: uid,
+    } as unknown as DecodedIdToken;
+  }
+
   try {
     const adminAuth = getAdminAuth();
     // Only check revocation when service account credentials are provided.

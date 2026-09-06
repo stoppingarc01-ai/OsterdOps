@@ -20,6 +20,7 @@ export function getSecurityHeaders(config: SecurityHeadersConfig = {}): Record<s
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https: blob:",
     "connect-src 'self' https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com",
+    "frame-src 'self' https://osterdops.firebaseapp.com https://*.firebaseapp.com https://*.google.com https://www.google.com https://login.microsoftonline.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -31,7 +32,7 @@ export function getSecurityHeaders(config: SecurityHeadersConfig = {}): Record<s
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     "Cross-Origin-Resource-Policy": "same-origin",
     "X-XSS-Protection": "1; mode=block",
   };

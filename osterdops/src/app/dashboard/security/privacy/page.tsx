@@ -77,7 +77,7 @@ export default function PrivacyPage() {
                 <div className="p-3 rounded-lg bg-[#111422] border border-[#1d2136] space-y-1">
                   <div className="text-[10px] font-bold text-[#73788c] uppercase">AUDIT LOGS</div>
                   <div className="text-sm font-bold text-[#dfba82]">1,095 Days (3 Yrs)</div>
-                  <div className="text-[11px] text-[#8e93a6]">SOC 2 compliance window</div>
+                  <div className="text-[11px] text-[#8e93a6]">Immutable ledger retention</div>
                 </div>
                 <div className="p-3 rounded-lg bg-[#111422] border border-[#1d2136] space-y-1">
                   <div className="text-[10px] font-bold text-[#73788c] uppercase">OPERATIONAL LOGS</div>

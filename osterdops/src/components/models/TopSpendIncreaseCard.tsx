@@ -2,12 +2,14 @@
 
 import React from "react";
 import { TrendingUp } from "lucide-react";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export function TopSpendIncreaseCard() {
+  const { formatCurrency } = useCurrency();
   const items = [
-    { rank: 1, name: "GPT-4o", increase: "+ $1,245.32", pct: "(15.6%)" },
-    { rank: 2, name: "Gemini 1.5 Flash", increase: "+ $52.11", pct: "(6.4%)" },
-    { rank: 3, name: "Claude 3.5 Sonnet", increase: "+ $210.43", pct: "(4.2%)" },
+    { rank: 1, name: "GPT-4o", usd: 1245.32, pct: "(15.6%)" },
+    { rank: 2, name: "Gemini 1.5 Flash", usd: 52.11, pct: "(6.4%)" },
+    { rank: 3, name: "Claude 3.5 Sonnet", usd: 210.43, pct: "(4.2%)" },
   ];
 
   return (
@@ -32,7 +34,7 @@ export function TopSpendIncreaseCard() {
 
             <div className="flex items-center gap-1.5 text-xs font-mono text-[#dfba82] font-bold">
               <TrendingUp className="w-3 h-3 text-[#dfba82]" />
-              <span>{item.increase}</span>
+              <span>+ {formatCurrency(item.usd)}</span>
               <span className="text-[10px] text-[#73788c] font-normal">{item.pct}</span>
             </div>
           </div>

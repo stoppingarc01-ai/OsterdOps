@@ -1,22 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Building, ShieldCheck, Lock, Upload } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency, ALL_CURRENCIES, type CurrencyCode } from "@/context/CurrencyContext";
 
 export function GeneralSettingsCard() {
   const { currentOrg, user } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const [orgName, setOrgName] = useState(currentOrg?.name || "");
   const [slug, setSlug] = useState(currentOrg?.slug || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [currency, setCurrency] = useState("USD ($)");
   const [timezone, setTimezone] = useState("America/Los_Angeles (UTC-07:00)");
   const [retention, setRetention] = useState("90");
   const [piiScrubbing, setPiiScrubbing] = useState(true);
   const [ipAnonymization, setIpAnonymization] = useState(true);
 
+  const prevOrgIdRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (currentOrg) {
+    if (currentOrg && currentOrg.id !== prevOrgIdRef.current) {
+      prevOrgIdRef.current = currentOrg.id;
       setOrgName(currentOrg.name || "");
       setSlug(currentOrg.slug || "");
     }
@@ -100,13 +104,14 @@ export function GeneralSettingsCard() {
             </label>
             <select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
               className="w-full bg-[#131624] border border-[#23273a] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
             >
-              <option value="USD ($)">USD ($) - US Dollar</option>
-              <option value="EUR (€)">EUR (€) - Euro</option>
-              <option value="GBP (£)">GBP (£) - British Pound</option>
-              <option value="JPY (¥)">JPY (¥) - Japanese Yen</option>
+              {ALL_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.code} ({c.symbol}) — {c.name}
+                </option>
+              ))}
             </select>
           </div>
 

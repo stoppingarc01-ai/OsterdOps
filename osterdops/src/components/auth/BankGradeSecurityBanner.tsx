@@ -5,9 +5,9 @@ import { ShieldCheck, Check } from "lucide-react";
 
 export function BankGradeSecurityBanner() {
   const securityPoints = [
-    "SOC 2 Type II Certified",
-    "256-bit End-to-End Encryption",
-    "Regular Security Audits",
+    "AES-256 GCM Key Encryption",
+    "Zero Prompt Retention (ZDR)",
+    "SHA-256 Hashed Proxies",
   ];
 
   return (

@@ -22,6 +22,12 @@ export async function GET(request: Request) {
       return authResult.errorResponse;
     }
 
+    const { getOrganizationEntitlements } = await import("@/lib/services/subscription");
+    const entitlements = await getOrganizationEntitlements(orgId);
+    if (!entitlements.canExportAuditLogs) {
+      return ApiErrors.forbidden("Data and audit log exports require a Pro or Enterprise subscription. Upgrade to Pro to unlock.");
+    }
+
     const manifest = await generatePrivacyExport(orgId, authResult.user.uid);
     return apiSuccess(manifest);
   } catch (err: unknown) {

@@ -62,6 +62,9 @@ export function getProviderDisplayName(provider: string): string {
       return "Mistral AI";
     case "cohere":
       return "Cohere";
+    case "qwen":
+    case "alibaba":
+      return "Alibaba Qwen";
     case "moonshot":
     case "kimi":
       return "Moonshot / Kimi";
@@ -83,6 +86,7 @@ export function normalizeCatalogProvider(provider: string): string {
   const p = provider.toLowerCase();
   if (p === "google") return "gemini";
   if (p === "kimi") return "moonshot";
+  if (p === "alibaba") return "qwen";
   return p;
 }
 
@@ -126,12 +130,28 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   "text-embedding-3-large": "High-dimensional vector embeddings for enterprise semantic search and RAG.",
   "text-embedding-3-small": "Cost-effective 1536-dimensional embeddings optimized for high-volume retrieval.",
 
-  // Anthropic
+  // Anthropic Claude Key Models
+  "claude-5-opus": "Frontier autonomous intelligence and deep multi-step agent reasoning flagship with 500k context.",
+  "claude-5-sonnet": "High-intelligence agent workhorse built for software engineering and complex reasoning.",
+  "claude-5-fable": "Expressive narrative and creative intelligence engine with literary fluency and high velocity.",
+  "claude-3-7-sonnet-20250219": "Anthropic's hybrid reasoning flagship combining instantaneous execution with extended thinking.",
+  "claude-3-7-sonnet": "Anthropic Claude 3.7 Sonnet hybrid reasoning model with dynamic thinking budget.",
   "claude-3-5-sonnet-20241022": "Industry benchmark for intelligent coding, nuanced analysis, and computer use.",
   "claude-3-5-haiku-20241022": "Ultra-fast, near-instant intelligent model for high-velocity customer support.",
   "claude-3-opus-20240229": "Deep analytical intelligence and complex document synthesis for executive research.",
 
-  // Google Gemini
+  // Google Gemini Core Intelligence
+  "gemini-3.8-flash": "Frontier Google Gemini 3.8 Flash multimodal model with extreme velocity and reasoning capabilities.",
+  "gemini-3.7-flash": "Google Gemini 3.7 Flash hybrid reasoning and multimodal flagship for advanced agent loops.",
+  "gemini-3.6-flash": "Google Gemini 3.6 Flash high-efficiency reasoning model with native tool execution.",
+  "gemini-3.5-flash": "Google Gemini 3.5 Flash core multimodal intelligence workhorse with 1M token context.",
+  "gemini-3.5-flash-lite": "Google Gemini 3.5 Flash Lite sub-second ultra-high-throughput enterprise model ($0.075/1M).",
+  "gemini-3.1-pro-preview": "Google Gemini 3.1 Pro Preview with deep reasoning and massive 2M token context window.",
+  "gemini-3.1-flash-lite": "Google Gemini 3.1 Flash Lite lightweight high-concurrency utility model.",
+  "gemini-3-flash-preview": "Google Gemini 3 Flash Preview core intelligence model for next-generation AI workflows.",
+  "gemini-flash-latest": "Latest generation Google Gemini Flash production model automatically tracking cutting-edge improvements.",
+  "gemini-flash-lite-latest": "Latest generation Google Gemini Flash Lite high-throughput model.",
+  "gemini-pro-latest": "Latest generation Google Gemini Pro deep intelligence model with 2M context.",
   "gemini-2.0-flash-exp": "Next-gen multimodal workhorse with breakthrough latency and native tool use.",
   "gemini-2.0-flash-thinking-exp": "Chain-of-thought thinking model displaying internal reasoning before output.",
   "gemini-1.5-pro": "Massive 2M token context window for full-repository parsing and video analysis.",
@@ -175,14 +195,43 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   "moonshot-v1-32k": "Balanced 32k context model optimized for Chinese and multilingual comprehension.",
   "moonshot-v1-8k": "High-velocity conversational model for customer interactions and live chatbots.",
   "kimi-k1.5": "Multimodal reasoning and long-context processing engine from Moonshot AI.",
+
+  // Alibaba Qwen (Qwen 2.5 & Qwen 2 Series)
+  "qwen-max": "Alibaba Qwen 2.5 Max frontier reasoning flagship for complex enterprise agent workflows.",
+  "qwen-plus": "Alibaba Qwen 2.5 Plus balanced high-speed intelligence and agent execution with 131k context.",
+  "qwen-turbo": "Alibaba Qwen 2.5 Turbo ultra-fast sub-second model with 1M token context window ($0.05/1M).",
+  "qwen2.5-72b-instruct": "Qwen 2.5 72B Instruct state-of-the-art open weights flagship exceeding LLaMA 3.1 70B.",
+  "qwen2.5-32b-instruct": "Qwen 2.5 32B Instruct dense model offering near-70B capabilities at half the latency.",
+  "qwen2.5-14b-instruct": "Qwen 2.5 14B Instruct balanced model optimized for fast on-prem and cloud deployment.",
+  "qwen2.5-7b-instruct": "Qwen 2.5 7B Instruct lightweight, low-latency utility model with 128k context support.",
+  "qwen2.5-coder-32b-instruct": "Qwen 2.5 Coder 32B specialized coding model matching GPT-4o on code generation and repo reasoning.",
+  "qwen2.5-coder-7b-instruct": "Qwen 2.5 Coder 7B high-velocity code autocomplete and syntax analyzer.",
+  "qwen2.5-math-72b-instruct": "Qwen 2.5 Math 72B advanced mathematical chain-of-thought solver and scientific theorem prover.",
+  "qwen2.5-math-7b-instruct": "Qwen 2.5 Math 7B rapid mathematical deduction model for equations and logic problems.",
+  "qwen2.5-vl-72b-instruct": "Qwen 2.5 VL 72B flagship multimodal vision-language model for multi-image, video parsing, and document OCR.",
+  "qwen2.5-vl-7b-instruct": "Qwen 2.5 VL 7B lightweight multimodal perception and image reasoning model.",
+  "qwen2-72b-instruct": "Qwen 2 72B Instruct foundation open weights model.",
+  "qwen2-57b-a14b-instruct": "Qwen 2 57B A14B MoE architecture activating 14B parameters for high compute efficiency.",
+  "qwen2-7b-instruct": "Qwen 2 7B Instruct baseline model.",
+  "qwen2-vl-72b-instruct": "Qwen 2 VL 72B multimodal vision model with high-resolution visual grounding.",
+  "qwen2-vl-7b-instruct": "Qwen 2 VL 7B lightweight multimodal vision model.",
 };
 
 const POPULAR_MODEL_IDS = new Set([
   "gpt-4o",
   "gpt-4o-mini",
   "o1",
+  "claude-5-opus",
+  "claude-5-sonnet",
+  "claude-5-fable",
+  "claude-3-7-sonnet",
   "claude-3-5-sonnet-20241022",
-  "gemini-2.0-flash-exp",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.1-pro-preview",
+  "gemini-flash-latest",
   "deepseek-chat",
   "deepseek-reasoner",
   "grok-2",
@@ -191,6 +240,12 @@ const POPULAR_MODEL_IDS = new Set([
   "mistral-large-2411",
   "command-r-plus-08-2024",
   "moonshot-v1-128k",
+  "qwen-max",
+  "qwen-plus",
+  "qwen-turbo",
+  "qwen2.5-72b-instruct",
+  "qwen2.5-coder-32b-instruct",
+  "qwen2.5-vl-72b-instruct",
 ]);
 
 /**

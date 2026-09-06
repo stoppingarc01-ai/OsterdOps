@@ -94,6 +94,9 @@ export class OpenAIAdapter implements AIProviderAdapter {
     if (prov === "cohere" || mdl.startsWith("command") || mdl.startsWith("embed-")) {
       return "https://api.cohere.com/v2";
     }
+    if (prov === "qwen" || prov === "alibaba" || mdl.startsWith("qwen") || mdl.startsWith("dashscope")) {
+      return "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+    }
     return "https://api.openai.com/v1";
   }
 
@@ -103,7 +106,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
   async validateCredentials(
     credentials: ProviderCredentials
   ): Promise<{ valid: boolean; error?: string }> {
-    if (!credentials.apiKey || typeof credentials.apiKey !== "string") {
+    if (!credentials.apiKey || typeof credentials.apiKey !== "string" || !credentials.apiKey.trim()) {
       return { valid: false, error: "API key is required" };
     }
 
@@ -117,7 +120,7 @@ export class OpenAIAdapter implements AIProviderAdapter {
       const res = await fetch(url, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${credentials.apiKey}`,
+          Authorization: `Bearer ${credentials.apiKey.trim()}`,
         },
         signal: controller.signal,
       }).finally(() => clearTimeout(timer));
@@ -128,6 +131,14 @@ export class OpenAIAdapter implements AIProviderAdapter {
 
       if (res.status === 401 || res.status === 403) {
         return { valid: false, error: "INVALID_CREDENTIALS: Invalid API key." };
+      }
+
+      if (res.status === 400) {
+        const errBody = await res.json().catch(() => null);
+        const errStr = JSON.stringify(errBody || "").toLowerCase();
+        if (errStr.includes("key") || errStr.includes("auth") || errStr.includes("credential") || errStr.includes("bearer")) {
+          return { valid: false, error: "INVALID_CREDENTIALS: Invalid API key." };
+        }
       }
 
       if (res.status === 429) {

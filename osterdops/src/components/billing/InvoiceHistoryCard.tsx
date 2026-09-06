@@ -112,8 +112,9 @@ export function InvoiceHistoryCard() {
                   <td className="py-3 text-right">
                     <button
                       type="button"
+                      onClick={() => window.open(`/api/v1/invoices/${inv.id}/download`, "_blank")}
                       className="p-1.5 rounded-lg bg-[#141724] border border-[#232738] hover:border-[#dfba82]/40 text-[#c5c9d6] hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
-                      title="Download PDF Invoice"
+                      title={`Download PDF Invoice ${inv.id}`}
                     >
                       <Download className="w-3 h-3 text-[#dfba82]" />
                       <span className="text-[10.5px]">PDF</span>

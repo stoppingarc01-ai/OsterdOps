@@ -2,14 +2,16 @@
 
 import React from "react";
 import { ArrowRight } from "lucide-react";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export function ModelsSpendByProviderCard() {
+  const { formatCurrency } = useCurrency();
   const items = [
-    { name: "OpenAI", spend: "$19,932.43", pct: "(47.1%)", color: "#dfba82" },
-    { name: "Anthropic", spend: "$11,265.97", pct: "(26.6%)", color: "#b8860b" },
-    { name: "Google", spend: "$7,578.64", pct: "(17.9%)", color: "#3b82f6" },
-    { name: "AWS Bedrock", spend: "$2,145.67", pct: "(5.1%)", color: "#f59e0b" },
-    { name: "Others", spend: "$1,405.93", pct: "(3.3%)", color: "#9da1b2" },
+    { name: "OpenAI", usd: 19932.43, pct: "(47.1%)", color: "#dfba82" },
+    { name: "Anthropic", usd: 11265.97, pct: "(26.6%)", color: "#b8860b" },
+    { name: "Google", usd: 7578.64, pct: "(17.9%)", color: "#3b82f6" },
+    { name: "AWS Bedrock", usd: 2145.67, pct: "(5.1%)", color: "#f59e0b" },
+    { name: "Others", usd: 1405.93, pct: "(3.3%)", color: "#9da1b2" },
   ];
 
   return (
@@ -79,8 +81,8 @@ export function ModelsSpendByProviderCard() {
 
           {/* Center Text overlay */}
           <div className="absolute text-center">
-            <div className="text-[13px] font-bold text-white leading-none">
-              $42,328.64
+            <div className="text-[12.5px] font-bold text-white leading-none font-mono">
+              {formatCurrency(42328.64)}
             </div>
             <div className="text-[9.5px] text-[#73788c] mt-0.5 font-medium">Total Spend</div>
           </div>
@@ -100,7 +102,7 @@ export function ModelsSpendByProviderCard() {
                 </span>
               </div>
               <div className="flex items-center gap-1 font-mono">
-                <span className="text-white font-semibold text-[11.5px]">{item.spend}</span>
+                <span className="text-white font-semibold text-[11.5px]">{formatCurrency(item.usd)}</span>
                 <span className="text-[10px] text-[#73788c]">{item.pct}</span>
               </div>
             </div>

@@ -14,6 +14,7 @@ export interface SyncUserData {
   displayName?: string;
   photoURL?: string;
   defaultOrgId?: string;
+  hasCompletedOnboarding?: boolean;
 }
 
 // In-memory simulated storage for local development (persisted across HMR on globalThis)
@@ -35,6 +36,7 @@ function syncSimulatedUser(uid: string, data: SyncUserData): User {
       name: data.displayName || data.email.split("@")[0] || "User",
       avatarUrl: data.photoURL || "",
       role: "member",
+      hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
       subscription: {
         status: "trialing",
         trialStartsAt,
@@ -61,6 +63,7 @@ function syncSimulatedUser(uid: string, data: SyncUserData): User {
     ...existing,
     name: data.displayName || existing.name,
     avatarUrl: data.photoURL !== undefined ? data.photoURL : existing.avatarUrl,
+    hasCompletedOnboarding: data.hasCompletedOnboarding !== undefined ? data.hasCompletedOnboarding : (existing.hasCompletedOnboarding ?? false),
     subscription: existingSubscription,
     updatedAt: now,
   };
@@ -108,6 +111,7 @@ export async function syncUserRecord(
         photoURL: data.photoURL || "",
         avatarUrl: data.photoURL || "",
         defaultOrgId: data.defaultOrgId || "",
+        hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
         role: "member" as const,
         subscription: initialSubscription,
         createdAt: now,
@@ -117,6 +121,7 @@ export async function syncUserRecord(
       return {
         ...newUser,
         subscription: initialSubscription,
+        hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -136,6 +141,9 @@ export async function syncUserRecord(
     }
     if (data.defaultOrgId && data.defaultOrgId !== existing?.defaultOrgId) {
       updates.defaultOrgId = data.defaultOrgId;
+    }
+    if (data.hasCompletedOnboarding !== undefined) {
+      updates.hasCompletedOnboarding = data.hasCompletedOnboarding;
     }
 
     if (!existing?.subscription) {
@@ -158,6 +166,7 @@ export async function syncUserRecord(
       email: existing?.email || data.email,
       avatarUrl: (updates.photoURL as string) || existing?.photoURL || existing?.avatarUrl,
       role: existing?.role || "member",
+      hasCompletedOnboarding: updates.hasCompletedOnboarding !== undefined ? Boolean(updates.hasCompletedOnboarding) : Boolean(existing?.hasCompletedOnboarding),
       subscription: (updates.subscription as User["subscription"]) || existing?.subscription || {
         status: "trialing",
         trialStartsAt: new Date().toISOString(),
@@ -192,6 +201,7 @@ export async function getUserById(uid: string): Promise<User | null> {
       email: data?.email || "",
       avatarUrl: data?.photoURL || data?.avatarUrl,
       role: data?.role || "member",
+      hasCompletedOnboarding: Boolean(data?.hasCompletedOnboarding),
       subscription: data?.subscription || undefined,
       createdAt: data?.createdAt?.toDate?.()?.toISOString() || "",
       updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || "",
@@ -199,5 +209,107 @@ export async function getUserById(uid: string): Promise<User | null> {
   } catch (err) {
     console.warn("[OsterdOps User] Firestore unavailable, using simulated store:", (err as Error).message);
     return simulatedUsers.get(uid) || null;
+  }
+}
+
+/**
+ * Marks onboarding as completed and initializes/verifies the 7-day trial subscription.
+ */
+export async function markUserOnboarded(uid: string): Promise<User> {
+  const adminConfig = getFirebaseAdminConfig();
+  const now = new Date().toISOString();
+
+  if (!adminConfig) {
+    const user = simulatedUsers.get(uid);
+    const trialStartsAt = user?.subscription?.trialStartsAt || now;
+    const trialEndsAt = user?.subscription?.trialEndsAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const updated: User = {
+      ...(user || {
+        id: uid,
+        email: `${uid}@osterdops.io`,
+        name: "User",
+        role: "member",
+        createdAt: now,
+      }),
+      hasCompletedOnboarding: true,
+      subscription: {
+        status: "trialing",
+        trialStartsAt,
+        trialEndsAt,
+        planId: "trial-7d",
+        isActive: true,
+      },
+      updatedAt: now,
+    };
+    simulatedUsers.set(uid, updated);
+    return updated;
+  }
+
+  try {
+    const db = getAdminFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const snap = await userRef.get();
+
+    const trialStartsAt = snap.data()?.subscription?.trialStartsAt || now;
+    const trialEndsAt = snap.data()?.subscription?.trialEndsAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const subscription = {
+      status: "trialing" as const,
+      trialStartsAt,
+      trialEndsAt,
+      planId: "trial-7d",
+      isActive: true,
+    };
+
+    const updates = {
+      hasCompletedOnboarding: true,
+      subscription,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (snap.exists) {
+      await userRef.update(updates);
+    } else {
+      await userRef.set({
+        id: uid,
+        uid,
+        email: `${uid}@osterdops.io`,
+        name: "Workspace Lead",
+        role: "member",
+        ...updates,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    const updated = await getUserById(uid);
+    if (!updated) {
+      throw new Error(`Failed to retrieve user ${uid} after marking onboarded.`);
+    }
+    return updated;
+  } catch (err) {
+    console.warn("[OsterdOps User] markUserOnboarded Firestore fallback:", (err as Error).message);
+    const user = simulatedUsers.get(uid);
+    const trialStartsAt = user?.subscription?.trialStartsAt || now;
+    const trialEndsAt = user?.subscription?.trialEndsAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const fallback: User = {
+      ...(user || {
+        id: uid,
+        email: `${uid}@osterdops.io`,
+        name: "User",
+        role: "member",
+        createdAt: now,
+      }),
+      hasCompletedOnboarding: true,
+      subscription: {
+        status: "trialing",
+        trialStartsAt,
+        trialEndsAt,
+        planId: "trial-7d",
+        isActive: true,
+      },
+      updatedAt: now,
+    };
+    simulatedUsers.set(uid, fallback);
+    return fallback;
   }
 }

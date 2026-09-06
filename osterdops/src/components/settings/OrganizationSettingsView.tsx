@@ -22,10 +22,12 @@ import { ManageIntegrationModal, IntegrationItem } from "./ManageIntegrationModa
 import { AddIntegrationModal } from "./AddIntegrationModal";
 import { useThemeCustomizer } from "@/context/ThemeCustomizerContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency, ALL_CURRENCIES, type CurrencyCode } from "@/context/CurrencyContext";
 import { apiRequest } from "@/lib/api/client";
 
 export function OrganizationSettingsView() {
   const { currentOrg, user, getIdToken } = useAuth();
+  const { currency, setCurrency, formatCurrency } = useCurrency();
 
   // Organization State
   const [orgData, setOrgData] = useState({
@@ -39,7 +41,6 @@ export function OrganizationSettingsView() {
   });
 
   // Preferences State
-  const [currency, setCurrency] = useState("USD ($)");
   const [timezone, setTimezone] = useState("(GMT+05:30) Asia/Kolkata");
   const [dateFormat, setDateFormat] = useState("May 16, 2025");
   const [numberFormat, setNumberFormat] = useState("1,234.56");
@@ -77,7 +78,7 @@ export function OrganizationSettingsView() {
 
         const memberCount = Array.isArray(membersRes.data) ? membersRes.data.length : 1;
         const projectCount = Array.isArray(projectsRes.data) ? projectsRes.data.length : 0;
-        const spend = analyticsRes.data?.kpis?.totalSpendUsd != null ? `$${analyticsRes.data.kpis.totalSpendUsd.toFixed(2)}` : "$0.00";
+        const spend = analyticsRes.data?.kpis?.totalSpendUsd != null ? formatCurrency(analyticsRes.data.kpis.totalSpendUsd) : formatCurrency(0);
 
         setOrgData({
           name: currentOrg.name || "Workspace",
@@ -240,14 +241,14 @@ export function OrganizationSettingsView() {
               <div className="relative">
                 <select
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                   className="appearance-none bg-[#121522] border border-[#23273a] hover:border-[#dfba82]/40 rounded-xl px-3.5 py-2 pr-8 text-xs text-white focus:outline-none cursor-pointer min-w-[130px]"
                 >
-                  <option value="USD ($)">USD ($)</option>
-                  <option value="EUR (€)">EUR (€)</option>
-                  <option value="GBP (£)">GBP (£)</option>
-                  <option value="INR (₹)">INR (₹)</option>
-                  <option value="JPY (¥)">JPY (¥)</option>
+                  {ALL_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.code} ({c.symbol})
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-[#787d91] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>

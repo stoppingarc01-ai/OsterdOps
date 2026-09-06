@@ -25,6 +25,8 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
   xai: new OpenAIAdapter(),
   perplexity: new OpenAIAdapter(),
   cohere: new OpenAIAdapter(),
+  qwen: new OpenAIAdapter(),
+  alibaba: new OpenAIAdapter(),
   custom: new OpenAIAdapter(),
 };
 
@@ -32,8 +34,9 @@ const adapterInstances: Record<AIProvider, AIProviderAdapter> = {
  * Returns the adapter singleton for a given AI provider.
  */
 export function getProviderAdapter(provider: string): AIProviderAdapter {
-  const normalized = (provider || "").trim().toLowerCase() as AIProvider;
-  const adapter = adapterInstances[normalized];
+  let normalized = (provider || "").trim().toLowerCase();
+  if (normalized === "google") normalized = "gemini";
+  const adapter = adapterInstances[normalized as AIProvider];
   if (!adapter) {
     throw new Error(`Unsupported AI provider: '${provider}'`);
   }
@@ -44,7 +47,8 @@ export function getProviderAdapter(provider: string): AIProviderAdapter {
  * Checks if a provider identifier is supported by the registry.
  */
 export function isSupportedProvider(provider: string): provider is AIProvider {
-  const normalized = (provider || "").trim().toLowerCase() as AIProvider;
+  let normalized = (provider || "").trim().toLowerCase();
+  if (normalized === "google") normalized = "gemini";
   return normalized in adapterInstances;
 }
 
@@ -54,7 +58,13 @@ export function isSupportedProvider(provider: string): provider is AIProvider {
 export function resolveProviderFromModel(modelName: string): AIProvider {
   const normalized = modelName.trim().toLowerCase();
 
-  if (normalized.startsWith("claude")) {
+  if (
+    normalized.startsWith("claude") ||
+    normalized.startsWith("sonnet") ||
+    normalized.startsWith("opus") ||
+    normalized.startsWith("fable") ||
+    normalized.startsWith("haiku")
+  ) {
     return "anthropic";
   }
 
@@ -119,6 +129,10 @@ export function resolveProviderFromModel(modelName: string): AIProvider {
 
   if (normalized.startsWith("llama") || normalized.startsWith("meta")) {
     return "meta";
+  }
+
+  if (normalized.startsWith("qwen") || normalized.startsWith("dashscope")) {
+    return "qwen";
   }
 
   // Default to OpenAI protocol for unknown / custom fine-tuned models

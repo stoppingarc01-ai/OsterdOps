@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
   const statusCodeEntries = Object.entries(data.byStatusCode || {});
 
   return (
-    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080808] text-slate-900 dark:text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">

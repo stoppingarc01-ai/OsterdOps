@@ -33,7 +33,11 @@ export function testSecurityHeaders() {
   }
 
   // 6. Cross-Origin policies
-  if (prodHeaders["Cross-Origin-Opener-Policy"] !== "same-origin" || prodHeaders["Cross-Origin-Resource-Policy"] !== "same-origin") {
+  if (
+    (prodHeaders["Cross-Origin-Opener-Policy"] !== "same-origin" &&
+      prodHeaders["Cross-Origin-Opener-Policy"] !== "same-origin-allow-popups") ||
+    prodHeaders["Cross-Origin-Resource-Policy"] !== "same-origin"
+  ) {
     throw new Error("Cross-Origin isolation headers missing.");
   }
 }

@@ -27,22 +27,26 @@ import { SubscriptionPaywallModal } from "@/components/billing/SubscriptionPaywa
 import { useAuth } from "@/context/AuthContext";
 import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { useDemoMode } from "@/hooks/useDemoMode";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, userProfile, currentOrg, refreshUser } = useAuth();
   const subscriptionAccess = useSubscriptionAccess();
-  const displayName = userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Lead");
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode
+    ? "Demo Explorer"
+    : (userProfile?.name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Workspace Lead"));
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isQuickstartOpen, setIsQuickstartOpen] = useState(false);
 
-  // Prompt plan selection if current workspace has no planTier set
+  // Prompt plan selection if current workspace has no planTier set and not in demo mode
   React.useEffect(() => {
-    if (currentOrg && !currentOrg.planTier && !subscriptionAccess.isExpired) {
+    if (!isDemoMode && currentOrg && !currentOrg.planTier && !subscriptionAccess.isExpired) {
       setIsPlanModalOpen(true);
     }
-  }, [currentOrg, subscriptionAccess.isExpired]);
+  }, [currentOrg, subscriptionAccess.isExpired, isDemoMode]);
 
   // Global Real-Time Telemetry Pipeline
   const { data: telemetry, isLoading, refetch, lastUpdated } = useLiveTelemetry({
@@ -59,7 +63,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080808] text-slate-900 dark:text-neutral-200 flex flex-col selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans relative overflow-x-hidden">
       {/* Top Live Ticker Bar */}
       <LiveTickerBar />
 
@@ -173,8 +177,16 @@ export default function DashboardPage() {
 
       {/* Subscription Paywall Modal for Expired Trial Accounts */}
       <SubscriptionPaywallModal
-        isOpen={subscriptionAccess.isExpired || !subscriptionAccess.hasAccess}
+        isOpen={!isDemoMode && (subscriptionAccess.isExpired || !subscriptionAccess.hasAccess)}
       />
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-[#080808] flex items-center justify-center text-neutral-500 font-mono text-xs">Loading OsterdOps Dashboard...</div>}>
+      <DashboardContent />
+    </React.Suspense>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { LineChart, Loader2 } from "lucide-react";
 import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
+import { useCurrency } from "@/context/CurrencyContext";
 
 interface AISpendChartCardProps {
   telemetry?: LiveTelemetryData;
@@ -11,6 +12,7 @@ interface AISpendChartCardProps {
 
 export function AISpendChartCard({ telemetry: externalTelemetry, isLoading: externalLoading }: AISpendChartCardProps) {
   const internalHook = useLiveTelemetry();
+  const { formatCurrency } = useCurrency();
   const data = externalTelemetry || internalHook.data;
   const loading = externalLoading !== undefined ? externalLoading : internalHook.isLoading;
 
@@ -26,7 +28,7 @@ export function AISpendChartCard({ telemetry: externalTelemetry, isLoading: exte
   };
 
   const formatValue = (val: number) => {
-    if (activeTab === "Spend") return `$${val.toFixed(2)}`;
+    if (activeTab === "Spend") return formatCurrency(val, { decimals: 2 });
     if (activeTab === "Tokens") return val >= 1_000_000 ? `${(val / 1_000_000).toFixed(2)}M` : val.toLocaleString();
     return val.toLocaleString();
   };

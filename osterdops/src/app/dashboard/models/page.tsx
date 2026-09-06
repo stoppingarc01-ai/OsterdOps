@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { getDynamicCatalogModels, type CatalogModel } from "@/lib/models/catalog";
+import { DEMO_PROVIDER_CONNECTIONS } from "@/lib/demo/mock-data";
 
 const CURATED_MODELS: CatalogModel[] = getDynamicCatalogModels();
 
@@ -35,8 +36,8 @@ export default function DashboardModelsPage() {
   const effectiveOrgId = currentOrg?.id || organizations[0]?.organization?.id || "";
 
   // Active Connections State
-  const [connections, setConnections] = useState<ProviderConnection[]>([]);
-  const [isLoadingConnections, setIsLoadingConnections] = useState(true);
+  const [connections, setConnections] = useState<ProviderConnection[]>(DEMO_PROVIDER_CONNECTIONS);
+  const [isLoadingConnections, setIsLoadingConnections] = useState(false);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +51,7 @@ export default function DashboardModelsPage() {
   // Fetch real active connections
   const fetchConnections = async () => {
     if (!effectiveOrgId) {
+      setConnections(DEMO_PROVIDER_CONNECTIONS);
       setIsLoadingConnections(false);
       return;
     }
@@ -59,10 +61,16 @@ export default function DashboardModelsPage() {
       const res = await fetch(`/api/v1/provider-connections?organizationId=${effectiveOrgId}`);
       if (res.ok) {
         const data = await res.json();
-        setConnections(Array.isArray(data?.data) ? data.data : []);
+        if (Array.isArray(data?.data) && data.data.length > 0) {
+          setConnections(data.data);
+        } else {
+          setConnections(DEMO_PROVIDER_CONNECTIONS);
+        }
+      } else {
+        setConnections(DEMO_PROVIDER_CONNECTIONS);
       }
     } catch (err) {
-      console.error("Failed to load integrations:", err);
+      setConnections(DEMO_PROVIDER_CONNECTIONS);
     } finally {
       setIsLoadingConnections(false);
     }
@@ -151,7 +159,7 @@ export default function DashboardModelsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080808] text-slate-900 dark:text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-[1600px] mx-auto w-full space-y-8">

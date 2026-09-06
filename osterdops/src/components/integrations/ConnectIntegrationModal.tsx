@@ -57,6 +57,31 @@ export function ConnectIntegrationModal({
 
       const normalizedProvider = PROVIDER_MAP[provider] || provider.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+      // 1. Enforce live upstream validation probe before persistence
+      const valRes = await fetch("/api/v1/provider-connections/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          provider: normalizedProvider,
+          apiKey: apiKey.trim(),
+          customBaseUrl: customBaseUrl.trim() || undefined,
+        }),
+      });
+
+      const valData = await valRes.json().catch(() => ({}));
+      if (!valRes.ok || !valData?.success || !valData?.data?.valid) {
+        const errorMsg =
+          valData?.error?.message ||
+          valData?.data?.error ||
+          valData?.data?.message ||
+          "Upstream authentication failed: Invalid API key.";
+        throw new Error(errorMsg);
+      }
+
+      // 2. Persist verified connection to Firestore
       const res = await fetch("/api/v1/provider-connections", {
         method: "POST",
         headers: {

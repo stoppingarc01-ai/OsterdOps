@@ -20,12 +20,12 @@ import {
 } from "lucide-react";
 
 const complianceBadges = [
-  { name: "SOC 2 Type II", status: "Verified" },
-  { name: "ISO 27001", status: "Certified" },
-  { name: "HIPAA Ready", status: "BAA Available" },
-  { name: "Zero Data Retention", status: "Guaranteed" },
-  { name: "GDPR & CCPA", status: "Compliant" },
-  { name: "FIPS 140-2", status: "Enforced" },
+  { name: "AES-256 GCM", status: "Hardware Vault" },
+  { name: "Zero Retention", status: "Guaranteed ZDR" },
+  { name: "SHA-256 Virtual Keys", status: "Salted & Hashed" },
+  { name: "Air-Gapped VPC", status: "K8s & Docker" },
+  { name: "TLS 1.3 Zero-RTT", status: "Enforced" },
+  { name: "Sub-10ms Gateway", status: "In-Memory Edge" },
 ];
 
 const samplePayloads = [
@@ -222,7 +222,7 @@ export function EnterpriseSecuritySection() {
 
             <div className="mt-4 pt-3 border-t border-[#161d2d] flex items-center gap-1.5 text-[11px] text-[#6b7280]">
               <Lock className="h-3.5 w-3.5 text-[#818cf8]" />
-              <span>Full compliance with strict EU Banking &amp; HIPAA ZDR standards.</span>
+              <span>Strict in-memory streaming with deterministic zero disk retention.</span>
             </div>
           </motion.div>
 

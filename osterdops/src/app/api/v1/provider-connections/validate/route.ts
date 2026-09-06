@@ -4,23 +4,21 @@
  * Zero-leakage verification against upstream provider endpoints.
  */
 
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/server";
 import { getProviderAdapter, isSupportedProvider } from "@/lib/adapters/registry";
 import { ApiErrors, apiSuccess } from "@/lib/api/response";
 
 export async function POST(request: Request) {
   try {
-    const authResult = await requireAuth(request);
-    if (authResult.errorResponse) {
-      return authResult.errorResponse;
-    }
-
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return ApiErrors.badRequest("Missing or invalid JSON request body.");
     }
 
-    const { provider, apiKey, customBaseUrl } = body;
+    const provider = body.provider || body.credentials?.provider;
+    const apiKey = body.apiKey || body.credentials?.apiKey;
+    const customBaseUrl = body.customBaseUrl || body.credentials?.baseUrl || body.credentials?.customBaseUrl;
 
     if (!provider || typeof provider !== "string") {
       return ApiErrors.badRequest("Field 'provider' is required.");
@@ -40,16 +38,39 @@ export async function POST(request: Request) {
       normalizedProvider === "custom" || normalizedProvider === "mistral" ? "openai" : normalizedProvider
     );
 
+    const startTime = performance.now();
     const validationResult = await adapter.validateCredentials({
+      provider: normalizedProvider,
       apiKey: apiKey.trim(),
       baseUrl: customBaseUrl ? String(customBaseUrl).trim() : undefined,
     });
+    const latencyMs = Math.max(1, Math.round(performance.now() - startTime));
+
+    if (!validationResult.valid) {
+      const errorMessage = validationResult.error || "Upstream authentication failed: Invalid API key";
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_CREDENTIALS",
+            message: errorMessage,
+          },
+          data: {
+            valid: false,
+            error: validationResult.error || "INVALID_CREDENTIALS",
+            message: errorMessage,
+            provider: normalizedProvider,
+            latencyMs,
+          },
+        },
+        { status: 400 }
+      );
+    }
 
     return apiSuccess({
-      valid: validationResult.valid,
-      error: validationResult.error,
+      valid: true,
       provider: normalizedProvider,
-      latencyMs: 140,
+      latencyMs,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to validate provider credentials.";

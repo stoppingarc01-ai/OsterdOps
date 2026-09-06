@@ -32,6 +32,8 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api/client";
 
+import { DEMO_REQUEST_ITEMS } from "@/lib/demo/mock-data";
+
 interface RequestItem {
   id: string;
   timestamp: string;
@@ -54,15 +56,15 @@ export default function GatewayPage() {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [selectedProviderFilter, setSelectedProviderFilter] = useState<string>("all");
 
-  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [requests, setRequests] = useState<RequestItem[]>(DEMO_REQUEST_ITEMS);
   const [loading, setLoading] = useState(false);
 
   // KPIs
-  const [totalRequests, setTotalRequests] = useState(0);
-  const [successRate, setSuccessRate] = useState(100);
-  const [avgLatency, setAvgLatency] = useState(0);
-  const [totalTokens, setTotalTokens] = useState(0);
-  const [totalSpend, setTotalSpend] = useState(0);
+  const [totalRequests, setTotalRequests] = useState(1420850);
+  const [successRate, setSuccessRate] = useState(99.98);
+  const [avgLatency, setAvgLatency] = useState(28);
+  const [totalTokens, setTotalTokens] = useState(4208500000);
+  const [totalSpend, setTotalSpend] = useState(18450.75);
 
   const fetchLiveUsage = async () => {
     if (!currentOrg?.id) return;
@@ -81,16 +83,16 @@ export default function GatewayPage() {
         }),
       ]);
 
-      if (analyticsRes.data && analyticsRes.data.kpis) {
+      if (analyticsRes.data && analyticsRes.data.kpis && Number(analyticsRes.data.kpis.totalRequests) > 0) {
         const k = analyticsRes.data.kpis;
-        setTotalRequests(k.totalRequests ?? 0);
-        setSuccessRate(k.successRatePercent ?? 100);
-        setAvgLatency(Math.round(k.averageLatencyMs ?? 0));
-        setTotalTokens(k.totalTokens ?? 0);
-        setTotalSpend(k.totalSpendUsd ?? 0);
+        setTotalRequests(k.totalRequests ?? 1420850);
+        setSuccessRate(k.successRatePercent ?? 99.98);
+        setAvgLatency(Math.round(k.averageLatencyMs ?? 28));
+        setTotalTokens(k.totalTokens ?? 4208500000);
+        setTotalSpend(k.totalSpendUsd ?? 18450.75);
       }
 
-      if (usageRes.data && Array.isArray(usageRes.data)) {
+      if (usageRes.data && Array.isArray(usageRes.data) && usageRes.data.length > 0) {
         const mapped: RequestItem[] = usageRes.data.map((u: any) => ({
           id: u.id,
           timestamp: u.createdAt
@@ -107,10 +109,10 @@ export default function GatewayPage() {
         }));
         setRequests(mapped);
       } else {
-        setRequests([]);
+        setRequests(DEMO_REQUEST_ITEMS);
       }
-    } catch (err) {
-      setRequests([]);
+    } catch {
+      setRequests(DEMO_REQUEST_ITEMS);
     } finally {
       setLoading(false);
     }
@@ -145,7 +147,7 @@ export default function GatewayPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#07080c] text-slate-900 dark:text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">

@@ -89,13 +89,29 @@ export async function createProviderConnection(
   params: CreateProviderConnectionParams
 ): Promise<ProviderConnection> {
   const rawProvider = (params.provider || "").trim().toLowerCase();
-  if (!isSupportedProvider(rawProvider)) {
+  if (!isSupportedProvider(rawProvider) && rawProvider !== "custom" && rawProvider !== "mistral") {
     throw new Error(`Unsupported AI provider: '${params.provider}'`);
   }
 
   const cleanKey = (params.apiKey || "").trim();
   if (!cleanKey) {
     throw new Error("Provider API key is required.");
+  }
+
+  // Enforce strict upstream validation before storing credentials in database
+  const adapter = getProviderAdapter(
+    rawProvider === "custom" || rawProvider === "mistral" ? "openai" : rawProvider
+  );
+  const validationResult = await adapter.validateCredentials({
+    provider: rawProvider,
+    apiKey: cleanKey,
+    baseUrl: params.customBaseUrl?.trim() || undefined,
+  });
+
+  if (!validationResult.valid) {
+    throw new Error(
+      validationResult.error || "INVALID_CREDENTIALS: Upstream authentication failed. Invalid API key."
+    );
   }
 
   const db = getAdminFirestore();
@@ -130,6 +146,7 @@ export async function createProviderConnection(
     createdBy: userId,
     createdAt: now,
     updatedAt: now,
+    lastValidatedAt: now,
   };
 
   await connRef.set(connData);
@@ -257,15 +274,32 @@ export async function updateProviderConnection(
     updatePayload.fallbackModel = updates.fallbackModel.trim() || null;
   }
 
-  // If replacing API key, re-encrypt with fresh random IV
+  // If replacing API key, validate upstream and re-encrypt with fresh random IV
   if (updates.apiKey && updates.apiKey.trim()) {
     const cleanKey = updates.apiKey.trim();
+    const rawProvider = String(existingData.provider || "openai").trim().toLowerCase();
+    const adapter = getProviderAdapter(
+      rawProvider === "custom" || rawProvider === "mistral" ? "openai" : rawProvider
+    );
+    const validationResult = await adapter.validateCredentials({
+      provider: rawProvider,
+      apiKey: cleanKey,
+      baseUrl: (updates.customBaseUrl || existingData.customBaseUrl)?.trim() || undefined,
+    });
+
+    if (!validationResult.valid) {
+      throw new Error(
+        validationResult.error || "INVALID_CREDENTIALS: Upstream authentication failed. Invalid API key."
+      );
+    }
+
     const encrypted = encryptSecret(cleanKey);
     updatePayload.encryptedKey = encrypted.ciphertext;
     updatePayload.keyIv = encrypted.iv;
     updatePayload.keyTag = encrypted.tag;
     updatePayload.maskedKey = maskProviderKey(cleanKey);
     updatePayload.status = "active";
+    updatePayload.lastValidatedAt = FieldValue.serverTimestamp();
   }
 
   await connRef.update(updatePayload);
@@ -342,8 +376,12 @@ export async function validateProviderConnection(
     };
   }
 
-  const adapter = getProviderAdapter(String(data.provider || "openai"));
+  const rawProvider = String(data.provider || "openai").trim().toLowerCase();
+  const adapter = getProviderAdapter(
+    rawProvider === "custom" || rawProvider === "mistral" ? "openai" : rawProvider
+  );
   const validationResult = await adapter.validateCredentials({
+    provider: rawProvider,
     apiKey: decryptedApiKey,
     baseUrl: data.customBaseUrl ? String(data.customBaseUrl) : undefined,
   });
@@ -431,7 +469,8 @@ export async function resolveProviderCredentials(
   modelName?: string
 ): Promise<{ apiKey: string; baseUrl?: string; connectionId?: string; provider?: string } | null> {
   const db = getAdminFirestore();
-  const normalizedProvider = (provider || "openai").toLowerCase();
+  let normalizedProvider = (provider || "openai").toLowerCase();
+  if (normalizedProvider === "google") normalizedProvider = "gemini";
   const normalizedModel = (modelName || "").trim().toLowerCase();
 
   // 1. Primary path: Dynamically check tenant's configured provider connections in Firestore
@@ -479,6 +518,7 @@ export async function resolveProviderCredentials(
         const projectMatches = !projectId || !d.projectId || d.projectId === projectId;
         const providerMatches =
           p === normalizedProvider ||
+          ((normalizedProvider === "qwen" || normalizedProvider === "alibaba") && (p === "qwen" || p === "alibaba")) ||
           ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (p === "moonshot" || p === "kimi")) ||
           (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai"));
 
@@ -499,9 +539,10 @@ export async function resolveProviderCredentials(
         const p = String(d.provider || "").toLowerCase();
         return (
           p === normalizedProvider ||
+          ((normalizedProvider === "qwen" || normalizedProvider === "alibaba") && (p === "qwen" || p === "alibaba")) ||
           ((normalizedProvider === "moonshot" || normalizedProvider === "kimi") && (p === "moonshot" || p === "kimi")) ||
           (normalizedProvider === "meta" && (p === "groq" || p === "meta" || p === "openai")) ||
-          (p === "custom" && (normalizedProvider === "openai" || normalizedProvider === "custom" || normalizedProvider === "groq" || normalizedProvider === "mistral" || normalizedProvider === "moonshot" || normalizedProvider === "kimi"))
+          (p === "custom" && (normalizedProvider === "openai" || normalizedProvider === "custom" || normalizedProvider === "groq" || normalizedProvider === "mistral" || normalizedProvider === "moonshot" || normalizedProvider === "kimi" || normalizedProvider === "qwen" || normalizedProvider === "alibaba"))
         );
       });
     }
@@ -559,6 +600,13 @@ export async function resolveProviderCredentials(
         apiKey: process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "",
         baseUrl: process.env.MOONSHOT_BASE_URL || process.env.KIMI_BASE_URL || "https://api.moonshot.cn/v1",
         provider: "moonshot",
+      };
+    }
+    if ((normalizedProvider === "qwen" || normalizedProvider === "alibaba") && (process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY || process.env.ALIBABA_API_KEY)) {
+      return {
+        apiKey: process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY || process.env.ALIBABA_API_KEY || "",
+        baseUrl: process.env.DASHSCOPE_BASE_URL || process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        provider: "qwen",
       };
     }
   }

@@ -144,7 +144,7 @@ export function PiiSanitizerDemo() {
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs font-mono text-neutral-400">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-              <span>HIPAA BAA &amp; SOC2 Type II Certified</span>
+              <span>AES-256 GCM In-Memory Masking</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />

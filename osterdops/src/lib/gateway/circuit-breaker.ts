@@ -16,6 +16,7 @@ import { cacheRegistry } from "@/lib/cache";
 import { getModelCapabilities } from "@/lib/adapters/models";
 import { getModelPricing } from "@/lib/cost/pricing-registry";
 import { canAccessFeature, getPricingPlan, normalizePlanTier } from "@/lib/billing/plans";
+import { getPlanEntitlements } from "@/lib/services/subscription";
 import type { AIProvider, ApiKey, Project, Organization } from "@/types";
 
 /* =========================================================================
@@ -447,8 +448,11 @@ export function resolveModelFallback(model: string): string | null {
   if (
     normalized === "gpt-4o-mini" ||
     normalized.includes("claude-3-5-haiku") ||
+    normalized === "gemini-3.5-flash-lite" ||
+    normalized === "gemini-3.1-flash-lite" ||
     normalized === "gemini-1.5-flash" ||
-    normalized === "moonshot-v1-8k"
+    normalized === "moonshot-v1-8k" ||
+    normalized.includes("qwen-turbo")
   ) {
     return null;
   }
@@ -457,18 +461,186 @@ export function resolveModelFallback(model: string): string | null {
   if (normalized.includes("gpt-4o") || normalized.includes("gpt-4-turbo") || normalized.includes("o1") || normalized.includes("o3")) {
     return "gpt-4o-mini";
   }
+  if (normalized.includes("opus-5") || normalized.includes("claude-5-opus")) {
+    return "claude-5-sonnet";
+  }
+  if (normalized.includes("sonnet-5") || normalized.includes("claude-5-sonnet")) {
+    return "claude-5-fable";
+  }
+  if (normalized.includes("fable-5") || normalized.includes("claude-5-fable") || normalized.includes("claude-fable")) {
+    return "claude-3-5-haiku-20241022";
+  }
+  if (normalized.includes("claude-3-7-sonnet")) {
+    return "claude-3-5-sonnet-20241022";
+  }
   if (normalized.includes("claude-3-5-sonnet") || normalized.includes("claude-3-opus") || normalized.includes("claude-3-sonnet")) {
     return "claude-3-5-haiku-20241022";
   }
-  if (normalized.includes("gemini-1.5-pro") || normalized.includes("gemini-2.0-pro") || normalized.includes("gemini-2.0-flash-thinking")) {
-    return "gemini-1.5-flash";
+  if (normalized.includes("gemini-3.1-pro") || normalized.includes("gemini-1.5-pro") || normalized.includes("gemini-2.0-pro")) {
+    return "gemini-3.6-flash";
+  }
+  if (normalized.includes("gemini-3.8") || normalized.includes("gemini-3.7")) {
+    return "gemini-3.6-flash";
   }
   if (normalized.includes("kimi") || normalized.includes("moonshot")) {
     return "moonshot-v1-8k";
   }
+  if (normalized.includes("qwen-max")) {
+    return "qwen-plus";
+  }
+  if (normalized.includes("qwen-plus")) {
+    return "qwen-turbo";
+  }
+  if (normalized.includes("qwen2.5-72b") || normalized.includes("qwen-2.5-72b") || normalized.includes("qwen2-72b")) {
+    return "qwen2.5-32b-instruct";
+  }
+  if (normalized.includes("qwen2.5-32b") || normalized.includes("qwen-2.5-32b")) {
+    return "qwen2.5-14b-instruct";
+  }
+  if (normalized.includes("qwen2.5-14b") || normalized.includes("qwen-2.5-14b") || normalized.includes("qwen2-57b")) {
+    return "qwen2.5-7b-instruct";
+  }
+  if (normalized.includes("qwen2.5-coder-32b") || normalized.includes("qwen-2.5-coder-32b")) {
+    return "qwen2.5-coder-7b-instruct";
+  }
+  if (normalized.includes("qwen2.5-math-72b") || normalized.includes("qwen-2.5-math-72b")) {
+    return "qwen2.5-math-7b-instruct";
+  }
+  if (normalized.includes("qwen2.5-vl-72b") || normalized.includes("qwen-2.5-vl-72b") || normalized.includes("qwen2-vl-72b")) {
+    return "qwen2.5-vl-7b-instruct";
+  }
+  if (
+    normalized.includes("qwen2.5-coder-7b") ||
+    normalized.includes("qwen2.5-math-7b") ||
+    normalized.includes("qwen2.5-vl-7b") ||
+    normalized.includes("qwen2-vl-7b") ||
+    normalized.includes("qwen2.5-7b") ||
+    normalized.includes("qwen2-7b")
+  ) {
+    return "qwen-turbo";
+  }
 
   return null;
 }
+
+/* =========================================================================
+   4b. Cross-Provider Zero-Downtime Fallback Cascade Matrix
+   ========================================================================= */
+
+export interface CrossProviderFallbackTarget {
+  provider: string;
+  model: string;
+}
+
+export const CROSS_PROVIDER_FALLBACKS: Record<string, CrossProviderFallbackTarget[]> = {
+  "claude-5-sonnet": [
+    { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "openai", model: "gpt-4o-mini" },
+  ],
+  "claude-5-opus": [
+    { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-1.5-pro" },
+  ],
+  "claude-3-5-sonnet": [
+    { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "openai", model: "gpt-4o-mini" },
+  ],
+  "claude-3-5-sonnet-20241022": [
+    { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "openai", model: "gpt-4o-mini" },
+  ],
+  "claude-3-7-sonnet": [
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "openai", model: "gpt-4o" },
+  ],
+  "claude-3-7-sonnet-20250219": [
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "openai", model: "gpt-4o" },
+  ],
+  "claude-3-opus": [
+    { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-1.5-pro" },
+  ],
+  "claude-3-opus-20240229": [
+    { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-1.5-pro" },
+  ],
+  "gpt-4o": [
+    { provider: "anthropic", model: "claude-3-5-sonnet-20241022" },
+    { provider: "google", model: "gemini-2.0-flash" },
+  ],
+  "gpt-4o-mini": [
+    { provider: "google", model: "gemini-2.0-flash" },
+    { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+  ],
+  "gemini-1.5-pro": [
+    { provider: "openai", model: "gpt-4o" },
+    { provider: "anthropic", model: "claude-3-5-sonnet-20241022" },
+  ],
+  "gemini-2.0-flash": [
+    { provider: "openai", model: "gpt-4o-mini" },
+    { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+  ],
+  "gemini-2.0-pro": [
+    { provider: "openai", model: "gpt-4o" },
+    { provider: "anthropic", model: "claude-3-5-sonnet-20241022" },
+  ],
+};
+
+/**
+ * Resolves cross-provider zero-downtime fallback cascade rules for a given model.
+ */
+export function getCrossProviderFallbacks(modelName: string): CrossProviderFallbackTarget[] {
+  if (!modelName || typeof modelName !== "string") return [];
+
+  const raw = modelName.trim().toLowerCase();
+  const clean = raw
+    .replace(/^anthropic\//, "")
+    .replace(/^openai\//, "")
+    .replace(/^google\//, "")
+    .replace(/^gemini\//, "")
+    .replace(/^models\//, "");
+
+  if (CROSS_PROVIDER_FALLBACKS[clean]) {
+    return CROSS_PROVIDER_FALLBACKS[clean];
+  }
+
+  // Check prefix or partial matches
+  for (const [key, targets] of Object.entries(CROSS_PROVIDER_FALLBACKS)) {
+    if (clean === key || clean.startsWith(`${key}-`) || key.startsWith(`${clean}-`)) {
+      return targets;
+    }
+  }
+
+  // Fallback defaults for major model families
+  if (clean.includes("claude") || clean.includes("sonnet")) {
+    return [
+      { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+      { provider: "google", model: "gemini-2.0-flash" },
+      { provider: "openai", model: "gpt-4o-mini" },
+    ];
+  }
+
+  if (clean.includes("gpt-4")) {
+    return [
+      { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+      { provider: "google", model: "gemini-2.0-flash" },
+    ];
+  }
+
+  if (clean.includes("gemini")) {
+    return [
+      { provider: "openai", model: "gpt-4o-mini" },
+      { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+    ];
+  }
+
+  return [];
+}
+
 
 /* =========================================================================
    5. Core Governance Rule Evaluator
@@ -496,6 +668,7 @@ export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<G
   const rawTier = req.organization?.planTier || (req.organization as unknown as Record<string, unknown>)?.plan as string;
   const planTier = normalizePlanTier(rawTier);
   const planDef = getPricingPlan(planTier);
+  const entitlements = getPlanEntitlements(rawTier);
 
   // -----------------------------------------------------------------------
   // CHECK 0: Plan Monthly Request Limit Quota Hard Interception
@@ -504,9 +677,11 @@ export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<G
     (req.organization as unknown as Record<string, unknown>)?.currentPeriodRequests || 0
   );
   if (
-    planDef.limits.monthlyRequestLimit < Number.MAX_SAFE_INTEGER &&
-    currentMonthRequests >= planDef.limits.monthlyRequestLimit
+    currentMonthRequests >= entitlements.monthlyRequestQuota ||
+    (planDef.limits.monthlyRequestLimit < Number.MAX_SAFE_INTEGER &&
+      currentMonthRequests >= planDef.limits.monthlyRequestLimit)
   ) {
+    const quotaCap = Math.min(entitlements.monthlyRequestQuota, planDef.limits.monthlyRequestLimit);
     incrementMetric("governance.blocks_total", 1, {
       reason: "plan_request_quota_exceeded",
       planTier,
@@ -516,16 +691,20 @@ export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<G
       action: "BLOCK",
       code: "BLOCKED_RATE_LIMIT",
       scope: "org_monthly",
-      cap: planDef.limits.monthlyRequestLimit,
+      cap: quotaCap,
       currentSpend: currentMonthRequests,
-      reason: `Monthly request quota (${planDef.limits.monthlyRequestLimit.toLocaleString()} requests) reached for ${planDef.name} plan. Upgrade to Growth or Scale to continue.`,
+      reason: `Monthly request quota (${quotaCap.toLocaleString()} requests) reached for ${entitlements.tier.toUpperCase()} plan. Upgrade to Pro or Enterprise to continue.`,
     };
   }
 
   // -----------------------------------------------------------------------
   // CHECK 1: Runaway Agent Loop Detection (30-second velocity breaker)
   // -----------------------------------------------------------------------
-  if (policy.runawayLoopProtectionEnabled && canAccessFeature(planTier, "runawayLoopBreaker")) {
+  if (
+    policy.runawayLoopProtectionEnabled &&
+    entitlements.canUseCircuitBreaker &&
+    canAccessFeature(planTier, "runawayLoopBreaker")
+  ) {
     const promptHash = req.promptHash || computePromptHash(req.messages);
     const loopStatus = runawayLoopTracker.checkAndRecord(
       req.apiKeyId,
@@ -639,6 +818,7 @@ export async function evaluateGovernanceRules(req: GovernanceRequest): Promise<G
   const threshold = policy.downgradeThreshold || 80;
   if (
     policy.autoDowngradeEnabled &&
+    entitlements.canUseCustomFallbacks &&
     canAccessFeature(planTier, "autoDowngradeEnabled") &&
     maxSpendPercentage >= threshold &&
     maxSpendPercentage < 100

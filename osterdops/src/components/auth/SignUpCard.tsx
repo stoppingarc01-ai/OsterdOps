@@ -759,6 +759,7 @@ export function SignUpCard() {
       {/* Social Buttons */}
       <SocialAuthButtons />
 
+
       {/* Sign in link */}
       <div className="text-center pt-2 text-[12px] text-[#6e7385]">
         <span>Already have an account? </span>

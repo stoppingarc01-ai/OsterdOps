@@ -3,6 +3,7 @@
 import React from "react";
 import { useLiveTelemetry, type LiveTelemetryData } from "@/hooks/useLiveTelemetry";
 import { ModelProviderLogo } from "@/components/ui/ModelLogos";
+import { useCurrency } from "@/context/CurrencyContext";
 import { Layers, Loader2 } from "lucide-react";
 
 interface SpendByProviderCardProps {
@@ -23,6 +24,7 @@ const PROVIDER_ACCENTS: Record<string, string> = {
 };
 
 export function SpendByProviderCard({ telemetry: externalTelemetry, isLoading: externalLoading }: SpendByProviderCardProps) {
+  const { formatCurrency } = useCurrency();
   const internalHook = useLiveTelemetry();
   const data = externalTelemetry || internalHook.data;
   const loading = externalLoading !== undefined ? externalLoading : internalHook.isLoading;
@@ -63,7 +65,7 @@ export function SpendByProviderCard({ telemetry: externalTelemetry, isLoading: e
                     <span className="font-medium text-neutral-200 capitalize">{p.provider}</span>
                     <span className="text-[10px] text-neutral-500 font-mono">({p.requests} reqs)</span>
                   </div>
-                  <span className="font-mono font-bold text-white">${p.spendUsd.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-white">{formatCurrency(p.spendUsd)}</span>
                 </div>
                 <div className="w-full h-1.5 bg-[#141414] rounded-full overflow-hidden border border-[#1A1A1A]">
                   <div

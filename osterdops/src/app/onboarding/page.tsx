@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, currentOrg, refreshUser } = useAuth();
+  const { user, userProfile, currentOrg, refreshUser, getIdToken } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [data, setData] = useState<OnboardingData>({
@@ -32,6 +32,13 @@ export default function OnboardingPage() {
     teamMembers: [],
   });
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+
+  // If user already completed onboarding, forward directly to dashboard without looping
+  useEffect(() => {
+    if (userProfile?.hasCompletedOnboarding) {
+      router.replace("/dashboard");
+    }
+  }, [userProfile?.hasCompletedOnboarding, router]);
 
   useEffect(() => {
     if (user || currentOrg) {
@@ -76,6 +83,20 @@ export default function OnboardingPage() {
 
   const handlePlanConfirmed = async () => {
     setIsPlanModalOpen(false);
+    try {
+      const token = await getIdToken();
+      if (token) {
+        await fetch("/api/v1/user/onboarding", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to mark onboarding completed:", err);
+    }
     await refreshUser();
     router.push("/dashboard");
   };

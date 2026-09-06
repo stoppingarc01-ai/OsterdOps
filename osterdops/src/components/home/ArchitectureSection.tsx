@@ -92,7 +92,7 @@ export function ArchitectureSection() {
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-neutral-300">
                   <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                  <span>Immediate enterprise compliance sign-off (HIPAA, SOC2, FedRAMP)</span>
+                  <span>Strict data sovereignty &amp; private VPC network isolation</span>
                 </div>
               </div>
             </div>
@@ -103,23 +103,23 @@ export function ArchitectureSection() {
           </div>
         </div>
 
-        {/* Enterprise Compliance Strip */}
+        {/* Verifiable Technical Guarantees Strip */}
         <div className="pt-6 border-t border-[#161720] flex flex-wrap items-center justify-center gap-6 text-xs font-mono text-neutral-400">
           <span className="flex items-center gap-2">
             <Lock className="w-3.5 h-3.5 text-[#10B981]" />
-            SOC2 Type II Certified
+            AES-256 GCM Key Encryption
           </span>
           <span className="flex items-center gap-2">
             <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
-            HIPAA BAA Available
+            Zero Prompt Data Retention (ZDR)
           </span>
           <span className="flex items-center gap-2">
             <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
-            GDPR &amp; CCPA Compliant
+            SHA-256 Hashed Virtual Keys
           </span>
           <span className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-[#10B981]" />
-            ISO 27001 Certified
+            <Server className="w-3.5 h-3.5 text-[#10B981]" />
+            Air-Gapped Private VPC Ready
           </span>
         </div>
       </div>

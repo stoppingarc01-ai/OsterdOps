@@ -17,12 +17,13 @@ export type OrganizationPlan = "trial" | "starter" | "team" | "pro" | "enterpris
 
 export type OrganizationStatus = "active" | "suspended" | "trialing";
 
-export interface OrganizationSettings {
+export interface OrganizationPolicySettings {
   mfaEnforced?: boolean;
   ipWhitelist?: string[];
   allowedModels?: string[];
   defaultModel?: string;
   spendLimitNotificationEmails?: string[];
+  [key: string]: unknown;
 }
 
 export interface Organization {
@@ -35,8 +36,9 @@ export interface Organization {
   status: OrganizationStatus;
   spendLimitUsd?: number;
   currentPeriodSpendUsd: number;
+  currentPeriodRequests?: number;
   currentPeriodStart: Timestamp | string;
-  settings: OrganizationSettings;
+  settings: OrganizationPolicySettings;
   createdAt: Timestamp | string;
   updatedAt: Timestamp | string;
 }
@@ -83,14 +85,17 @@ export type ApiKeyStatus = "active" | "revoked" | "expired";
 export interface ApiKey {
   id: string;
   organizationId: string;
+  orgId?: string;    // Alias for organizationId
   projectId: string;
   name: string;
   keyPrefix: string; // e.g. "ost_live_••••94f2"
+  prefix?: string;   // e.g. "ost_live_c4f8..."
   keyHash: string;   // SHA-256 hash
   environment: ApiKeyEnvironment;
   status: ApiKeyStatus;
   scopes?: string[]; // Fine-grained API key scopes
-  permissions?: string[]; // Phase 12 alias
+  permissions?: string[]; // Scopes / permission strings
+  rateLimit?: number; // Optional requests/minute limit
   createdBy: string;
   createdAt: Timestamp | string;
   updatedAt?: Timestamp | string;
@@ -101,7 +106,9 @@ export interface ApiKey {
 /** Result when creating a new API key - plaintext key is returned ONLY once */
 export interface GeneratedApiKeyResponse {
   key: ApiKey;
-  secret: string; // Full unmasked plaintext secret: "osk_live_..."
+  secret: string; // Full unmasked plaintext secret: "ost_live_..."
+  rawKey?: string; // Alias for secret
+  prefix?: string; // Display prefix e.g. "ost_live_c4f8..."
 }
 
 /* ============================================================
@@ -123,6 +130,8 @@ export type AIProvider =
   | "xai"
   | "perplexity"
   | "cohere"
+  | "qwen"
+  | "alibaba"
   | "custom";
 
 export type ProviderConnectionStatus =

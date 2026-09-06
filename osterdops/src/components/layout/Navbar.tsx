@@ -164,6 +164,21 @@ export function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3">
+          {/* View Demo CTA */}
+          <Link
+            href="/dashboard?demo=true"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("osterdops_demo_mode", "true");
+                document.cookie = "osterdops_demo_mode=true; path=/; max-age=86400; SameSite=Lax";
+              }
+            }}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-mono font-medium text-[#DFB277] bg-[#DFB277]/10 hover:bg-[#DFB277]/20 border border-[#DFB277]/30 hover:border-[#DFB277]/50 rounded-lg transition-all"
+          >
+            <Sparkles className="w-3 h-3 text-[#DFB277]" />
+            <span>View Demo</span>
+          </Link>
+
           {/* Ghost Log in button */}
           <Link
             href="/sign-in"

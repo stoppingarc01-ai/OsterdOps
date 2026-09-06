@@ -28,17 +28,298 @@ import { createGatewayErrorResponse, normalizeGatewayError } from "./errors";
 import { recordGatewayTelemetry } from "./telemetry";
 import { createGatewayStreamResponse } from "./stream";
 import { executeProviderHttpWithRetry, calculateJitteredBackoff, parseRetryAfterHeader } from "./retry-client";
-import { getProviderCircuitBreaker, evaluateGovernanceRules } from "./circuit-breaker";
+import {
+  getProviderCircuitBreaker,
+  evaluateGovernanceRules,
+  getCrossProviderFallbacks,
+} from "./circuit-breaker";
+import {
+  normalizeIncomingRequest,
+  normalizeToOpenAI,
+  normalizeToGemini,
+  normalizeToAnthropic,
+} from "./transformer";
 import { calculateRequestCost } from "@/lib/cost/calculator";
 import { checkSubscriptionAccess, SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/billing/access";
+import { getPlanEntitlements, isProviderAllowed, type PlanEntitlements } from "@/lib/services/subscription";
 import type {
   GatewayRequestPayload,
   GatewayResponsePayload,
   GatewayTokenUsage,
 } from "./types";
 import type { AIProvider } from "@/types";
+import type { AIProviderAdapter } from "@/lib/adapters/types";
 
 const DEFAULT_TIMEOUT_MS = 60000; // 60s timeout
+
+interface FallbackExecutionResult {
+  success: boolean;
+  rawResponse?: Response;
+  responseBody?: unknown;
+  latencyMs?: number;
+  resolvedProvider?: AIProvider;
+  resolvedModel?: string;
+  resolvedAdapter?: AIProviderAdapter;
+}
+
+/**
+ * Cross-Provider Zero-Downtime Fallback Cascade Engine.
+ * Seamlessly fails over from primary failing provider (e.g. Anthropic) to OpenAI or Gemini.
+ */
+async function attemptCrossProviderFallback(params: {
+  organizationId: string;
+  projectId: string;
+  originalModel: string;
+  originalProvider: AIProvider;
+  payload: GatewayRequestPayload;
+  timeoutMs: number;
+  isSimulation: boolean;
+  simulateFailProvider?: string | null;
+}): Promise<FallbackExecutionResult> {
+  const fallbackCandidates = getCrossProviderFallbacks(params.originalModel);
+  if (!fallbackCandidates || fallbackCandidates.length === 0) {
+    return { success: false };
+  }
+
+  const internalPayload = normalizeIncomingRequest(params.payload);
+
+  for (const candidate of fallbackCandidates) {
+    const rawProv = (candidate.provider || "").trim().toLowerCase();
+    const candidateProv = (rawProv === "google" ? "gemini" : rawProv) as AIProvider;
+    const candidateModel = candidate.model;
+
+    // Skip if identical to original failing provider and model
+    if (
+      candidateProv === params.originalProvider &&
+      candidateModel.toLowerCase() === params.originalModel.toLowerCase()
+    ) {
+      continue;
+    }
+
+    // Skip if simulated failure specifies this provider
+    if (
+      params.simulateFailProvider &&
+      params.simulateFailProvider.toLowerCase() === candidateProv.toLowerCase()
+    ) {
+      continue;
+    }
+
+    const candidateCb = getProviderCircuitBreaker(candidateProv);
+    if (!candidateCb.canExecute()) {
+      continue;
+    }
+
+    let candidateCreds = await resolveProviderCredentials(
+      params.organizationId,
+      candidateProv,
+      params.projectId,
+      candidateModel
+    );
+
+    if (!candidateCreds || !candidateCreds.apiKey) {
+      if (params.isSimulation || process.env.NODE_ENV !== "production") {
+        candidateCreds = { apiKey: "sk-simulated-fallback-key", provider: candidateProv };
+      }
+    }
+
+    if (!candidateCreds || !candidateCreds.apiKey) {
+      continue;
+    }
+
+    const candidateAdapter = getProviderAdapter(candidateProv);
+    internalPayload.model = candidateModel;
+
+    let reqUrl: string;
+    let reqHeaders: Record<string, string>;
+    let reqBody: string;
+
+    if (candidateProv === "openai") {
+      const openAiPayload = normalizeToOpenAI(internalPayload, candidateModel);
+      const formatted = candidateAdapter.formatRequest(
+        {
+          model: candidateModel,
+          messages: internalPayload.messages,
+          temperature: internalPayload.temperature,
+          max_tokens: internalPayload.max_tokens,
+          top_p: internalPayload.top_p,
+          stream: false,
+          stop: internalPayload.stop,
+        },
+        candidateCreds
+      );
+      reqUrl = formatted.url;
+      reqHeaders = formatted.headers;
+      reqBody = JSON.stringify(openAiPayload);
+    } else if (candidateProv === "gemini") {
+      const geminiPayload = normalizeToGemini(internalPayload);
+      const formatted = candidateAdapter.formatRequest(
+        {
+          model: candidateModel,
+          messages: internalPayload.messages,
+          temperature: internalPayload.temperature,
+          max_tokens: internalPayload.max_tokens,
+          top_p: internalPayload.top_p,
+          stream: false,
+          stop: internalPayload.stop,
+        },
+        candidateCreds
+      );
+      reqUrl = formatted.url;
+      reqHeaders = formatted.headers;
+      reqBody = JSON.stringify(geminiPayload);
+    } else if (candidateProv === "anthropic") {
+      const anthropicPayload = normalizeToAnthropic(internalPayload, candidateModel);
+      const formatted = candidateAdapter.formatRequest(
+        {
+          model: candidateModel,
+          messages: internalPayload.messages,
+          temperature: internalPayload.temperature,
+          max_tokens: internalPayload.max_tokens,
+          top_p: internalPayload.top_p,
+          stream: false,
+          stop: internalPayload.stop,
+        },
+        candidateCreds
+      );
+      reqUrl = formatted.url;
+      reqHeaders = formatted.headers;
+      reqBody = JSON.stringify(anthropicPayload);
+    } else {
+      const formatted = candidateAdapter.formatRequest(
+        {
+          model: candidateModel,
+          messages: internalPayload.messages,
+          temperature: internalPayload.temperature,
+          max_tokens: internalPayload.max_tokens,
+          top_p: internalPayload.top_p,
+          stream: false,
+          stop: internalPayload.stop,
+        },
+        candidateCreds
+      );
+      reqUrl = formatted.url;
+      reqHeaders = formatted.headers;
+      reqBody = formatted.body;
+    }
+
+    try {
+      if (params.isSimulation || candidateCreds.apiKey.startsWith("sk-simulated")) {
+        const promptLength = internalPayload.messages.reduce(
+          (acc, m) => acc + (typeof m.content === "string" ? m.content.length : 0),
+          0
+        );
+        const estPromptTokens = Math.max(20, Math.round(promptLength / 4));
+        const estCompletionTokens = Math.min(internalPayload.max_tokens || 40, 30);
+        const simDelay = Math.floor(Math.random() * 20) + 15;
+        await new Promise((r) => setTimeout(r, simDelay));
+
+        let simResponseBody: unknown;
+        const fallbackText = `OsterdOps Cross-Provider Zero-Downtime Fallback resolved via ${candidateProv} (${candidateModel}).`;
+
+        if (candidateProv === "gemini") {
+          simResponseBody = {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: fallbackText }],
+                  role: "model",
+                },
+                finishReason: "STOP",
+              },
+            ],
+            usageMetadata: {
+              promptTokenCount: estPromptTokens,
+              candidatesTokenCount: estCompletionTokens,
+              totalTokenCount: estPromptTokens + estCompletionTokens,
+            },
+          };
+        } else if (candidateProv === "anthropic") {
+          simResponseBody = {
+            id: `msg_fallback_${Date.now()}`,
+            type: "message",
+            role: "assistant",
+            content: [{ type: "text", text: fallbackText }],
+            model: candidateModel,
+            stop_reason: "end_turn",
+            usage: {
+              input_tokens: estPromptTokens,
+              output_tokens: estCompletionTokens,
+            },
+          };
+        } else {
+          simResponseBody = {
+            id: `chatcmpl-fallback-${Date.now()}`,
+            object: "chat.completion",
+            created: Math.floor(Date.now() / 1000),
+            model: candidateModel,
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: fallbackText,
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: estPromptTokens,
+              completion_tokens: estCompletionTokens,
+              total_tokens: estPromptTokens + estCompletionTokens,
+            },
+          };
+        }
+
+        candidateCb.recordSuccess();
+        return {
+          success: true,
+          rawResponse: new Response("", { status: 200 }),
+          responseBody: simResponseBody,
+          latencyMs: simDelay,
+          resolvedProvider: candidateProv,
+          resolvedModel: candidateModel,
+          resolvedAdapter: candidateAdapter,
+        };
+      }
+
+      const execResult = await executeProviderHttpWithRetry(
+        (signal) =>
+          fetch(reqUrl, {
+            method: "POST",
+            headers: reqHeaders,
+            body: reqBody,
+            signal,
+          }),
+        {
+          timeoutMs: params.timeoutMs,
+          maxRetries: 1,
+          circuitBreaker: candidateCb,
+        }
+      );
+
+      if (!execResult.rawResponse.ok) {
+        candidateCb.recordFailure();
+        continue;
+      }
+
+      candidateCb.recordSuccess();
+      return {
+        success: true,
+        rawResponse: execResult.rawResponse,
+        responseBody: execResult.responseBody,
+        latencyMs: execResult.latencyMs,
+        resolvedProvider: candidateProv,
+        resolvedModel: candidateModel,
+        resolvedAdapter: candidateAdapter,
+      };
+    } catch {
+      candidateCb.recordFailure();
+      continue;
+    }
+  }
+
+  return { success: false };
+}
 
 /**
  * Main handler for the OsterdOps AI Gateway Chat Completions proxy.
@@ -133,8 +414,58 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     );
   }
 
-  // 3. Sliding Window Rate Limiting
-  const rateLimitResult = rateLimit(key.id, 120, 60000);
+  // 2c. Dynamic Entitlements & Request Quota Governance
+  const planTier = (organization.planTier || organization.plan) as string | undefined;
+  const entitlements = getPlanEntitlements(planTier);
+
+  // Request Quota Guard: If monthly requests exceed monthlyRequestQuota, reject with 429
+  const isQuotaBreachSimulated = request.headers.get("x-osterdops-simulate-quota-breach") === "true";
+  const currentMonthRequests = isQuotaBreachSimulated
+    ? entitlements.monthlyRequestQuota + 1
+    : Number((organization as unknown as Record<string, unknown>)?.currentPeriodRequests || 0);
+
+  if (currentMonthRequests >= entitlements.monthlyRequestQuota) {
+    const durationMs = Date.now() - startTime;
+    recordGatewayTelemetry({
+      requestId,
+      organizationId: organization.id,
+      projectId: project.id,
+      keyId: key.id,
+      provider: "openai",
+      model: "unknown",
+      status: "rate_limited",
+      httpStatus: 429,
+      durationMs,
+      errorCode: "MONTHLY_QUOTA_EXCEEDED",
+      timestamp: new Date().toISOString(),
+    });
+
+    return new NextResponse(
+      JSON.stringify({
+        error: "MONTHLY_QUOTA_EXCEEDED",
+        message: "Upgrade to Pro to increase limit.",
+        quota: entitlements.monthlyRequestQuota,
+        used: currentMonthRequests,
+        tier: entitlements.tier,
+      }),
+      {
+        status: 429,
+        headers: {
+          ...responseHeaders,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      }
+    );
+  }
+
+  // 3. Dynamic Sliding Window Rate Limiting (governed by entitlements.rateLimitPerMinute)
+  const effectiveRpm =
+    typeof key.rateLimit === "number" && key.rateLimit > 0
+      ? Math.min(key.rateLimit, entitlements.rateLimitPerMinute)
+      : entitlements.rateLimitPerMinute;
+
+  const rateLimitResult = rateLimit(key.id, effectiveRpm, 60000);
+  responseHeaders["x-ratelimit-limit"] = String(effectiveRpm);
   responseHeaders["x-ratelimit-remaining"] = String(rateLimitResult.remaining);
   responseHeaders["x-ratelimit-reset"] = String(rateLimitResult.resetMs);
 
@@ -363,6 +694,40 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
 
   const provider: AIProvider = validation.normalizedProvider || resolveProviderFromModel(payload.model);
 
+  // 5c. Provider Restriction Guard based on active subscription tier
+  if (!isProviderAllowed(entitlements.tier, provider)) {
+    const durationMs = Date.now() - startTime;
+    recordGatewayTelemetry({
+      requestId,
+      organizationId: organization.id,
+      projectId: project.id,
+      keyId: key.id,
+      provider,
+      model: payload.model,
+      status: "error",
+      httpStatus: 403,
+      durationMs,
+      errorCode: "PROVIDER_RESTRICTED",
+      timestamp: new Date().toISOString(),
+    });
+
+    return new NextResponse(
+      JSON.stringify({
+        error: "PROVIDER_RESTRICTED",
+        message: `Provider '${provider}' is restricted on the ${entitlements.tier.toUpperCase()} tier. Upgrade to Pro for access to all AI providers.`,
+        allowedProviders: entitlements.allowedProviders,
+        tier: entitlements.tier,
+      }),
+      {
+        status: 403,
+        headers: {
+          ...responseHeaders,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      }
+    );
+  }
+
   // 6. Validate Model Request Parameters against Registry Capabilities
   const modelValidation = validateModelRequest(payload.model, {
     maxTokens: payload.maxTokens || payload.max_tokens,
@@ -386,6 +751,9 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   let credentials = await resolveProviderCredentials(organization.id, provider, project.id, payload.model);
   const isSimulation =
     request.headers.get("x-osterdops-simulate") === "true" ||
+    request.headers.get("x-simulate") === "true" ||
+    Boolean(request.headers.get("x-simulate-upstream-error")) ||
+    Boolean(request.headers.get("x-osterdops-simulate-upstream-error")) ||
     process.env.SIMULATE_GATEWAY_TRAFFIC === "true";
 
   if (!credentials || !credentials.apiKey) {
@@ -461,9 +829,11 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     const circuitBreaker = getProviderCircuitBreaker(provider);
 
     try {
-      circuitBreaker.checkExecution();
+      if (entitlements.canUseCircuitBreaker) {
+        circuitBreaker.checkExecution();
+      }
       let upstreamResponse: Response | null = null;
-      const maxStreamAttempts = 4;
+      const maxStreamAttempts = entitlements.canUseCircuitBreaker ? 4 : 1;
 
       for (let attempt = 1; attempt <= maxStreamAttempts; attempt++) {
         const controller = new AbortController();
@@ -593,12 +963,48 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     credentials
   );
 
-  let rawResponse: Response;
+  let rawResponse: Response = new Response(null, { status: 500 });
   let responseBody: unknown;
   let latencyMs = 0;
+  let activeAdapter: AIProviderAdapter = adapter;
+  let activeProvider: AIProvider = provider;
+  let activeModel = payload.model;
+  let isFallbackTriggered = false;
+
+  const simulateUpstreamError =
+    request.headers.get("x-simulate-upstream-error") ||
+    request.headers.get("x-osterdops-simulate-upstream-error");
+  const simulateFailProvider =
+    request.headers.get("x-simulate-provider-failure") ||
+    request.headers.get("x-simulate-fail-provider");
+
+  const isPrimarySimulatedFailure = Boolean(
+    simulateUpstreamError &&
+    (!simulateFailProvider || simulateFailProvider.toLowerCase() === provider.toLowerCase())
+  );
 
   try {
-    if (isSimulation || (credentials?.apiKey && credentials.apiKey.startsWith("sk-simulated"))) {
+    if (isPrimarySimulatedFailure) {
+      const errCode = Number(simulateUpstreamError) || 503;
+      rawResponse = new Response(
+        JSON.stringify({
+          error: {
+            message: `Simulated upstream failure (${errCode}) on provider '${provider}'.`,
+            code: errCode,
+          },
+        }),
+        {
+          status: errCode,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      responseBody = {
+        error: {
+          message: `Simulated upstream failure (${errCode}) on provider '${provider}'.`,
+          code: errCode,
+        },
+      };
+    } else if (isSimulation || (credentials?.apiKey && credentials.apiKey.startsWith("sk-simulated"))) {
       const promptLength = payload.messages?.reduce((acc, m) => acc + (typeof m.content === "string" ? m.content.length : 0), 0) || 120;
       const estPromptTokens = Math.max(20, Math.round(promptLength / 4));
       const estCompletionTokens = Math.min(payload.maxTokens || 40, 30);
@@ -640,8 +1046,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
           }),
         {
           timeoutMs,
-          maxRetries: 2,
-          circuitBreaker,
+          maxRetries: entitlements.canUseCircuitBreaker ? 2 : 0,
+          circuitBreaker: entitlements.canUseCircuitBreaker ? circuitBreaker : undefined,
         }
       );
 
@@ -650,43 +1056,105 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
       latencyMs = execResult.latencyMs;
     }
   } catch (err: unknown) {
-    const errorPayload = normalizeGatewayError(err, provider, 504);
-    const durationMs = Date.now() - startTime;
+    if (entitlements.canUseCustomFallbacks || entitlements.canUseCircuitBreaker) {
+      const fallbackResult = await attemptCrossProviderFallback({
+        organizationId: organization.id,
+        projectId: project.id,
+        originalModel: payload.model,
+        originalProvider: provider,
+        payload,
+        timeoutMs,
+        isSimulation,
+        simulateFailProvider,
+      });
 
-    recordGatewayTelemetry({
-      requestId,
-      organizationId: organization.id,
-      projectId: project.id,
-      keyId: key.id,
-      provider,
-      model: payload.model,
-      status: "timeout",
-      httpStatus: errorPayload.statusCode,
-      durationMs,
-      errorCode: errorPayload.code,
-      timestamp: new Date().toISOString(),
-    });
+      if (fallbackResult.success && fallbackResult.rawResponse?.ok) {
+        rawResponse = fallbackResult.rawResponse;
+        responseBody = fallbackResult.responseBody;
+        latencyMs = fallbackResult.latencyMs || latencyMs;
+        activeProvider = fallbackResult.resolvedProvider!;
+        activeModel = fallbackResult.resolvedModel!;
+        activeAdapter = fallbackResult.resolvedAdapter!;
+        isFallbackTriggered = true;
 
-    recordGatewayUsage({
-      requestId,
-      organizationId: organization.id,
-      projectId: project.id,
-      apiKeyId: key.id,
-      provider,
-      model: payload.model,
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      latencyMs: durationMs,
-      statusCode: 504,
-      status: "TIMEOUT",
-      errorCode: "TIMEOUT",
-    }).catch((err) => console.error("[OsterdOps UsageRecorder] Failed to persist timeout usage record:", err));
+        responseHeaders["x-osterdops-fallback-triggered"] = "true";
+        responseHeaders["x-osterdops-resolved-model"] = activeModel;
+        responseHeaders["x-osterdops-resolved-provider"] = activeProvider;
+      }
+    }
 
-    return createGatewayErrorResponse(errorPayload, responseHeaders);
+    if (!isFallbackTriggered) {
+      const errorPayload = normalizeGatewayError(err, provider, 504);
+      const durationMs = Date.now() - startTime;
+
+      recordGatewayTelemetry({
+        requestId,
+        organizationId: organization.id,
+        projectId: project.id,
+        keyId: key.id,
+        provider,
+        model: payload.model,
+        status: "timeout",
+        httpStatus: errorPayload.statusCode,
+        durationMs,
+        errorCode: errorPayload.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      recordGatewayUsage({
+        requestId,
+        organizationId: organization.id,
+        projectId: project.id,
+        apiKeyId: key.id,
+        provider,
+        model: payload.model,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        latencyMs: durationMs,
+        statusCode: 504,
+        status: "TIMEOUT",
+        errorCode: "TIMEOUT",
+      }).catch((err) => console.error("[OsterdOps UsageRecorder] Failed to persist timeout usage record:", err));
+
+      return createGatewayErrorResponse(errorPayload, responseHeaders);
+    }
   }
 
-  // Handle Upstream Provider Error Statuses
+  // Handle Upstream Provider Error Statuses (with Cross-Provider Fallback Cascade)
+  if (!rawResponse.ok) {
+    if (
+      (rawResponse.status >= 500 || rawResponse.status === 429) &&
+      (entitlements.canUseCustomFallbacks || entitlements.canUseCircuitBreaker)
+    ) {
+      const fallbackResult = await attemptCrossProviderFallback({
+        organizationId: organization.id,
+        projectId: project.id,
+        originalModel: payload.model,
+        originalProvider: provider,
+        payload,
+        timeoutMs,
+        isSimulation,
+        simulateFailProvider,
+      });
+
+      if (fallbackResult.success && fallbackResult.rawResponse?.ok) {
+        rawResponse = fallbackResult.rawResponse;
+        responseBody = fallbackResult.responseBody;
+        latencyMs = fallbackResult.latencyMs || latencyMs;
+        activeProvider = fallbackResult.resolvedProvider!;
+        activeModel = fallbackResult.resolvedModel!;
+        activeAdapter = fallbackResult.resolvedAdapter!;
+        isFallbackTriggered = true;
+
+        responseHeaders["x-osterdops-fallback-triggered"] = "true";
+        responseHeaders["x-osterdops-resolved-model"] = activeModel;
+        responseHeaders["x-osterdops-resolved-provider"] = activeProvider;
+      }
+    }
+  }
+
+  // If still failing after fallback attempts, return upstream error response
   if (!rawResponse.ok) {
     const providerErr = adapter.handleProviderError(rawResponse.status, responseBody);
     const errorPayload = normalizeGatewayError(
@@ -730,8 +1198,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
   }
 
   // 11. Normalize Upstream Response & Extract Tokens
-  const normalized = adapter.normalizeResponse(responseBody, payload.model);
-  const usageBreakdown = adapter.extractUsage(responseBody);
+  const normalized = activeAdapter.normalizeResponse(responseBody, activeModel);
+  const usageBreakdown = activeAdapter.extractUsage(responseBody);
 
   const usage: GatewayTokenUsage | null =
     usageBreakdown.totalTokens > 0
@@ -746,8 +1214,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
 
   // 12. Calculate Cost with Authoritative Cost Engine
   const cost = calculateRequestCost({
-    provider,
-    model: payload.model,
+    provider: activeProvider,
+    model: activeModel,
     inputTokens: usage?.inputTokens || 0,
     outputTokens: usage?.outputTokens || 0,
     cachedTokens: usage?.cachedTokens || 0,
@@ -758,8 +1226,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
 
   const responsePayload: GatewayResponsePayload = {
     id: normalized.id || requestId,
-    provider,
-    model: normalized.model || payload.model,
+    provider: activeProvider,
+    model: normalized.model || activeModel,
     output: {
       role: "assistant",
       content: firstChoice?.message?.content || "",
@@ -775,8 +1243,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     organizationId: organization.id,
     projectId: project.id,
     keyId: key.id,
-    provider,
-    model: payload.model,
+    provider: activeProvider,
+    model: activeModel,
     status: "success",
     httpStatus: 200,
     durationMs,
@@ -789,8 +1257,8 @@ export async function routeGatewayChatRequest(request: Request): Promise<Respons
     organizationId: organization.id,
     projectId: project.id,
     apiKeyId: key.id,
-    provider,
-    model: payload.model,
+    provider: activeProvider,
+    model: activeModel,
     inputTokens: usage?.inputTokens || 0,
     outputTokens: usage?.outputTokens || 0,
     totalTokens: usage?.totalTokens || 0,

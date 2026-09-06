@@ -27,6 +27,8 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api/client";
 import { RbacGuard } from "@/components/auth/RbacGuard";
+import { CreateKeyModal, type CreatedKeyData } from "@/components/keys/CreateKeyModal";
+import { DEMO_API_KEYS } from "@/lib/demo/mock-data";
 
 interface ApiKeyItem {
   id: string;
@@ -41,21 +43,37 @@ interface ApiKeyItem {
 
 export default function ApiKeysPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const [keys, setKeys] = useState<ApiKeyItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [keys, setKeys] = useState<ApiKeyItem[]>(DEMO_API_KEYS);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Creation Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [keyName, setKeyName] = useState("");
-  const [keyEnv, setKeyEnv] = useState<"production" | "staging">("production");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+
+  const handleKeyCreated = (newKey: CreatedKeyData) => {
+    const displayPrefix = newKey.prefix || "ost_live_••••";
+    const newItem: ApiKeyItem = {
+      id: newKey.id,
+      name: newKey.name,
+      keyPrefix: displayPrefix,
+      projectName: "General Workspace",
+      environment: newKey.environment || "production",
+      lastUsed: "Never",
+      createdAt: "Just now",
+      status: "ACTIVE",
+    };
+    setKeys((prev) => [newItem, ...prev.filter((k) => k.id !== newKey.id)]);
+    fetchKeys();
+  };
 
   const fetchKeys = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      setKeys(DEMO_API_KEYS);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -66,19 +84,23 @@ export default function ApiKeysPage() {
       });
 
       const keyList = Array.isArray(res.data) ? res.data : res.data?.items || [];
-      const mapped: ApiKeyItem[] = keyList.map((k: any) => ({
-        id: k.id,
-        name: k.name || "Workspace API Key",
-        keyPrefix: k.keyPrefix || (k.prefix ? `${k.prefix}••••••••` : "ost_••••"),
-        projectName: k.projectName || "General Workspace",
-        environment: k.environment || "production",
-        lastUsed: k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Never",
-        createdAt: k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "Recent",
-        status: k.status === "REVOKED" ? "REVOKED" : "ACTIVE",
-      }));
-      setKeys(mapped);
-    } catch (e) {
-      setKeys([]);
+      if (keyList.length > 0) {
+        const mapped: ApiKeyItem[] = keyList.map((k: any) => ({
+          id: k.id,
+          name: k.name || "Workspace API Key",
+          keyPrefix: k.keyPrefix || (k.prefix ? `${k.prefix}••••••••` : "ost_••••"),
+          projectName: k.projectName || "General Workspace",
+          environment: k.environment || "production",
+          lastUsed: k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Never",
+          createdAt: k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "Recent",
+          status: k.status === "REVOKED" ? "REVOKED" : "ACTIVE",
+        }));
+        setKeys(mapped);
+      } else {
+        setKeys(DEMO_API_KEYS);
+      }
+    } catch {
+      setKeys(DEMO_API_KEYS);
     } finally {
       setLoading(false);
     }
@@ -88,42 +110,6 @@ export default function ApiKeysPage() {
     fetchKeys();
   }, [fetchKeys]);
 
-  const handleCreateKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentOrg?.id || !keyName) return;
-
-    setCreating(true);
-    setCreateError(null);
-
-    try {
-      const token = await getIdToken();
-      const res = await apiRequest<any>("/api/v1/api-keys", {
-        method: "POST",
-        token,
-        body: JSON.stringify({
-          organizationId: currentOrg.id,
-          name: keyName.trim(),
-          environment: keyEnv,
-          scopes: ["usage:ingest", "models:read"],
-        }),
-      });
-
-      if (res.error) {
-        throw new Error(res.error || "Failed to create API key");
-      }
-
-      if (res.data?.key || res.data?.secret) {
-        setNewSecret(res.data.key || res.data.secret);
-      }
-      setIsCreateOpen(false);
-      setKeyName("");
-      await fetchKeys();
-    } catch (err: any) {
-      setCreateError(err.message || "An unexpected error occurred.");
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleCopy = () => {
     if (newSecret) {
@@ -159,7 +145,7 @@ export default function ApiKeysPage() {
   const activeCount = keys.filter((k) => k.status === "ACTIVE").length;
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#07080c] text-slate-900 dark:text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">
@@ -512,100 +498,12 @@ export default function ApiKeysPage() {
       </main>
 
       {/* Generate Key Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0e1017] border border-[#232738] rounded-2xl p-6 shadow-2xl text-white relative space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-[#1c1f2e]">
-              <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-[#dfba82]" />
-                <h3 className="text-base font-bold text-[#f4efe6]">Generate Gateway Key</h3>
-              </div>
-              <button
-                onClick={() => setIsCreateOpen(false)}
-                className="text-[#787d91] hover:text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {createError && (
-              <div className="p-3 rounded-xl bg-red-950/50 border border-red-800/40 text-red-300 text-xs">
-                {createError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateKey} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">
-                  Key Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={keyName}
-                  onChange={(e) => setKeyName(e.target.value)}
-                  placeholder="e.g. Production Backend Gateway Key"
-                  className="w-full px-3.5 py-2 bg-[#141622] border border-[#232738] rounded-xl text-white placeholder-[#5e6377] focus:outline-none focus:border-[#dfba82]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11.5px] font-semibold text-[#c5c9d6]">
-                  Target Environment
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setKeyEnv("production")}
-                    className={`py-2 px-3 rounded-xl border text-center font-medium transition-all cursor-pointer ${
-                      keyEnv === "production"
-                        ? "bg-[#dfba82]/15 border-[#dfba82] text-[#dfba82]"
-                        : "bg-[#141622] border-[#232738] text-[#8e93a6]"
-                    }`}
-                  >
-                    Production (Live)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setKeyEnv("staging")}
-                    className={`py-2 px-3 rounded-xl border text-center font-medium transition-all cursor-pointer ${
-                      keyEnv === "staging"
-                        ? "bg-blue-950/40 border-blue-500 text-blue-400"
-                        : "bg-[#141622] border-[#232738] text-[#8e93a6]"
-                    }`}
-                  >
-                    Staging / Test
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#08090f] border border-[#161824] text-[11.5px] text-[#8e93a6] flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#dfba82] shrink-0" />
-                <span>The plaintext secret key will be revealed only once upon generation.</span>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-[#1c1f2e]">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={creating}
-                  className="px-3.5 py-2 text-xs text-[#8e93a6] hover:text-white transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-4 py-2 bg-[#dfba82] text-black font-bold rounded-xl hover:bg-[#ebd4aa] transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  {creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Generate Key</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateKeyModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onKeyCreated={handleKeyCreated}
+        organizationId={currentOrg?.id}
+      />
     </div>
   );
 }

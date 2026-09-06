@@ -40,7 +40,7 @@ export default function InvoiceDetailPage() {
               </div>
 
               <button
-                onClick={() => alert("Downloading PDF tax statement...")}
+                onClick={() => window.open(`/api/v1/invoices/${invoiceId}/download`, "_blank")}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#161928] hover:bg-[#202538] text-xs font-semibold text-white transition-colors cursor-pointer border border-[#24293d]"
               >
                 <Download className="w-3.5 h-3.5 text-[#dfba82]" />

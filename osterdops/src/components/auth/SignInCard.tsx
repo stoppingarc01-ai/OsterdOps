@@ -557,6 +557,7 @@ export function SignInCard() {
       {/* Social Logins */}
       <SocialAuthButtons />
 
+
       {/* Bottom Link */}
       <div className="text-center pt-3 text-[12px] text-[#6e7385]">
         <span>Don&apos;t have an account? </span>

@@ -1,12 +1,16 @@
 "use client";
 
-import React from "react";
-import { Sparkles, Check } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Check, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 
 export function PlanTierCard() {
   const { currentOrg } = useAuth();
-  const plan = currentOrg?.planTier ? `${currentOrg.planTier.toUpperCase()} TIER` : "7-DAY TRIAL";
+  const { isTrial, daysRemaining, planId } = useSubscriptionAccess();
+  const plan = isTrial
+    ? `7-DAY TRIAL (${daysRemaining}D LEFT)`
+    : `${(planId || currentOrg?.planTier || "PRO").toUpperCase()} TIER`;
 
   const features = [
     "High-throughput model gateway proxy",
@@ -20,7 +24,7 @@ export function PlanTierCard() {
     <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-[#73788c] font-medium">Subscription Tier</span>
-        <span className="px-2 py-0.5 rounded-full bg-[#dfba82]/15 text-[#dfba82] border border-[#dfba82]/30 text-[10px] font-bold">
+        <span className="px-2 py-0.5 rounded-full bg-[#dfba82]/15 text-[#dfba82] border border-[#dfba82]/30 text-[10px] font-bold font-mono">
           {plan}
         </span>
       </div>
@@ -43,13 +47,14 @@ export function PlanTierCard() {
         ))}
       </div>
 
-      <button
-        type="button"
+      <Link
+        href="/dashboard/subscription"
         className="w-full py-2.5 rounded-xl bg-[#dfba82] hover:bg-[#ebd5ab] text-[#090a0f] text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
       >
         <Sparkles className="w-3.5 h-3.5" />
-        <span>Upgrade Subscription</span>
-      </button>
+        <span>Manage Subscription &amp; Plans</span>
+        <ArrowRight className="w-3.5 h-3.5" />
+      </Link>
     </div>
   );
 }

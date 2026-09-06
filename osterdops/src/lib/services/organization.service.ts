@@ -7,6 +7,7 @@ import "server-only";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { getFirebaseAdminConfig } from "@/lib/firebase/config";
 import { FieldValue } from "firebase-admin/firestore";
+import { invalidateApiKeyAuthCache } from "@/lib/cache";
 import type { Organization, OrganizationMember, OrganizationRole } from "@/types";
 
 export interface CreateOrganizationParams {
@@ -467,6 +468,7 @@ export async function updateOrganizationPlan(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    invalidateApiKeyAuthCache();
     const updatedDoc = await orgRef.get();
     return {
       id: updatedDoc.id,
@@ -491,6 +493,31 @@ export async function updateOrganizationPlan(
     org.planTier = planTier;
     org.updatedAt = now;
     simulatedOrgs.set(orgId, org);
+    invalidateApiKeyAuthCache();
     return org;
   }
 }
+
+/**
+ * Atomically increments an organization's monthly request counter in Firestore and simulated memory.
+ */
+export async function incrementOrganizationRequests(orgId: string, count = 1): Promise<number> {
+  const adminConfig = getFirebaseAdminConfig();
+  if (adminConfig) {
+    try {
+      const db = getAdminFirestore();
+      await db.collection("organizations").doc(orgId).update({
+        currentPeriodRequests: FieldValue.increment(count),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } catch {}
+  }
+  const memOrg = simulatedOrgs.get(orgId);
+  if (memOrg) {
+    const prev = Number(memOrg.currentPeriodRequests || 0);
+    memOrg.currentPeriodRequests = prev + count;
+    return prev + count;
+  }
+  return count;
+}
+

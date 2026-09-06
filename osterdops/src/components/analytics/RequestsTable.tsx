@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ModelProviderLogo } from "@/components/ui/ModelLogos";
+import { useCurrency } from "@/context/CurrencyContext";
 import type { UsageRecord } from "@/types";
 import {
   Activity,
@@ -23,6 +24,7 @@ interface RequestsTableProps {
 }
 
 export function RequestsTable({ requests = [], isLoading = false, maxRows = 25 }: RequestsTableProps) {
+  const { formatCurrency, currency } = useCurrency();
   const displayRows = maxRows ? requests.slice(0, maxRows) : requests;
 
   const formatTime = (ts?: unknown) => {
@@ -117,14 +119,14 @@ export function RequestsTable({ requests = [], isLoading = false, maxRows = 25 }
                 <th className="py-3 px-4 font-medium">Status</th>
                 <th className="py-3 px-4 font-medium text-right">Latency</th>
                 <th className="py-3 px-4 font-medium text-right">Prompt / Completion</th>
-                <th className="py-3 px-4 font-medium text-right">Cost (USD)</th>
+                <th className="py-3 px-4 font-medium text-right">Cost ({currency})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#141414]">
               {displayRows.map((req) => {
                 const costDisplay = req.costUsd !== undefined && req.costUsd !== null
-                  ? `$${req.costUsd.toFixed(5)}`
-                  : "$0.00000";
+                  ? formatCurrency(req.costUsd, { decimals: 5 })
+                  : formatCurrency(0, { decimals: 5 });
 
                 return (
                   <tr

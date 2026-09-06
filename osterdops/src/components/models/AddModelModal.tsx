@@ -311,6 +311,41 @@ export function AddModelModal({
     setSubmitError(null);
 
     try {
+      // Enforce live upstream validation before persistence
+      if (!validationResult?.valid) {
+        setIsValidating(true);
+        const valRes = await fetch("/api/v1/provider-connections/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: selectedProvider.id,
+            apiKey: apiKey.trim(),
+            customBaseUrl: customBaseUrl.trim() || undefined,
+          }),
+        });
+
+        const valData = await valRes.json().catch(() => ({}));
+        setIsValidating(false);
+
+        if (!valRes.ok || !valData?.success || !valData?.data?.valid) {
+          const errorDetail =
+            valData?.error?.message ||
+            valData?.error?.detail ||
+            valData?.data?.error ||
+            "Upstream authentication failed: Invalid API key.";
+          setValidationResult({ valid: false, message: errorDetail });
+          setSubmitError(errorDetail);
+          setIsSubmitting(false);
+          return;
+        }
+
+        setValidationResult({
+          valid: true,
+          message: `Connection Verified — Upstream API Handshake OK (${valData.data.latencyMs || 120}ms)`,
+          latencyMs: valData.data.latencyMs || 120,
+        });
+      }
+
       const activeModel = getEffectiveModel();
 
       // 1. Create provider connection record

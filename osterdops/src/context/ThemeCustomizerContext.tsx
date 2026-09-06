@@ -164,10 +164,18 @@ function applyDynamicThemeRules(newAccent: AccentColorConfig, newTheme: UIThemeC
   root.style.setProperty("--accent-text", newAccent.text);
   root.style.setProperty("--accent-hover", newAccent.hover);
 
-  root.style.setProperty("--db-bg", newTheme.bg);
-  root.style.setProperty("--db-surface", newTheme.surface);
-  root.style.setProperty("--db-card", newTheme.card);
-  root.style.setProperty("--db-border", newTheme.border);
+  const isDark = root.classList.contains("dark");
+  if (isDark) {
+    root.style.setProperty("--db-bg", newTheme.bg);
+    root.style.setProperty("--db-surface", newTheme.surface);
+    root.style.setProperty("--db-card", newTheme.card);
+    root.style.setProperty("--db-border", newTheme.border);
+  } else {
+    root.style.removeProperty("--db-bg");
+    root.style.removeProperty("--db-surface");
+    root.style.removeProperty("--db-card");
+    root.style.removeProperty("--db-border");
+  }
 
   // Injected CSS Override for all arbitrary gold classes across the app
   let styleEl = document.getElementById("osterdops-dynamic-theme-style") as HTMLStyleElement | null;
@@ -255,6 +263,19 @@ export function ThemeCustomizerProvider({ children }: { children: React.ReactNod
 
   useEffect(() => {
     applyDynamicThemeRules(accent, uiTheme);
+
+    if (typeof document === "undefined") return;
+
+    const observer = new MutationObserver(() => {
+      applyDynamicThemeRules(accent, uiTheme);
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
   }, [accent, uiTheme]);
 
   const setAccent = (newAccent: AccentColorConfig) => {

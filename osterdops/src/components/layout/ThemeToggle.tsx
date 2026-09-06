@@ -1,61 +1,103 @@
 "use client";
 
+import React, { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
+import { Sun, Moon, Laptop } from "lucide-react";
 
 const emptySubscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
+interface ThemeToggleProps {
+  variant?: "icon" | "segmented";
+  className?: string;
+}
+
 /**
- * Theme toggle button — cycles between light, dark, and system.
- * Uses useSyncExternalStore for hydration-safe client detection.
+ * Dual-variant Theme Switcher supporting both compact icon toggle
+ * and expanded segmented control (Light / System / Dark).
+ * Fully hydration-safe with zero SSR mismatches.
  */
-export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+export function ThemeToggle({ variant = "icon", className = "" }: ThemeToggleProps) {
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
 
   if (!mounted) {
+    if (variant === "segmented") {
+      return (
+        <div className={`flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-[#0c0e17] border border-slate-200 dark:border-[#1b1e2c] ${className}`}>
+          <div className="w-full h-7 rounded-lg bg-slate-200 dark:bg-[#141824]/50 animate-pulse" />
+        </div>
+      );
+    }
     return (
       <button
-        className="inline-flex items-center justify-center w-9 h-9 rounded-md"
-        aria-label="Toggle theme"
+        type="button"
+        className={`p-2 rounded-xl bg-slate-100 dark:bg-[#0c0e17] border border-slate-200 dark:border-[#1b1e2c] text-slate-500 dark:text-[#8e93a6] ${className}`}
+        aria-label="Loading theme"
         disabled
       >
-        <span className="w-4 h-4" />
+        <span className="w-4 h-4 block" />
       </button>
     );
   }
 
-  const next = theme === "dark" ? "light" : theme === "light" ? "system" : "dark";
+  const effectiveTheme = resolvedTheme || theme || "dark";
+
+  if (variant === "segmented") {
+    const options = [
+      { id: "light", label: "Light", icon: Sun },
+      { id: "system", label: "Auto", icon: Laptop },
+      { id: "dark", label: "Dark", icon: Moon },
+    ] as const;
+
+    return (
+      <div
+        className={`flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#0c0e17] border border-slate-200 dark:border-[#1b1e2c] gap-1 ${className}`}
+        role="group"
+        aria-label="Theme mode switcher"
+      >
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          const isActive = theme === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setTheme(opt.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] font-medium transition-all duration-150 cursor-pointer ${
+                isActive
+                  ? "bg-[#dfba82]/20 text-[#966d2a] dark:text-[#dfba82] border border-[#dfba82]/40 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-[#73788c] hover:text-slate-900 dark:hover:text-[#c5c9d6] hover:bg-slate-200/70 dark:hover:bg-white/[0.04] border border-transparent"
+              }`}
+              title={`Switch to ${opt.label} theme`}
+            >
+              <Icon className="w-3 h-3 shrink-0" />
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // "icon" variant: cleanly toggle between light and dark based on effective resolved theme
+  const cycleNext = effectiveTheme === "dark" ? "light" : "dark";
   const label =
-    theme === "dark" ? "Switch to light mode" : theme === "light" ? "Switch to system" : "Switch to dark mode";
+    effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <button
-      onClick={() => setTheme(next)}
-      className="inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors hover:bg-[var(--color-surface-hover)] active:bg-[var(--color-surface-active)] focus-visible:outline-2 focus-visible:outline-[var(--ring-color)]"
+      type="button"
+      onClick={() => setTheme(cycleNext)}
+      className={`p-2 rounded-xl bg-slate-100 dark:bg-[#0c0e17] border border-slate-200 dark:border-[#1b1e2c] hover:border-slate-300 dark:hover:border-[#dfba82]/40 text-slate-700 dark:text-[#8e93a6] hover:text-slate-900 dark:hover:text-[#dfba82] transition-colors cursor-pointer shadow-xs ${className}`}
       aria-label={label}
       title={label}
     >
-      {theme === "dark" ? (
-        /* Moon icon */
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
-        </svg>
-      ) : theme === "light" ? (
-        /* Sun icon */
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="5" />
-          <path strokeLinecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
+      {effectiveTheme === "dark" ? (
+        <Moon className="w-4 h-4 text-[#dfba82]" />
       ) : (
-        /* Monitor icon for system */
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-          <line x1="8" y1="21" x2="16" y2="21" />
-          <line x1="12" y1="17" x2="12" y2="21" />
-        </svg>
+        <Sun className="w-4 h-4 text-[#b48c48]" />
       )}
     </button>
   );

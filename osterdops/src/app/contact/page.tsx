@@ -154,7 +154,7 @@ export default function ContactPage() {
                       rows={4}
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      placeholder="Describe your AI stack, current inference providers, budget constraints, or compliance needs (SOC2, HIPAA, FedRAMP)..."
+                      placeholder="Describe your AI stack, current inference providers, budget constraints, or security requirements (Zero Data Retention, private VPC)..."
                       className="w-full p-3 rounded-xl bg-[#08080B] border border-[#1E2130] focus:border-[#DFB277] text-white text-xs font-sans outline-none resize-none transition-colors"
                     />
                   </div>
@@ -209,7 +209,7 @@ export default function ContactPage() {
                 </div>
                 <div className="pt-2 border-t border-[#181A26] flex items-center gap-2 text-[#10B981]">
                   <Lock className="w-3.5 h-3.5" />
-                  <span>SOC2 Type II &amp; HIPAA Compliant</span>
+                  <span>Zero Data Retention &amp; Hardware-Backed Key Vault</span>
                 </div>
               </div>
             </div>

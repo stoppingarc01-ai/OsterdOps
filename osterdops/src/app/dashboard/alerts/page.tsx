@@ -141,7 +141,7 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#07080c] text-slate-900 dark:text-white flex flex-col lg:flex-row selection:bg-[#dfba82] selection:text-black font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">

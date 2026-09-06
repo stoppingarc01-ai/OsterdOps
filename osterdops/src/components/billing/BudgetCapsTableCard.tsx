@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, ChevronDown, Plus, ShieldAlert, Zap, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { apiRequest } from "@/lib/api/client";
 import type { Budget } from "@/types";
 
@@ -12,6 +13,7 @@ interface BudgetCapsTableCardProps {
 
 export function BudgetCapsTableCard({ onOpenCreateBudget }: BudgetCapsTableCardProps) {
   const { currentOrg, getIdToken } = useAuth();
+  const { formatCurrency } = useCurrency();
   const [searchQuery, setSearchQuery] = useState("");
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,10 +139,10 @@ export function BudgetCapsTableCard({ onOpenCreateBudget }: BudgetCapsTableCardP
                         {item.scope || "GLOBAL"}
                       </td>
                       <td className="py-3.5 pr-4 text-right font-mono font-bold text-white">
-                        ${cap.toFixed(2)}
+                        {formatCurrency(cap)}
                       </td>
                       <td className="py-3.5 pr-4 text-right font-mono text-[#dfba82]">
-                        ${spend.toFixed(2)}
+                        {formatCurrency(spend)}
                       </td>
                       <td className="py-3.5 pr-4">
                         <div className="space-y-1">

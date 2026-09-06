@@ -4,6 +4,7 @@
 
 export * from "./backend";
 export * from "./subscription";
+export * from "./settings";
 
 import type { UserSubscriptionMetadata } from "./subscription";
 
@@ -37,6 +38,7 @@ export type User = BaseEntity & {
   avatarUrl?: string;
   role: "owner" | "admin" | "member" | "viewer" | "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
   subscription?: UserSubscriptionMetadata;
+  hasCompletedOnboarding?: boolean;
 };
 
 /** Navigation item (UI) */

@@ -44,12 +44,19 @@ export function HomeHero() {
                 <ArrowRight className="w-4 h-4 stroke-[2.5] transition-transform group-hover:translate-x-1" />
               </Link>
 
-              {/* Secondary: View Live Dashboard */}
+              {/* Secondary: View Demo / Explore Live Demo */}
               <Link
-                href="/dashboard"
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0D0D0D] hover:bg-[#141414] border border-[#222222] hover:border-[#333333] text-neutral-200 hover:text-white font-medium text-xs sm:text-sm font-mono transition-all cursor-pointer shadow-sm"
+                href="/dashboard?demo=true"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.setItem("osterdops_demo_mode", "true");
+                    document.cookie = "osterdops_demo_mode=true; path=/; max-age=86400; SameSite=Lax";
+                  }
+                }}
+                className="group flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0D0D0D] hover:bg-[#141414] border border-[#DFB277]/40 hover:border-[#DFB277] text-[#DFB277] hover:text-[#f3dbba] font-semibold text-xs sm:text-sm font-mono transition-all cursor-pointer shadow-[0_2px_12px_rgba(223,178,119,0.12)] hover:shadow-[0_4px_20px_rgba(223,178,119,0.25)]"
               >
-                <span>View Live Dashboard</span>
+                <Sparkles className="w-4 h-4 text-[#DFB277] animate-pulse" />
+                <span>Explore Live Demo</span>
               </Link>
             </div>
 

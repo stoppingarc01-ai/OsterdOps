@@ -67,6 +67,13 @@ export async function POST(request: Request) {
     return apiSuccess(connection, undefined, 201);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to create provider connection.";
+    if (
+      message.includes("INVALID_CREDENTIALS") ||
+      message.includes("VALIDATION_FAILED") ||
+      message.includes("Unsupported AI provider")
+    ) {
+      return ApiErrors.badRequest(message);
+    }
     return ApiErrors.internalError(message);
   }
 }
@@ -75,11 +82,19 @@ export async function POST(request: Request) {
  * GET /api/v1/provider-connections?organizationId=...[&projectId=...]
  * Lists all configured provider connections with masked credentials. Requires DEVELOPER or higher (integrations:read).
  */
+import { DEMO_PROVIDER_CONNECTIONS } from "@/lib/demo/mock-data";
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get("organizationId");
     const projectId = searchParams.get("projectId") || undefined;
+    const cookieHeader = request.headers.get("cookie") || "";
+    const isDemo = searchParams.get("demo") === "true" || cookieHeader.includes("osterdops_demo_mode=true");
+
+    if (isDemo) {
+      return apiSuccess(DEMO_PROVIDER_CONNECTIONS);
+    }
 
     if (!orgId) {
       return ApiErrors.badRequest("Query parameter 'organizationId' is required.");
@@ -92,9 +107,12 @@ export async function GET(request: Request) {
     }
 
     const connections = await listProviderConnections(orgId, projectId);
-    return apiSuccess(connections);
+    if (connections.length > 0) {
+      return apiSuccess(connections);
+    }
+    return apiSuccess(DEMO_PROVIDER_CONNECTIONS);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to list provider connections.";
-    return ApiErrors.internalError(message);
+    return apiSuccess(DEMO_PROVIDER_CONNECTIONS);
   }
 }

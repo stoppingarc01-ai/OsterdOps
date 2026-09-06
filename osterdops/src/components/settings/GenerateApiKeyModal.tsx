@@ -39,55 +39,33 @@ export function GenerateApiKeyModal({ isOpen, onClose, onKeyCreated }: GenerateA
         }
       }
 
-      // First fetch projects if available
-      let targetProjectId = "default";
-      if (token && currentOrg?.id) {
-        const projRes = await fetch(`/api/v1/projects?organizationId=${currentOrg.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (projRes.ok) {
-          const projData = await projRes.json();
-          if (projData.success && Array.isArray(projData.data) && projData.data.length > 0) {
-            targetProjectId = projData.data[0].id;
-          }
-        }
+      const res = await fetch("/api/v1/keys", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: name.trim() || undefined,
+          environment: "production",
+          organizationId: currentOrg?.id,
+          expiresAt,
+          permissions: ["usage:ingest", "models:read"],
+        }),
+      });
 
-        const res = await fetch(`/api/v1/projects/${targetProjectId}/api-keys`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: name.trim(),
-            environment: "production",
-            expiresAt,
-          }),
-        });
-
-        if (res.ok) {
-          const payload = await res.json();
-          if (payload.success && payload.data?.secret) {
-            setCreatedKey(payload.data.secret);
-            if (onKeyCreated) onKeyCreated();
-            setLoading(false);
-            return;
-          }
-        }
+      const payload = await res.json().catch(() => null);
+      if (res.ok && payload?.success && (payload.data?.key || payload.data?.secret)) {
+        setCreatedKey(payload.data.key || payload.data.secret);
+        if (onKeyCreated) onKeyCreated();
+        return;
       }
 
-      // Fallback generation for mock preview if not authenticated
-      const randomHex = Array.from({ length: 48 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-      ).join("");
-      setCreatedKey(`ost_live_${randomHex}`);
-      if (onKeyCreated) onKeyCreated();
+      throw new Error(payload?.error || "Failed to generate key.");
     } catch (err: unknown) {
-      console.warn("[GenerateApiKeyModal] Key creation fallback:", err);
-      const randomHex = Array.from({ length: 48 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-      ).join("");
-      setCreatedKey(`ost_live_${randomHex}`);
+      console.error("[GenerateApiKeyModal] Key creation error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to generate key.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

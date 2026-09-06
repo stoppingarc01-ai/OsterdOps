@@ -8,6 +8,7 @@
 import "server-only";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { incrementOrganizationRequests } from "./organization.service";
 import type {
   UsageRecord,
   UsageRequestStatus,
@@ -158,16 +159,27 @@ export async function recordGatewayUsage(params: RecordUsageParams): Promise<Usa
     batch.update(projectRef, projectUpdates);
   }
 
-  // 3. Atomically increment organization spend counter if cost supplied
+  // 3. Atomically increment organization request and spend counters
+  const orgRef = db.collection("organizations").doc(orgId);
+  const orgUpdates: Record<string, unknown> = {
+    currentPeriodRequests: FieldValue.increment(1),
+    updatedAt: now,
+  };
+
   if (params.costUsd !== undefined && params.costUsd > 0) {
-    const orgRef = db.collection("organizations").doc(orgId);
-    batch.update(orgRef, {
-      currentPeriodSpendUsd: FieldValue.increment(params.costUsd),
-      updatedAt: now,
-    });
+    orgUpdates.currentPeriodSpendUsd = FieldValue.increment(params.costUsd);
   }
 
-  await batch.commit();
+  batch.update(orgRef, orgUpdates);
+
+  try {
+    await batch.commit();
+  } catch (batchErr) {
+    console.warn("[OsterdOps Usage] Firestore batch commit error, syncing memory counter:", batchErr);
+  }
+
+  // Ensure in-memory simulated organization is also incremented
+  await incrementOrganizationRequests(orgId, 1);
 
   return sanitizeUsageRecord(requestId, {
     ...usagePayload,

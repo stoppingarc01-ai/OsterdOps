@@ -8,29 +8,36 @@ import type { ApiKeyEnvironment } from "@/types";
 
 export interface GeneratedKeySecret {
   secret: string;     // e.g. "ost_live_4a8f9c1e..."
+  rawKey: string;     // Full unmasked plaintext key
   keyPrefix: string;  // e.g. "ost_live_••••••••••••94f2"
+  displayPrefix: string; // e.g. "ost_live_4a8f..."
+  prefix: string;     // alias for displayPrefix
   keyHash: string;    // SHA-256 hex digest
 }
 
 /**
- * Generates a cryptographically secure OsterdOps API key.
- * Format: `ost_<env>_<48_random_hex_chars>` (192 bits of cryptographic entropy)
+ * Generates a cryptographically secure, collision-proof OsterdOps API key.
+ * Format: `ost_<env>_<64_hex_chars>` (32 bytes / 256 bits of native cryptographic entropy)
  */
 export function generateApiKeySecret(
   environment: ApiKeyEnvironment = "production"
 ): GeneratedKeySecret {
   const envPrefix = environment === "production" ? "live" : environment === "staging" ? "stg" : "test";
-  const randomBytes = crypto.randomBytes(24).toString("hex"); // 48 chars of high entropy
-  const secret = `ost_${envPrefix}_${randomBytes}`;
+  const hexEntropy = crypto.randomBytes(32).toString("hex"); // 32 bytes = 256 bits of astronomical entropy
+  const rawKey = `ost_${envPrefix}_${hexEntropy}`;
 
-  const keyHash = hashApiKey(secret);
+  const keyHash = hashApiKey(rawKey);
 
-  const suffix = randomBytes.slice(-4);
+  const displayPrefix = rawKey.slice(0, 13) + "...";
+  const suffix = hexEntropy.slice(-4);
   const keyPrefix = `ost_${envPrefix}_••••••••••••${suffix}`;
 
   return {
-    secret,
+    secret: rawKey,
+    rawKey,
     keyPrefix,
+    displayPrefix,
+    prefix: displayPrefix,
     keyHash,
   };
 }

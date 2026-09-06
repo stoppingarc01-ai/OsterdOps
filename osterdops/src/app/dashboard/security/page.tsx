@@ -122,7 +122,7 @@ export default function SecurityPosturePage() {
                   <div>
                     <div className="text-base font-bold text-[#f4efe6]">Overall Posture: {report.overallStatus}</div>
                     <div className="text-xs text-[#8e93a6]">
-                      {report.passCount} of {report.checks.length} technical controls passing across SOC 2 / ISO 27001 readiness criteria.
+                      {report.passCount} of {report.checks.length} technical controls passing across zero-trust security and encryption benchmarks.
                     </div>
                   </div>
                 </div>

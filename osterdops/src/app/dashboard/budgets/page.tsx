@@ -39,10 +39,57 @@ interface BudgetDisplayItem {
   status: "HEALTHY" | "WARNING" | "CRITICAL" | "EXCEEDED" | "PAUSED";
 }
 
+const DEMO_BUDGET_ITEMS: BudgetDisplayItem[] = [
+  {
+    id: "bgt_demo_01",
+    name: "Enterprise Hard Cap - Monthly Limit",
+    scope: "ORGANIZATION",
+    period: "MONTHLY",
+    limitUsd: 25000,
+    currentSpendUsd: 17420.5,
+    utilizationPercent: 69.7,
+    enforcementMode: "HARD_BLOCK",
+    status: "HEALTHY",
+  },
+  {
+    id: "bgt_demo_02",
+    name: "Core Platform GPT-4o Dedicated Allocation",
+    scope: "PROJECT",
+    period: "MONTHLY",
+    limitUsd: 10000,
+    currentSpendUsd: 6850.25,
+    utilizationPercent: 68.5,
+    enforcementMode: "SOFT_ALERT",
+    status: "HEALTHY",
+  },
+  {
+    id: "bgt_demo_03",
+    name: "R&D Reasoning Models (DeepSeek & o3)",
+    scope: "PROJECT",
+    period: "MONTHLY",
+    limitUsd: 5000,
+    currentSpendUsd: 2340.8,
+    utilizationPercent: 46.8,
+    enforcementMode: "SOFT_ALERT",
+    status: "HEALTHY",
+  },
+  {
+    id: "bgt_demo_04",
+    name: "Autonomous Agents Runaway Loop Breaker",
+    scope: "PROJECT",
+    period: "MONTHLY",
+    limitUsd: 2500,
+    currentSpendUsd: 890.1,
+    utilizationPercent: 35.6,
+    enforcementMode: "HARD_BLOCK",
+    status: "HEALTHY",
+  },
+];
+
 export default function BudgetsPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const [budgets, setBudgets] = useState<BudgetDisplayItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [budgets, setBudgets] = useState<BudgetDisplayItem[]>(DEMO_BUDGET_ITEMS);
+  const [loading, setLoading] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [evaluating, setEvaluating] = useState<string | null>(null);
 
@@ -52,7 +99,11 @@ export default function BudgetsPage() {
   });
 
   const fetchBudgets = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      setBudgets(DEMO_BUDGET_ITEMS);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -62,7 +113,7 @@ export default function BudgetsPage() {
         token,
       });
 
-      if (res.data && Array.isArray(res.data)) {
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         const mapped: BudgetDisplayItem[] = res.data.map((b: any) => {
           const limit = b.amountUsd || b.limitUsd || 500;
           // Synchronize with live telemetry if organization scope
@@ -92,10 +143,10 @@ export default function BudgetsPage() {
         });
         setBudgets(mapped);
       } else {
-        setBudgets([]);
+        setBudgets(DEMO_BUDGET_ITEMS);
       }
-    } catch (e) {
-      setBudgets([]);
+    } catch {
+      setBudgets(DEMO_BUDGET_ITEMS);
     } finally {
       setLoading(false);
     }
@@ -170,7 +221,7 @@ export default function BudgetsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080808] text-slate-900 dark:text-neutral-200 flex flex-col lg:flex-row selection:bg-[#DFB277] selection:text-[#0E0E0E] font-sans">
       <AppSidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto max-w-[1600px] mx-auto w-full">

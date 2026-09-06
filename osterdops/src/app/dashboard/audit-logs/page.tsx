@@ -140,7 +140,7 @@ export default function AuditLogsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-[#8e93a6] mt-0.5">
-                  Tamper-evident, SHA-256 hash-chained immutable event logs for SOC 2 Type II and ISO 27001 verification.
+                  Tamper-evident, SHA-256 hash-chained immutable event logs with verifiable cryptographic proof.
                 </p>
               </div>
 
@@ -266,8 +266,8 @@ export default function AuditLogsPage() {
                     </div>
                     <span className="text-[11.5px] text-[#8e93a6] font-medium">Compliance</span>
                   </div>
-                  <div className="text-xl font-bold text-white pt-0.5">SOC2 / ISO</div>
-                  <div className="text-[10.5px] text-purple-400 font-medium">Audit report ready</div>
+                  <div className="text-xl font-bold text-white pt-0.5">Immutable</div>
+                  <div className="text-[10.5px] text-purple-400 font-medium">Cryptographic ledger</div>
                 </div>
                 <div className="w-20 h-10 flex items-end">
                   <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">

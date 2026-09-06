@@ -18,6 +18,87 @@ import type {
 interface AnthropicContentBlock {
   type: string;
   text?: string;
+  thinking?: string;
+}
+
+/**
+ * Normalizes Claude model identifiers, shorthands, and legacy versions to canonical Anthropic IDs.
+ */
+export function normalizeAnthropicModel(modelName: string): string {
+  const raw = (modelName || "").trim().toLowerCase();
+  const clean = raw.replace(/^anthropic\//, "");
+
+  // Claude 5 Fable & creative aliases
+  if (
+    clean === "fable 5" ||
+    clean === "fable-5" ||
+    clean === "claude-fable-5" ||
+    clean === "claude-fable" ||
+    clean === "claude-5-fable"
+  ) {
+    return "claude-5-fable";
+  }
+
+  // Claude 5 Sonnet & shorthand aliases
+  if (
+    clean === "sonnet 5" ||
+    clean === "sonnet-5" ||
+    clean === "claude-sonnet-5" ||
+    clean === "claude-5-sonnet"
+  ) {
+    return "claude-5-sonnet";
+  }
+
+  // Claude 5 Opus & shorthand aliases
+  if (
+    clean === "opus 5" ||
+    clean === "opus-5" ||
+    clean === "claude-opus-5" ||
+    clean === "claude-5-opus"
+  ) {
+    return "claude-5-opus";
+  }
+
+  // Claude 3.7 Sonnet hybrid reasoning
+  if (
+    clean === "claude-3-7-sonnet" ||
+    clean === "claude-3.7-sonnet" ||
+    clean === "claude-3-7-sonnet-latest" ||
+    clean === "claude-3-7-sonnet-20250219"
+  ) {
+    return "claude-3-7-sonnet-20250219";
+  }
+
+  // Claude 3.5 Sonnet
+  if (
+    clean === "claude-3-5-sonnet" ||
+    clean === "claude-3.5-sonnet" ||
+    clean === "claude-3-5-sonnet-latest" ||
+    clean === "claude-3-5-sonnet-20241022"
+  ) {
+    return "claude-3-5-sonnet-20241022";
+  }
+
+  // Claude 3.5 Haiku
+  if (
+    clean === "claude-3-5-haiku" ||
+    clean === "claude-3.5-haiku" ||
+    clean === "claude-3-5-haiku-latest" ||
+    clean === "claude-3-5-haiku-20241022"
+  ) {
+    return "claude-3-5-haiku-20241022";
+  }
+
+  // Claude 3 Opus
+  if (
+    clean === "claude-3-opus" ||
+    clean === "claude-3-opus-latest" ||
+    clean === "claude-3-opus-20240229"
+  ) {
+    return "claude-3-opus-20240229";
+  }
+
+  return clean;
 }
 
 interface AnthropicUsage {
@@ -54,18 +135,24 @@ export class AnthropicAdapter implements AIProviderAdapter {
     }
 
     const baseUrl = credentials.baseUrl || "https://api.anthropic.com/v1";
-    const url = `${baseUrl.replace(/\/+$/, "")}/models`;
+    const url = `${baseUrl.replace(/\/+$/, "")}/messages`;
 
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch(url, {
-        method: "GET",
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           "x-api-key": credentials.apiKey,
           "anthropic-version": "2023-06-01",
         },
+        body: JSON.stringify({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 1,
+          messages: [{ role: "user", content: "ping" }],
+        }),
         signal: controller.signal,
       }).finally(() => clearTimeout(timer));
 
@@ -79,6 +166,20 @@ export class AnthropicAdapter implements AIProviderAdapter {
 
       if (res.status === 429) {
         return { valid: false, error: "PROVIDER_RATE_LIMITED: Anthropic rate limit reached." };
+      }
+
+      const body = await res.json().catch(() => null);
+      if (body?.error?.type === "authentication_error") {
+        return { valid: false, error: "INVALID_CREDENTIALS: Invalid Anthropic API key." };
+      }
+
+      if (res.status === 400 && body?.error?.type === "permission_error") {
+        return { valid: false, error: `INVALID_CREDENTIALS: ${body?.error?.message || "Invalid Anthropic API key."}` };
+      }
+
+      // If credit limit or specific model parameter issue on 400, key is authentic
+      if (res.status === 400 && !body?.error?.message?.toLowerCase().includes("key")) {
+        return { valid: true };
       }
 
       return { valid: false, error: `VALIDATION_FAILED: Anthropic responded with HTTP ${res.status}.` };
@@ -120,8 +221,10 @@ export class AnthropicAdapter implements AIProviderAdapter {
       anthropicMessages.push({ role: "user", content: systemParts.join("\n") || "Hello" });
     }
 
+    const canonicalModel = normalizeAnthropicModel(request.model);
+
     const payload: Record<string, unknown> = {
-      model: request.model,
+      model: canonicalModel,
       messages: anthropicMessages,
       max_tokens: request.max_tokens || 4096,
       stream: false,
@@ -135,6 +238,42 @@ export class AnthropicAdapter implements AIProviderAdapter {
     if (request.top_p !== undefined) payload.top_p = request.top_p;
     if (request.stop) {
       payload.stop_sequences = Array.isArray(request.stop) ? request.stop : [request.stop];
+    }
+
+    // Extended Thinking support (Claude 3.7 Sonnet & Claude 5)
+    let thinkingPayload: { type: "enabled"; budget_tokens: number } | undefined;
+    if (
+      request.thinking &&
+      typeof request.thinking === "object" &&
+      "budget_tokens" in (request.thinking as Record<string, unknown>)
+    ) {
+      thinkingPayload = request.thinking as { type: "enabled"; budget_tokens: number };
+    } else if (typeof request.thinking_budget === "number" && request.thinking_budget > 0) {
+      thinkingPayload = { type: "enabled", budget_tokens: request.thinking_budget };
+    } else if (typeof request.thinkingConfig === "object" && request.thinkingConfig !== null) {
+      const tc = request.thinkingConfig as { thinkingBudget?: number };
+      if (typeof tc.thinkingBudget === "number" && tc.thinkingBudget > 0) {
+        thinkingPayload = { type: "enabled", budget_tokens: tc.thinkingBudget };
+      }
+    } else if (typeof request.reasoning_effort === "string") {
+      const budgetMap: Record<string, number> = {
+        low: 1024,
+        medium: 2048,
+        high: 4096,
+      };
+      const budget = budgetMap[request.reasoning_effort] || 2048;
+      thinkingPayload = { type: "enabled", budget_tokens: budget };
+    }
+
+    if (thinkingPayload) {
+      payload.thinking = thinkingPayload;
+      if (
+        typeof payload.max_tokens === "number" &&
+        payload.max_tokens <= thinkingPayload.budget_tokens
+      ) {
+        payload.max_tokens = thinkingPayload.budget_tokens + 4096;
+      }
+      delete payload.temperature;
     }
 
     return { url, headers, body: JSON.stringify(payload) };
@@ -197,10 +336,16 @@ export class AnthropicAdapter implements AIProviderAdapter {
           const type = String(parsed.type || "");
 
           if (type === "content_block_delta") {
-            const delta = parsed.delta as { type?: string; text?: string };
+            const delta = parsed.delta as { type?: string; text?: string; thinking?: string };
             if (delta?.text) {
               results.push({
                 deltaText: delta.text,
+                finishReason: null,
+                rawJson: parsed,
+              });
+            } else if (delta?.thinking) {
+              results.push({
+                deltaText: delta.thinking,
                 finishReason: null,
                 rawJson: parsed,
               });
@@ -269,10 +414,15 @@ export class AnthropicAdapter implements AIProviderAdapter {
 
   normalizeResponse(responseBody: unknown, model: string): GatewayChatResponse {
     const body = responseBody as AnthropicResponseBody;
-    const contentText = (body.content || [])
-      .filter((c) => c.type === "text" && Boolean(c.text))
-      .map((c) => c.text)
-      .join("");
+    const textBlocks = (body.content || []).filter((c) => c.type === "text" && Boolean(c.text));
+    const thinkingBlocks = (body.content || []).filter(
+      (c) => c.type === "thinking" && Boolean(c.thinking)
+    );
+
+    let contentText = textBlocks.map((c) => c.text).join("");
+    if (!contentText && thinkingBlocks.length > 0) {
+      contentText = thinkingBlocks.map((c) => c.thinking).join("");
+    }
 
     const finishReason =
       body.stop_reason === "end_turn" || body.stop_reason === "stop_sequence"

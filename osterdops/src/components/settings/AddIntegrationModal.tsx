@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Check, Plus, Key, Link as LinkIcon, Sparkles } from "lucide-react";
+import { X, Check, Plus, Key, Link as LinkIcon, Sparkles, AlertCircle } from "lucide-react";
 import { IntegrationLogoBadge } from "@/components/ui/IntegrationLogos";
 import { IntegrationItem } from "./ManageIntegrationModal";
 
@@ -12,12 +12,12 @@ interface AddIntegrationModalProps {
 }
 
 const AVAILABLE_PROVIDERS = [
-  { id: "aws-bedrock", name: "AWS Bedrock", type: "Provider", badge: "Live Rates" },
-  { id: "azure-openai", name: "Azure OpenAI", type: "Provider", badge: "Managed Endpoint" },
-  { id: "datadog-apm", name: "Datadog APM", type: "Telemetry", badge: "Realtime Spans" },
-  { id: "langfuse", name: "Langfuse", type: "Tracing", badge: "Prompt Versioning" },
-  { id: "slack-alerts", name: "Slack Webhooks", type: "Alerts", badge: "Budget Notifications" },
-  { id: "mistral-ai", name: "Mistral AI", type: "Provider", badge: "Open Weights" },
+  { id: "aws-bedrock", name: "AWS Bedrock", type: "Provider", badge: "Live Rates", providerKey: "bedrock" },
+  { id: "azure-openai", name: "Azure OpenAI", type: "Provider", badge: "Managed Endpoint", providerKey: "azure" },
+  { id: "datadog-apm", name: "Datadog APM", type: "Telemetry", badge: "Realtime Spans", providerKey: "custom" },
+  { id: "langfuse", name: "Langfuse", type: "Tracing", badge: "Prompt Versioning", providerKey: "custom" },
+  { id: "slack-alerts", name: "Slack Webhooks", type: "Alerts", badge: "Budget Notifications", providerKey: "custom" },
+  { id: "mistral-ai", name: "Mistral AI", type: "Provider", badge: "Open Weights", providerKey: "mistral" },
 ];
 
 export function AddIntegrationModal({
@@ -29,14 +29,45 @@ export function AddIntegrationModal({
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!apiKey.trim()) {
+      setError("API key is required.");
+      return;
+    }
 
-    setTimeout(() => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      if (selectedProvider.type === "Provider") {
+        const res = await fetch("/api/v1/provider-connections/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: selectedProvider.providerKey,
+            apiKey: apiKey.trim(),
+            customBaseUrl: endpoint.trim() || undefined,
+          }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json?.success || !json?.data?.valid) {
+          const errMsg =
+            json?.error?.message ||
+            json?.data?.error ||
+            json?.data?.message ||
+            "Upstream authentication failed: Invalid API key.";
+          setError(errMsg);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       onAdd({
         id: selectedProvider.id,
         name: selectedProvider.name,
@@ -46,9 +77,15 @@ export function AddIntegrationModal({
         status: "Connected",
         provider: selectedProvider.type,
       });
+
+      setApiKey("");
+      setEndpoint("");
       setIsSubmitting(false);
       onClose();
-    }, 500);
+    } catch {
+      setError("Network error connecting to validation endpoint.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -145,10 +182,21 @@ export function AddIntegrationModal({
             </div>
           </div>
 
+          {/* Error Banner */}
+          {error && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs font-mono">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+              <div>
+                <div className="font-semibold text-red-200">Validation Error</div>
+                <div className="text-[11px] opacity-90 mt-0.5">{error}</div>
+              </div>
+            </div>
+          )}
+
           {/* Info banner */}
           <div className="flex items-center gap-2 p-3 rounded-xl bg-[#dfba82]/10 border border-[#dfba82]/20 text-[11px] text-[#dfba82]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span>OsterdOps encrypts all provider keys at rest using AES-256 GCM in SOC2 Type II vaults.</span>
+            <span>OsterdOps encrypts all provider keys at rest using hardware-backed AES-256 GCM envelope encryption.</span>
           </div>
 
           {/* Footer Actions */}

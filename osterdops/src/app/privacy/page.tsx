@@ -32,7 +32,7 @@ export default function PrivacyPage() {
             </h1>
 
             <p className="text-xs font-mono text-neutral-500">
-              Effective Date: January 1, 2026 • SOC2 Type II &amp; HIPAA BAA Compliant
+              Effective Date: January 1, 2026 • Zero Data Retention &amp; Hardware-Backed Key Vault
             </p>
           </div>
 
@@ -66,9 +66,9 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-base font-bold font-mono text-white">4. GDPR, CCPA &amp; HIPAA Compliance</h2>
+              <h2 className="text-base font-bold font-mono text-white">4. Data Privacy &amp; Self-Serve Deletion Rights</h2>
               <p>
-                Customers subject to HIPAA can execute a Business Associate Agreement (BAA). We provide self-serve data deletion and data export requests in accordance with GDPR Article 17 and CCPA regulations.
+                We provide self-serve data deletion and data export requests with immediate cryptographic key purging across all storage tiers.
               </p>
             </section>
 

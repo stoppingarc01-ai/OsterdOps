@@ -22,7 +22,7 @@ export function Footer() {
                 All Systems Operational
               </span>
               <span className="text-[#4b5062]">•</span>
-              <span className="text-[#8e94a8]">SOC 2 Type II Certified</span>
+              <span className="text-[#8e94a8]">Zero Prompt Retention (ZDR) • AES-256</span>
             </div>
 
             {/* Prominent Admin Console Footer Trigger */}

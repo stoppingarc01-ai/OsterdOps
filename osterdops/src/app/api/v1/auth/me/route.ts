@@ -9,8 +9,41 @@ import { getUserOrganizations, createOrganization } from "@/lib/services/organiz
 import { apiSuccess } from "@/lib/api/response";
 
 export async function GET(request: Request) {
+  const cookieHeader = request.headers.get("cookie") || "";
+  const isDemo = cookieHeader.includes("osterdops_demo_mode=true");
+
   const authResult = await requireAuth(request);
   if (authResult.errorResponse) {
+    if (isDemo) {
+      return apiSuccess({
+        user: {
+          id: "usr_demo_lead",
+          email: "demo@osterdops.internal",
+          name: "Demo Explorer (Sandbox)",
+          role: "OWNER",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        organizations: [
+          {
+            organization: {
+              id: "org_osterdops_demo_mesh",
+              name: "OsterdOps AI Production Mesh",
+              planTier: "scale",
+              status: "active",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            membership: {
+              organizationId: "org_osterdops_demo_mesh",
+              userId: "usr_demo_lead",
+              role: "OWNER",
+              createdAt: new Date().toISOString(),
+            },
+          },
+        ],
+      });
+    }
     return authResult.errorResponse;
   }
 

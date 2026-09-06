@@ -17,6 +17,7 @@ import type {
 
 interface GeminiPart {
   text?: string;
+  thought?: boolean;
 }
 
 interface GeminiCandidate {
@@ -53,13 +54,14 @@ export class GeminiAdapter implements AIProviderAdapter {
   async validateCredentials(
     credentials: ProviderCredentials
   ): Promise<{ valid: boolean; error?: string }> {
-    if (!credentials.apiKey || typeof credentials.apiKey !== "string") {
+    if (!credentials.apiKey || typeof credentials.apiKey !== "string" || !credentials.apiKey.trim()) {
       return { valid: false, error: "API key is required" };
     }
 
+    const cleanKey = credentials.apiKey.trim();
     const baseUrl =
       credentials.baseUrl || "https://generativelanguage.googleapis.com/v1beta";
-    const url = `${baseUrl.replace(/\/+$/, "")}/models?key=${credentials.apiKey}`;
+    const url = `${baseUrl.replace(/\/+$/, "")}/models?key=${encodeURIComponent(cleanKey)}`;
 
     try {
       const controller = new AbortController();
@@ -96,7 +98,12 @@ export class GeminiAdapter implements AIProviderAdapter {
     const baseUrl =
       credentials.baseUrl || "https://generativelanguage.googleapis.com/v1beta";
     let cleanModel = request.model.replace(/^models\//, "");
-    if (cleanModel === "gemini-flash-latest" || cleanModel === "gemini-2.5-flash") {
+    // Transparently route deprecated model identifiers to their official Google Gemini 3 replacements
+    if (cleanModel === "gemini-2.5-flash") {
+      cleanModel = "gemini-3.6-flash";
+    } else if (cleanModel === "gemini-2.5-pro") {
+      cleanModel = "gemini-3.1-pro-preview";
+    } else if (cleanModel === "gemini-2.5-flash-lite") {
       cleanModel = "gemini-3.5-flash-lite";
     }
     const url = `${baseUrl.replace(/\/+$/, "")}/models/${cleanModel}:generateContent?key=${credentials.apiKey}`;
@@ -149,8 +156,6 @@ export class GeminiAdapter implements AIProviderAdapter {
     if (Object.keys(generationConfig).length > 0) {
       if (request.thinkingConfig) {
         generationConfig.thinkingConfig = request.thinkingConfig;
-      } else if (cleanModel === "gemini-3.8-flash" && request.reasoning_effort !== "high") {
-        generationConfig.thinkingConfig = { thinkingBudget: 0 };
       }
       payload.generationConfig = generationConfig;
     }
@@ -275,9 +280,20 @@ export class GeminiAdapter implements AIProviderAdapter {
   normalizeResponse(responseBody: unknown, model: string): GatewayChatResponse {
     const body = responseBody as GeminiResponseBody;
     const candidate = body?.candidates?.[0];
-    const contentText = (candidate?.content?.parts || [])
+    const parts = candidate?.content?.parts || [];
+    let contentText = parts
+      .filter((p) => !p.thought)
       .map((p) => p.text || "")
       .join("");
+    const reasoningText = parts
+      .filter((p) => p.thought)
+      .map((p) => p.text || "")
+      .join("");
+
+    // If text was cut off during thinking, fallback to reasoning text
+    if (!contentText && reasoningText) {
+      contentText = reasoningText;
+    }
 
     const geminiFinish = candidate?.finishReason || "STOP";
     const finishReason =

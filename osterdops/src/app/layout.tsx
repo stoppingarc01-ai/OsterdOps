@@ -34,6 +34,7 @@ const jakarta = Plus_Jakarta_Sans({
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { ThemeCustomizerProvider } from "@/context/ThemeCustomizerContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 import { CustomizeThemeModal } from "@/components/ui/CustomizeThemeModal";
 import { FirebaseAnalyticsProvider } from "@/components/analytics/FirebaseAnalyticsProvider";
 
@@ -116,18 +117,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${jakarta.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-[#07080c] text-slate-900 dark:text-[#e8eaf0] transition-colors duration-200">
         <FirebaseAnalyticsProvider />
         <AuthProvider>
-          <ThemeCustomizerProvider>
-            <ThemeProvider>
-              <ToastProvider>
-                {children}
-                <CustomCursor />
-                <CustomizeThemeModal />
-              </ToastProvider>
-            </ThemeProvider>
-          </ThemeCustomizerProvider>
+          <CurrencyProvider>
+            <ThemeCustomizerProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  {children}
+                  <CustomCursor />
+                  <CustomizeThemeModal />
+                </ToastProvider>
+              </ThemeProvider>
+            </ThemeCustomizerProvider>
+          </CurrencyProvider>
         </AuthProvider>
       </body>
     </html>

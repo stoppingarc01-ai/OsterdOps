@@ -229,7 +229,7 @@ export default function MembersPage() {
   const mustResetSelf = Boolean(currentMembership?.mustResetPassword || (userProfile as any)?.mustResetPassword);
 
   return (
-    <div className="min-h-screen bg-[#080808] text-neutral-200 flex flex-col font-sans selection:bg-[#DFB277] selection:text-[#0E0E0E]">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080808] text-slate-900 dark:text-neutral-200 flex flex-col font-sans selection:bg-[#DFB277] selection:text-[#0E0E0E]">
       <div className="flex-1 flex flex-col lg:flex-row">
         <AppSidebar />
 
