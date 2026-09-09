@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { ShieldAlert, Zap, Activity, CheckCircle2, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api/client";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 
 interface AlertItem {
   id: string;
@@ -18,8 +18,7 @@ interface AlertItem {
 
 export function ActiveAlertsCard() {
   const { currentOrg, getIdToken } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(false);
 

@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 import {
   Activity,
   Search,
@@ -50,8 +50,7 @@ interface RequestItem {
 
 export default function GatewayPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "errors" | "timeouts" | "retries">("all");

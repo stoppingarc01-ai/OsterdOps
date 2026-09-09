@@ -3,14 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api/client";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 
 export function AIInsightsCard() {
   const { currentOrg, getIdToken } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
   const [insight, setInsight] = useState<string | null>(null);
 
   useEffect(() => {

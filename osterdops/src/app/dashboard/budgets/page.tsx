@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import {
   Wallet,
@@ -89,8 +89,7 @@ const DEMO_BUDGET_ITEMS: BudgetDisplayItem[] = [
 
 export default function BudgetsPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
   const [budgets, setBudgets] = useState<BudgetDisplayItem[]>(() => (isDemo ? DEMO_BUDGET_ITEMS : []));
   const [loading, setLoading] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);

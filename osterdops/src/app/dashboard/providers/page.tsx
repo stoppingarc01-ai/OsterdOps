@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { AddModelModal } from "@/components/models/AddModelModal";
 import { ModelProviderLogo } from "@/components/ui/ModelLogos";
 import { useAuth } from "@/context/AuthContext";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 import type { ProviderConnection, ProviderConnectionStatus } from "@/types";
 import { DEMO_PROVIDER_CONNECTIONS } from "@/lib/demo/mock-data";
 import {
@@ -33,8 +33,7 @@ import {
 
 export default function ProvidersPage() {
   const { currentOrg, organizations } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
   const effectiveOrgId = currentOrg?.id || organizations[0]?.organization?.id || "";
 
   const [connections, setConnections] = useState<ProviderConnection[]>(() => (isDemo ? DEMO_PROVIDER_CONNECTIONS : []));

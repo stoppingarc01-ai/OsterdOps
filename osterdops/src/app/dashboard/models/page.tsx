@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { AddModelModal } from "@/components/models/AddModelModal";
 import { ModelProviderLogo } from "@/components/ui/ModelLogos";
 import { useAuth } from "@/context/AuthContext";
+import { checkIsDemoMode } from "@/hooks/useDemoMode";
 import type { ProviderConnection } from "@/types";
 import {
   Workflow,
@@ -34,8 +34,7 @@ const CURATED_MODELS: CatalogModel[] = getDynamicCatalogModels();
 
 export default function DashboardModelsPage() {
   const { currentOrg, organizations } = useAuth();
-  const searchParams = useSearchParams();
-  const isDemo = searchParams?.get("demo") === "true";
+  const isDemo = checkIsDemoMode();
   const effectiveOrgId = currentOrg?.id || organizations[0]?.organization?.id || "";
 
   // Active Connections State

@@ -1,21 +1,30 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
+export function checkIsDemoMode(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+}
+
 export function useDemoMode() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loginWithDevProvider } = useAuth();
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => checkIsDemoMode());
   const [isActivating, setIsActivating] = useState<boolean>(false);
 
   // Sync state from URL, sessionStorage, and cookie
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const urlDemo = searchParams.get("demo") === "true";
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlDemo = urlParams.get("demo") === "true";
     const sessionDemo = sessionStorage.getItem("osterdops_demo_mode") === "true";
     const cookieDemo = document.cookie.split("; ").some((c) => c.startsWith("osterdops_demo_mode=true"));
 
@@ -39,7 +48,7 @@ export function useDemoMode() {
           setIsActivating(false);
         });
     }
-  }, [searchParams, user, loginWithDevProvider, isActivating]);
+  }, [user, loginWithDevProvider, isActivating]);
 
   const enterDemoMode = useCallback(async () => {
     if (typeof window !== "undefined") {
