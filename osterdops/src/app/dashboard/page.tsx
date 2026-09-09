@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LiveTickerBar } from "@/components/dashboard/LiveTickerBar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatCardsBar } from "@/components/dashboard/StatCardsBar";
@@ -30,6 +31,7 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { useDemoMode } from "@/hooks/useDemoMode";
 
 function DashboardContent() {
+  const router = useRouter();
   const { user, userProfile, currentOrg, refreshUser } = useAuth();
   const subscriptionAccess = useSubscriptionAccess();
   const { isDemoMode } = useDemoMode();
@@ -40,6 +42,13 @@ function DashboardContent() {
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isQuickstartOpen, setIsQuickstartOpen] = useState(false);
+
+  // Redirect to onboarding if user has not completed onboarding and not in demo mode
+  React.useEffect(() => {
+    if (!isDemoMode && user && userProfile && userProfile.hasCompletedOnboarding === false) {
+      router.replace("/onboarding");
+    }
+  }, [user, userProfile, isDemoMode, router]);
 
   // Prompt plan selection if current workspace has no planTier set and not in demo mode
   React.useEffect(() => {

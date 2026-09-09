@@ -15,6 +15,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { PRICING_PLANS, type PlanTier, type PlanFeatureDefinition } from "@/lib/billing/plans";
+import { useAuth } from "@/context/AuthContext";
 
 interface PlanSelectionModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function PlanSelectionModal({
   onPlanSelected,
   isMandatory = true,
 }: PlanSelectionModalProps) {
+  const { getIdToken, currentOrg, organizations } = useAuth();
   const [selectedTier, setSelectedTier] = useState<PlanTier>(
     (currentPlanTier as PlanTier) || "growth"
   );
@@ -43,24 +45,35 @@ export function PlanSelectionModal({
     setIsSubmitting(true);
     setError(null);
 
+    const targetOrgId = orgId || currentOrg?.id || organizations[0]?.organization?.id;
+
     try {
-      if (orgId) {
+      if (targetOrgId) {
+        const token = await getIdToken();
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         // Save plan selection to backend
-        const res = await fetch(`/api/v1/organizations/${orgId}/plan`, {
+        const res = await fetch(`/api/v1/organizations/${targetOrgId}/plan`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ planTier: selectedTier }),
         });
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || "Failed to save selected plan.");
+          console.warn("[PlanSelectionModal] Backend note:", errData);
         }
       }
 
       await onPlanSelected(selectedTier);
     } catch (err) {
-      setError((err as Error).message);
+      console.warn("[PlanSelectionModal] Continuing onboarding:", err);
+      await onPlanSelected(selectedTier);
     } finally {
       setIsSubmitting(false);
     }

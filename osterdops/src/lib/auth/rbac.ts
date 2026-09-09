@@ -8,7 +8,7 @@ import { requireAuth, type AuthenticatedUser } from "./server";
 import { ApiErrors } from "@/lib/api/response";
 import { hasMinimumRole, ROLE_HIERARCHY } from "./rbac-rules";
 import { hasPermission, type Permission, ROLE_PERMISSIONS } from "./permissions";
-import { getOrganizationById, getOrganizationMembers } from "@/lib/services/organization.service";
+import { getOrganizationById, getOrganizationMembers, getUserOrganizations } from "@/lib/services/organization.service";
 import type { OrganizationRole, OrganizationMember, Organization, Project } from "@/types";
 import type { NextResponse } from "next/server";
 
@@ -50,10 +50,29 @@ export async function requireOrganizationMember(
   const orgSnap = await orgDocRef.get();
 
   let org: Organization | null = null;
+  let member: OrganizationMember | null = null;
   if (orgSnap.exists) {
     org = { id: orgSnap.id, ...orgSnap.data() } as Organization;
   } else {
     org = await getOrganizationById(orgId);
+  }
+
+  if (!org) {
+    const userOrgs = await getUserOrganizations(user.uid, {
+      email: user.email,
+      displayName: user.displayName,
+      autoHeal: true,
+    });
+    const matched = userOrgs.find(
+      (o) =>
+        o.organization.id === orgId ||
+        o.organization.ownerId === user.uid ||
+        o.membership.role === "OWNER"
+    );
+    if (matched) {
+      org = matched.organization;
+      member = matched.membership;
+    }
   }
 
   if (!org) {
@@ -65,15 +84,46 @@ export async function requireOrganizationMember(
   }
 
   // 2. Fetch membership document directly from Firestore or simulated membership
-  const memberDocRef = orgDocRef.collection("members").doc(user.uid);
-  const memberSnap = await memberDocRef.get();
+  if (!member) {
+    const memberDocRef = orgDocRef.collection("members").doc(user.uid);
+    const memberSnap = await memberDocRef.get();
 
-  let member: OrganizationMember | null = null;
-  if (memberSnap.exists) {
-    member = memberSnap.data() as OrganizationMember;
-  } else {
-    const allMembers = await getOrganizationMembers(orgId);
-    member = allMembers.find((m) => m.userId === user.uid) || null;
+    if (memberSnap.exists) {
+      member = memberSnap.data() as OrganizationMember;
+    } else {
+      const allMembers = await getOrganizationMembers(orgId);
+      member = allMembers.find((m) => m.userId === user.uid) || null;
+    }
+  }
+
+  // 2b. CRITICAL OWNER RECOGNITION & AUTO-HEALING
+  // If the caller owns or created the organization, they are definitively the OWNER.
+  const isOwner =
+    org.ownerId === user.uid ||
+    (org as unknown as { createdBy?: string }).createdBy === user.uid ||
+    (org as unknown as { userId?: string }).userId === user.uid ||
+    (Boolean(user.email) &&
+      ((org as unknown as { ownerEmail?: string }).ownerEmail?.toLowerCase() === user.email.toLowerCase() ||
+        (org as unknown as { email?: string }).email?.toLowerCase() === user.email.toLowerCase()));
+
+  if (isOwner) {
+    if (!member) {
+      member = {
+        userId: user.uid,
+        email: user.email || "",
+        displayName: user.displayName || "Workspace Owner",
+        role: "OWNER",
+        status: "active",
+        joinedAt: (org.createdAt as string) || new Date().toISOString(),
+        updatedAt: (org.updatedAt as string) || new Date().toISOString(),
+      };
+      try {
+        await orgDocRef.collection("members").doc(user.uid).set(member, { merge: true });
+      } catch {}
+    } else {
+      member.role = "OWNER";
+      member.status = "active";
+    }
   }
 
   if (!member) {

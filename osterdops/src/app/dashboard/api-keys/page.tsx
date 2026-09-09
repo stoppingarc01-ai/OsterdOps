@@ -43,7 +43,12 @@ interface ApiKeyItem {
 
 export default function ApiKeysPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const [keys, setKeys] = useState<ApiKeyItem[]>(DEMO_API_KEYS);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+  const [keys, setKeys] = useState<ApiKeyItem[]>(() => isDemo ? DEMO_API_KEYS : []);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [newSecret, setNewSecret] = useState<string | null>(null);
@@ -70,7 +75,7 @@ export default function ApiKeysPage() {
 
   const fetchKeys = useCallback(async () => {
     if (!currentOrg?.id) {
-      setKeys(DEMO_API_KEYS);
+      setKeys(isDemo ? DEMO_API_KEYS : []);
       setLoading(false);
       return;
     }
@@ -97,14 +102,14 @@ export default function ApiKeysPage() {
         }));
         setKeys(mapped);
       } else {
-        setKeys(DEMO_API_KEYS);
+        setKeys(isDemo ? DEMO_API_KEYS : []);
       }
     } catch {
-      setKeys(DEMO_API_KEYS);
+      setKeys(isDemo ? DEMO_API_KEYS : []);
     } finally {
       setLoading(false);
     }
-  }, [currentOrg, getIdToken]);
+  }, [currentOrg, getIdToken, isDemo]);
 
   useEffect(() => {
     fetchKeys();

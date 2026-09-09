@@ -101,7 +101,7 @@ export default function DashboardSettingsPage() {
 
   // Modals state
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
-  const [deleteAccountPhrase, setDeleteAccountPhrase] = useState("");
+  const [confirmDeleteChecked, setConfirmDeleteChecked] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isEditOrgOpen, setIsEditOrgOpen] = useState(false);
   const [isGenerateKeyOpen, setIsGenerateKeyOpen] = useState(false);
@@ -467,13 +467,8 @@ export default function DashboardSettingsPage() {
   // Delete Account Permanently Handler
   // ---------------------------------------------------------------------------
   const handleDeleteAccount = async () => {
-    const phrase = deleteAccountPhrase.trim();
-    const isValid =
-      phrase === "DELETE MY ACCOUNT" ||
-      (user?.email && phrase.toLowerCase() === user.email.toLowerCase());
-
-    if (!isValid) {
-      toast("Confirmation mismatch. Type 'DELETE MY ACCOUNT' or your email to confirm.", "warning");
+    if (!confirmDeleteChecked) {
+      toast("Please check the confirmation box to proceed with account deletion.", "warning");
       return;
     }
 
@@ -487,7 +482,7 @@ export default function DashboardSettingsPage() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ confirmationPhrase: phrase }),
+        body: JSON.stringify({ confirmed: true }),
       });
 
       const json = await res.json();
@@ -496,8 +491,14 @@ export default function DashboardSettingsPage() {
       }
 
       toast("Account deleted permanently. Redirecting to login...", "info");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("osterdops_dev_user");
+        sessionStorage.removeItem("osterdops_demo_mode");
+        document.cookie = "__session=; path=/; max-age=0; SameSite=Lax";
+        document.cookie = "osterdops_demo_mode=; path=/; max-age=0; SameSite=Lax";
+      }
       await signOut();
-      router.push("/login");
+      router.push("/sign-in");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete account.";
       toast(msg, "danger");
@@ -809,7 +810,7 @@ export default function DashboardSettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setDeleteAccountPhrase("");
+                          setConfirmDeleteChecked(false);
                           setIsDeleteAccountModalOpen(true);
                         }}
                         className="px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold transition-all cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.25)] flex items-center gap-2"
@@ -1713,29 +1714,25 @@ export default function DashboardSettingsPage() {
                 <AlertOctagon className="w-6 h-6" />
               </div>
 
-              <div className="text-center space-y-1">
+              <div className="text-center space-y-1.5">
                 <h3 className="text-lg font-bold text-white">Delete Account Permanently?</h3>
-                <p className="text-xs text-rose-300/80">
-                  This action is irreversible. All your project API keys, active gateway proxies, and personal profile data will be permanently purged.
+                <p className="text-xs text-rose-300/80 leading-relaxed">
+                  This action is irreversible. All your project API keys, active gateway proxies, personal profile, and workspace access will be permanently purged.
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/20 text-xs text-rose-200 space-y-1">
-                <div className="font-semibold">To confirm deletion, please type:</div>
-                <div className="font-mono text-white bg-black/40 px-2 py-1 rounded select-all text-center">
-                  DELETE MY ACCOUNT
-                </div>
-                <div className="text-[11px] text-rose-300/70 text-center">or your email: {user?.email}</div>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  value={deleteAccountPhrase}
-                  onChange={(e) => setDeleteAccountPhrase(e.target.value)}
-                  placeholder="Type confirmation phrase here"
-                  className="w-full p-2.5 rounded-xl bg-[#111422] border border-[#1d2136] text-white text-xs text-center font-mono outline-none focus:border-rose-500"
-                />
+              <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/20 text-xs text-rose-200 space-y-2">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={confirmDeleteChecked}
+                    onChange={(e) => setConfirmDeleteChecked(e.target.checked)}
+                    className="mt-0.5 rounded border-rose-500 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-rose-200 leading-snug">
+                    I understand that this action is permanent and cannot be undone. Please permanently delete my account.
+                  </span>
+                </label>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -1743,19 +1740,15 @@ export default function DashboardSettingsPage() {
                   type="button"
                   onClick={() => setIsDeleteAccountModalOpen(false)}
                   disabled={isDeletingAccount}
-                  className="flex-1 py-2 rounded-xl bg-[#141724] border border-[#23283c] text-xs font-semibold text-[#8e93a6] hover:text-white"
+                  className="flex-1 py-2.5 rounded-xl bg-[#141724] border border-[#23283c] text-xs font-semibold text-[#8e93a6] hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleDeleteAccount}
-                  disabled={
-                    isDeletingAccount ||
-                    (deleteAccountPhrase.trim() !== "DELETE MY ACCOUNT" &&
-                      deleteAccountPhrase.trim().toLowerCase() !== user?.email?.toLowerCase())
-                  }
-                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(225,29,72,0.4)]"
+                  disabled={isDeletingAccount || !confirmDeleteChecked}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(225,29,72,0.4)] cursor-pointer"
                 >
                   {isDeletingAccount ? "Purging..." : "Confirm Deletion"}
                 </button>

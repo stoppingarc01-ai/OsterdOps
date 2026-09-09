@@ -26,7 +26,13 @@ const BENCHMARK_PROJECTS: ProjectRow[] = [
 export function TopProjectsCard() {
   const { currentOrg, getIdToken } = useAuth();
   const { formatCurrency } = useCurrency();
-  const [projects, setProjects] = useState<ProjectRow[]>(BENCHMARK_PROJECTS);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [projects, setProjects] = useState<ProjectRow[]>(() => isDemo ? BENCHMARK_PROJECTS : []);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,17 +62,16 @@ export function TopProjectsCard() {
               requests: p.totalRequests ?? 0,
             }));
 
-            const hasActiveSpend = formatted.some((p) => p.spendUsd > 0 || p.requests > 0);
             if (isMounted) {
-              setProjects(hasActiveSpend ? formatted : BENCHMARK_PROJECTS);
+              setProjects(formatted);
             }
           } else if (isMounted) {
-            setProjects(BENCHMARK_PROJECTS);
+            setProjects(isDemo ? BENCHMARK_PROJECTS : []);
           }
         }
       } catch (err) {
         console.warn("[TopProjectsCard] Error fetching live projects:", err);
-        if (isMounted) setProjects(BENCHMARK_PROJECTS);
+        if (isMounted) setProjects(isDemo ? BENCHMARK_PROJECTS : []);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -77,9 +82,9 @@ export function TopProjectsCard() {
     return () => {
       isMounted = false;
     };
-  }, [currentOrg?.id, getIdToken]);
+  }, [currentOrg?.id, getIdToken, isDemo]);
 
-  const displayProjects = projects.length > 0 ? projects : BENCHMARK_PROJECTS;
+  const displayProjects = projects.length > 0 ? projects : (isDemo ? BENCHMARK_PROJECTS : []);
 
   return (
     <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
@@ -97,6 +102,25 @@ export function TopProjectsCard() {
         <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
           <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
           <div>Loading projects...</div>
+        </div>
+      ) : displayProjects.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#080a12] border border-[#171a29] text-center space-y-2">
+          <div className="w-8 h-8 rounded-lg bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82] mx-auto">
+            <FolderKanban className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-semibold text-white">No projects created yet</div>
+          <p className="text-[11px] text-[#73788c] max-w-xs mx-auto">
+            Organize cost attribution and proxy API keys by application or microservice.
+          </p>
+          <div className="pt-1">
+            <Link
+              href="/dashboard/projects"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141724] hover:bg-[#1d2134] text-[#dfba82] border border-[#dfba82]/30 text-xs font-semibold transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Project</span>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto">

@@ -6,11 +6,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/server";
-import { getAdminFirestore } from "@/lib/firebase/admin";
+import { getAdminFirestore, getAdminAuth } from "@/lib/firebase/admin";
 import { getFirebaseAdminConfig } from "@/lib/firebase/config";
 import { apiSuccess, ApiErrors } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/services/audit.service";
 import { getUserOrganizations } from "@/lib/services/organization.service";
+import { deleteUserRecord } from "@/lib/services/user.service";
 
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   try {
@@ -20,21 +21,34 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     }
 
     const { user } = authResult;
-    let body: { confirmationPhrase?: string } = {};
+    let body: {
+      confirmed?: boolean;
+      confirm?: boolean;
+      confirmation?: boolean;
+      confirmationPhrase?: string;
+    } = {};
+
     try {
       body = await request.json();
     } catch {
-      return ApiErrors.badRequest("Invalid JSON request body.");
+      // Body might be empty or direct DELETE request
     }
 
     const phrase = body.confirmationPhrase?.trim();
     const isPhraseValid =
       phrase === "DELETE MY ACCOUNT" ||
+      phrase === "DELETE" ||
       (user.email && phrase?.toLowerCase() === user.email.toLowerCase());
 
-    if (!isPhraseValid) {
+    const isConfirmed =
+      body.confirmed === true ||
+      body.confirm === true ||
+      body.confirmation === true ||
+      isPhraseValid;
+
+    if (!isConfirmed) {
       return ApiErrors.badRequest(
-        "Confirmation mismatch. You must type 'DELETE MY ACCOUNT' or your account email to confirm irreversible deletion."
+        "Account deletion confirmation is required. Please confirm deletion to proceed."
       );
     }
 
@@ -89,9 +103,18 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       }
 
       // 2. Delete user profile document
+      await deleteUserRecord(user.uid);
+
+      // 3. Delete Firebase Auth user
       try {
-        await db.collection("users").doc(user.uid).delete();
-      } catch {}
+        const adminAuth = getAdminAuth();
+        await adminAuth.deleteUser(user.uid);
+      } catch (authErr) {
+        console.warn("[Account Deletion] Auth deleteUser note:", authErr);
+      }
+    } else {
+      // Development / simulated memory deletion
+      await deleteUserRecord(user.uid);
     }
 
     return apiSuccess({

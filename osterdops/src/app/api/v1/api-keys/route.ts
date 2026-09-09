@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
 
   const authResult = await requireAuth(request);
   if (authResult.errorResponse) {
-    return apiSuccess(DEMO_API_KEYS, { requestId });
+    return authResult.errorResponse;
   }
 
   const { user } = authResult;
   const userOrgs = await getUserOrganizations(user.uid);
   if (userOrgs.length === 0) {
-    return apiSuccess(DEMO_API_KEYS, { requestId });
+    return apiSuccess([], { requestId });
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -52,13 +52,10 @@ export async function GET(request: NextRequest) {
 
   const orgAuth = await requireOrganizationMember(request, orgId, "VIEWER");
   if (orgAuth.errorResponse) {
-    return apiSuccess(DEMO_API_KEYS, { requestId });
+    return orgAuth.errorResponse;
   }
 
   const allKeys = await listOrganizationApiKeys(orgId);
-  if (allKeys.length === 0) {
-    return apiSuccess(DEMO_API_KEYS, { requestId });
-  }
 
   const limitParam = searchParams.get("limit");
   const cursorParam = searchParams.get("cursor");

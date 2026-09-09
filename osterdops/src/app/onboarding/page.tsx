@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, userProfile, currentOrg, refreshUser, getIdToken } = useAuth();
+  const { user, userProfile, currentOrg, refreshUser, getIdToken, isLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [data, setData] = useState<OnboardingData>({
@@ -33,12 +33,19 @@ export default function OnboardingPage() {
   });
   const [isSupportOpen, setIsSupportOpen] = useState(false);
 
+  // If visitor is not authenticated and auth check finished, redirect to sign-in
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/sign-in");
+    }
+  }, [user, isLoading, router]);
+
   // If user already completed onboarding, forward directly to dashboard without looping
   useEffect(() => {
-    if (userProfile?.hasCompletedOnboarding) {
+    if (!isLoading && userProfile?.hasCompletedOnboarding) {
       router.replace("/dashboard");
     }
-  }, [userProfile?.hasCompletedOnboarding, router]);
+  }, [isLoading, userProfile?.hasCompletedOnboarding, router]);
 
   useEffect(() => {
     if (user || currentOrg) {
@@ -100,6 +107,17 @@ export default function OnboardingPage() {
     await refreshUser();
     router.push("/dashboard");
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#07080c] flex items-center justify-center text-[#dfba82]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#dfba82]/20 border-t-[#dfba82] animate-spin" />
+          <span className="text-xs font-mono text-[#8e93a6]">Initializing onboarding wizard...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#07080c] text-white flex items-center justify-center p-4 sm:p-6 md:p-8 relative selection:bg-[#dfba82] selection:text-black overflow-x-hidden">

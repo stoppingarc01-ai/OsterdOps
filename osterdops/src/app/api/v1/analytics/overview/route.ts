@@ -27,7 +27,10 @@ export async function GET(request: Request) {
 
     const authResult = await requirePermission(request, orgId, "usage:read");
     if (authResult.errorResponse) {
-      return apiSuccess(generateBenchmarkTelemetry());
+      if (isDemo) {
+        return apiSuccess(generateBenchmarkTelemetry());
+      }
+      return authResult.errorResponse;
     }
 
     const projectId = searchParams.get("projectId") || undefined;
@@ -50,12 +53,34 @@ export async function GET(request: Request) {
       limit,
     });
 
-    if (!analytics.kpis || Number(analytics.kpis.totalRequests) === 0) {
+    return apiSuccess(analytics);
+  } catch {
+    const { searchParams } = new URL(request.url);
+    const cookieHeader = request.headers.get("cookie") || "";
+    const isDemo = searchParams.get("demo") === "true" || cookieHeader.includes("osterdops_demo_mode=true");
+
+    if (isDemo) {
       return apiSuccess(generateBenchmarkTelemetry());
     }
 
-    return apiSuccess(analytics);
-  } catch {
-    return apiSuccess(generateBenchmarkTelemetry());
+    return apiSuccess({
+      kpis: {
+        totalRequests: 0,
+        totalSpendUsd: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalTokens: 0,
+        totalCacheSavingsUsd: 0,
+        cacheHitRatePercent: 0,
+        averageLatencyMs: 0,
+        errorRatePercent: 0,
+        successRatePercent: 100,
+        latencyPercentiles: { p50: 0, p90: 0, p95: 0, p99: 0, min: 0, max: 0, avg: 0 },
+      },
+      timeSeries: [],
+      byProvider: [],
+      byModel: [],
+      recentRequests: [],
+    });
   }
 }

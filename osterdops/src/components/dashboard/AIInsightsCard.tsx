@@ -3,11 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api/client";
 
 export function AIInsightsCard() {
   const { currentOrg, getIdToken } = useAuth();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get("demo") === "true";
   const [insight, setInsight] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export function AIInsightsCard() {
         } else {
           setInsight(null);
         }
-      } catch (err) {
+      } catch {
         if (isMounted) setInsight(null);
       }
     }
@@ -67,18 +70,22 @@ export function AIInsightsCard() {
           <p className="text-xs text-[#c5c9d6] leading-relaxed">
             {insight ? (
               <span>{insight}</span>
-            ) : (
+            ) : isDemo ? (
               <span>
                 Multi-model routing detected an <strong className="text-[#dfba82]">18.4% cost deflection</strong> by cascading high-volume extraction to Gemini 2.0 Flash while reserving Claude 3.5 Sonnet for reasoning.
+              </span>
+            ) : (
+              <span>
+                No anomalies or optimizations detected. Route traffic through the unified proxy gateway to trigger automated FinOps cost deflection recommendations.
               </span>
             )}
           </p>
 
           <Link
-            href="/dashboard/projects"
+            href={isDemo ? "/dashboard/projects" : "/dashboard/providers"}
             className="group inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#171a29] border border-[#dfba82]/30 hover:border-[#dfba82] text-[#dfba82] text-xs font-semibold rounded-xl transition-all cursor-pointer hover:bg-[#dfba82]/10"
           >
-            <span>Explore Workspaces</span>
+            <span>{isDemo ? "Explore Workspaces" : "Connect Upstream Provider"}</span>
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>

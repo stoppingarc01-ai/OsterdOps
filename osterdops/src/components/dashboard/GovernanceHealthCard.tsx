@@ -7,8 +7,14 @@ import { ShieldCheck, Loader2 } from "lucide-react";
 
 export function GovernanceHealthCard() {
   const { currentOrg, getIdToken } = useAuth();
-  const [budgetsCount, setBudgetsCount] = useState(4);
-  const [avgUtilization, setAvgUtilization] = useState(68);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [budgetsCount, setBudgetsCount] = useState(isDemo ? 4 : 0);
+  const [avgUtilization, setAvgUtilization] = useState(isDemo ? 68 : 0);
   const [violationsCount, setViolationsCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -44,8 +50,8 @@ export function GovernanceHealthCard() {
           }, 0);
           setAvgUtilization(Math.round(totalUtil / bList.length));
         } else if (isMounted) {
-          setBudgetsCount(4);
-          setAvgUtilization(68);
+          setBudgetsCount(isDemo ? 4 : 0);
+          setAvgUtilization(isDemo ? 68 : 0);
         }
 
         if (alertsRes.data && Array.isArray(alertsRes.data)) {
@@ -53,8 +59,8 @@ export function GovernanceHealthCard() {
         }
       } catch (err) {
         if (isMounted) {
-          setBudgetsCount(4);
-          setAvgUtilization(68);
+          setBudgetsCount(isDemo ? 4 : 0);
+          setAvgUtilization(isDemo ? 68 : 0);
           setViolationsCount(0);
         }
       } finally {

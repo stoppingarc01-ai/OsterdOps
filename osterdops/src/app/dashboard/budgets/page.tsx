@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import {
@@ -88,7 +89,9 @@ const DEMO_BUDGET_ITEMS: BudgetDisplayItem[] = [
 
 export default function BudgetsPage() {
   const { currentOrg, getIdToken } = useAuth();
-  const [budgets, setBudgets] = useState<BudgetDisplayItem[]>(DEMO_BUDGET_ITEMS);
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get("demo") === "true";
+  const [budgets, setBudgets] = useState<BudgetDisplayItem[]>(() => (isDemo ? DEMO_BUDGET_ITEMS : []));
   const [loading, setLoading] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [evaluating, setEvaluating] = useState<string | null>(null);
@@ -100,7 +103,7 @@ export default function BudgetsPage() {
 
   const fetchBudgets = useCallback(async () => {
     if (!currentOrg?.id) {
-      setBudgets(DEMO_BUDGET_ITEMS);
+      setBudgets(isDemo ? DEMO_BUDGET_ITEMS : []);
       setLoading(false);
       return;
     }
@@ -119,7 +122,7 @@ export default function BudgetsPage() {
           // Synchronize with live telemetry if organization scope
           const isOrgScope = (b.scope || "ORGANIZATION").toUpperCase() === "ORGANIZATION";
           const current = isOrgScope
-            ? Math.max(Number(b.currentSpendUsd || b.spendUsd || 0), telemetry.totalSpendUsd)
+            ? Math.max(Number(b.currentSpendUsd || b.spendUsd || 0), isDemo ? telemetry.totalSpendUsd : 0)
             : Number(b.currentSpendUsd || b.spendUsd || 0);
 
           const util = limit > 0 ? (current / limit) * 100 : 0;
@@ -143,14 +146,14 @@ export default function BudgetsPage() {
         });
         setBudgets(mapped);
       } else {
-        setBudgets(DEMO_BUDGET_ITEMS);
+        setBudgets(isDemo ? DEMO_BUDGET_ITEMS : []);
       }
     } catch {
-      setBudgets(DEMO_BUDGET_ITEMS);
+      setBudgets(isDemo ? DEMO_BUDGET_ITEMS : []);
     } finally {
       setLoading(false);
     }
-  }, [currentOrg, getIdToken, telemetry.totalSpendUsd]);
+  }, [currentOrg, getIdToken, isDemo, telemetry.totalSpendUsd]);
 
   useEffect(() => {
     fetchBudgets();
@@ -202,7 +205,7 @@ export default function BudgetsPage() {
   const totalCap = budgets.reduce((acc, b) => acc + b.limitUsd, 0);
   const totalSpend = budgets.length > 0
     ? budgets.reduce((acc, b) => acc + b.currentSpendUsd, 0)
-    : telemetry.totalSpendUsd;
+    : (isDemo ? telemetry.totalSpendUsd : 0);
   const overallUtil = totalCap > 0 ? (totalSpend / totalCap) * 100 : 0;
   const activeGuardrails = budgets.filter((b) => b.status !== "PAUSED").length;
 

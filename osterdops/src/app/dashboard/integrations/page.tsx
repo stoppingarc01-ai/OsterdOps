@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { AddModelModal } from "@/components/models/AddModelModal";
@@ -33,10 +34,12 @@ const CURATED_MODELS: CatalogModel[] = getDynamicCatalogModels();
 
 export default function IntegrationsPage() {
   const { currentOrg, organizations } = useAuth();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get("demo") === "true";
   const effectiveOrgId = currentOrg?.id || organizations[0]?.organization?.id || "";
 
   // Active Connections State
-  const [connections, setConnections] = useState<ProviderConnection[]>(DEMO_PROVIDER_CONNECTIONS);
+  const [connections, setConnections] = useState<ProviderConnection[]>(() => (isDemo ? DEMO_PROVIDER_CONNECTIONS : []));
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
 
   // Search & Filter State
@@ -51,7 +54,7 @@ export default function IntegrationsPage() {
   // Fetch real active connections
   const fetchConnections = async () => {
     if (!effectiveOrgId) {
-      setConnections(DEMO_PROVIDER_CONNECTIONS);
+      setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
       setIsLoadingConnections(false);
       return;
     }
@@ -64,13 +67,13 @@ export default function IntegrationsPage() {
         if (Array.isArray(data?.data) && data.data.length > 0) {
           setConnections(data.data);
         } else {
-          setConnections(DEMO_PROVIDER_CONNECTIONS);
+          setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
         }
       } else {
-        setConnections(DEMO_PROVIDER_CONNECTIONS);
+        setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
       }
     } catch (err) {
-      setConnections(DEMO_PROVIDER_CONNECTIONS);
+      setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
     } finally {
       setIsLoadingConnections(false);
     }
@@ -78,7 +81,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     fetchConnections();
-  }, [effectiveOrgId]);
+  }, [effectiveOrgId, isDemo]);
 
   // Handle direct model integration click
   const handleDirectIntegrate = (model: CatalogModel) => {

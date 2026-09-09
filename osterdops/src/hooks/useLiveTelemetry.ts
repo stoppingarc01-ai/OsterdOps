@@ -20,7 +20,28 @@ export interface UseLiveTelemetryOptions {
   enabled?: boolean;
 }
 
-export const EMPTY_TELEMETRY: LiveTelemetryData = generateBenchmarkTelemetry();
+export const EMPTY_TELEMETRY: LiveTelemetryData = {
+  totalSpendUsd: 0,
+  projectedSpendUsd: 0,
+  totalTokens: 0,
+  promptTokens: 0,
+  completionTokens: 0,
+  totalRequests: 0,
+  cacheSavingsUsd: 0,
+  cacheHitRatePercent: 0,
+  averageLatencyMs: 0,
+  errorRatePercent: 0,
+  successRatePercent: 100,
+  p50LatencyMs: 0,
+  p90LatencyMs: 0,
+  p95LatencyMs: 0,
+  p99LatencyMs: 0,
+  timeSeries: [],
+  providerDistribution: [],
+  modelDistribution: [],
+  recentRequests: [],
+  byStatusCode: {},
+};
 
 /**
  * Global Real-Time Telemetry Hook for OsterdOps.
@@ -35,7 +56,13 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}) {
   const pollIntervalMs = options.pollIntervalMs ?? 4000;
   const enabled = options.enabled ?? true;
 
-  const [data, setData] = useState<LiveTelemetryData>(generateBenchmarkTelemetry);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [data, setData] = useState<LiveTelemetryData>(() => isDemo ? generateBenchmarkTelemetry() : EMPTY_TELEMETRY);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,9 +107,9 @@ export function useLiveTelemetry(options: UseLiveTelemetryOptions = {}) {
         const totalRequests = Number(kpis.totalRequests) || 0;
         const rawTimeSeries = Array.isArray(raw.timeSeries) ? raw.timeSeries : [];
 
-        // If backend has no traffic yet, provide the rich high-density benchmark data
+        // If backend has no traffic yet, show benchmark data only in explicit demo mode
         if (totalRequests === 0 && rawTimeSeries.length === 0) {
-          setData(generateBenchmarkTelemetry());
+          setData(isDemo ? generateBenchmarkTelemetry() : EMPTY_TELEMETRY);
           setError(null);
           setLastUpdated(new Date());
           return;

@@ -313,3 +313,19 @@ export async function markUserOnboarded(uid: string): Promise<User> {
     return fallback;
   }
 }
+
+/**
+ * Permanently purges user profile document from Firestore and simulated memory.
+ */
+export async function deleteUserRecord(uid: string): Promise<void> {
+  simulatedUsers.delete(uid);
+  const adminConfig = getFirebaseAdminConfig();
+  if (adminConfig) {
+    try {
+      const db = getAdminFirestore();
+      await db.collection("users").doc(uid).delete();
+    } catch (err) {
+      console.warn("[OsterdOps User] Error deleting Firestore user doc:", err);
+    }
+  }
+}

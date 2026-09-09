@@ -28,17 +28,21 @@ export async function GET(request: Request) {
 
     const authResult = await requirePermission(request, orgId, "budgets:read");
     if (authResult.errorResponse) {
-      return apiSuccess(DEMO_BUDGETS);
+      if (isDemo) return apiSuccess(DEMO_BUDGETS);
+      return authResult.errorResponse;
     }
 
     const projectId = searchParams.get("projectId") || undefined;
     const budgets = await listOrganizationBudgets(orgId, projectId);
-    if (budgets.length > 0) {
-      return apiSuccess(budgets);
-    }
-    return apiSuccess(DEMO_BUDGETS);
+    return apiSuccess(budgets);
   } catch {
-    return apiSuccess(DEMO_BUDGETS);
+    const { searchParams } = new URL(request.url);
+    const cookieHeader = request.headers.get("cookie") || "";
+    const isDemo = searchParams.get("demo") === "true" || cookieHeader.includes("osterdops_demo_mode=true");
+    if (isDemo) {
+      return apiSuccess(DEMO_BUDGETS);
+    }
+    return apiSuccess([]);
   }
 }
 

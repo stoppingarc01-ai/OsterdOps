@@ -29,6 +29,35 @@ export interface TelemetryApiResponse {
   timestamp: string;
 }
 
+const ZERO_TELEMETRY: TelemetryApiResponse = {
+  live: true,
+  service: "osterdops-gateway-cpp",
+  version: "1.0.0",
+  totalRequests: 0,
+  successfulRequests: 0,
+  failedRequests: 0,
+  rateLimitedRequests: 0,
+  budgetBlockedRequests: 0,
+  errorRatePercent: 0,
+  promptTokens: 0,
+  completionTokens: 0,
+  totalTokens: 0,
+  cachedTokens: 0,
+  totalSpendUsd: 0,
+  cacheSavingsUsd: 0,
+  preflightLatencyUs: 0,
+  avgLatencyMs: 0,
+  p50LatencyMs: 0,
+  p95LatencyMs: 0,
+  circuitBreakers: {
+    openai: "CLOSED",
+    anthropic: "CLOSED",
+    gemini: "CLOSED",
+    deepseek: "CLOSED",
+  },
+  timestamp: new Date().toISOString(),
+};
+
 const FALLBACK_TELEMETRY: TelemetryApiResponse = {
   live: false,
   service: "osterdops-gateway-cpp",
@@ -59,6 +88,11 @@ const FALLBACK_TELEMETRY: TelemetryApiResponse = {
 };
 
 export async function GET(request: Request): Promise<NextResponse> {
+  const url = new URL(request.url);
+  const cookieHeader = request.headers.get("cookie") || "";
+  const isDemo = url.searchParams.get("demo") === "true" || cookieHeader.includes("osterdops_demo_mode=true");
+  const fallbackData = isDemo ? FALLBACK_TELEMETRY : ZERO_TELEMETRY;
+
   // Subscription verification & 7-Day Free Trial gating
   const simulateExpired = request.headers.get("x-simulate-trial-expired") === "true";
   if (simulateExpired) {
@@ -90,7 +124,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      return NextResponse.json({ ...FALLBACK_TELEMETRY, live: false, timestamp: new Date().toISOString() });
+      return NextResponse.json({ ...fallbackData, live: false, timestamp: new Date().toISOString() });
     }
 
     const data = await res.json();
@@ -135,7 +169,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch {
     clearTimeout(timeoutId);
     return NextResponse.json({
-      ...FALLBACK_TELEMETRY,
+      ...fallbackData,
       live: false,
       timestamp: new Date().toISOString(),
     });

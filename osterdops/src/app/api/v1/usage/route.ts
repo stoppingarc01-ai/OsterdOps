@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     // RBAC: Requires VIEWER or higher (usage:read)
     const orgAuth = await requireOrganizationMember(request, orgId, "VIEWER");
     if (orgAuth.errorResponse) {
-      return apiSuccess(DEMO_REQUEST_ITEMS);
+      return orgAuth.errorResponse;
     }
 
     const projectId = searchParams.get("projectId") || undefined;
@@ -63,11 +63,8 @@ export async function GET(request: Request) {
     }
 
     const records = await listOrganizationUsage(orgId, filterOptions);
-    if (records.length > 0) {
-      return apiSuccess(records);
-    }
-    return apiSuccess(DEMO_REQUEST_ITEMS);
+    return apiSuccess(records);
   } catch {
-    return apiSuccess(DEMO_REQUEST_ITEMS);
+    return apiSuccess([]);
   }
 }

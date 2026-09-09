@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import {
@@ -49,6 +50,9 @@ interface RequestItem {
 
 export default function GatewayPage() {
   const { currentOrg, getIdToken } = useAuth();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get("demo") === "true";
+
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "errors" | "timeouts" | "retries">("all");
   const [selectedRequest, setSelectedRequest] = useState<RequestItem | null>(null);
@@ -56,18 +60,22 @@ export default function GatewayPage() {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [selectedProviderFilter, setSelectedProviderFilter] = useState<string>("all");
 
-  const [requests, setRequests] = useState<RequestItem[]>(DEMO_REQUEST_ITEMS);
+  const [requests, setRequests] = useState<RequestItem[]>(() => (isDemo ? DEMO_REQUEST_ITEMS : []));
   const [loading, setLoading] = useState(false);
 
   // KPIs
-  const [totalRequests, setTotalRequests] = useState(1420850);
-  const [successRate, setSuccessRate] = useState(99.98);
-  const [avgLatency, setAvgLatency] = useState(28);
-  const [totalTokens, setTotalTokens] = useState(4208500000);
-  const [totalSpend, setTotalSpend] = useState(18450.75);
+  const [totalRequests, setTotalRequests] = useState(() => (isDemo ? 1420850 : 0));
+  const [successRate, setSuccessRate] = useState(() => (isDemo ? 99.98 : 100));
+  const [avgLatency, setAvgLatency] = useState(() => (isDemo ? 28 : 0));
+  const [totalTokens, setTotalTokens] = useState(() => (isDemo ? 4208500000 : 0));
+  const [totalSpend, setTotalSpend] = useState(() => (isDemo ? 18450.75 : 0));
 
   const fetchLiveUsage = async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      setRequests(isDemo ? DEMO_REQUEST_ITEMS : []);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -83,13 +91,19 @@ export default function GatewayPage() {
         }),
       ]);
 
-      if (analyticsRes.data && analyticsRes.data.kpis && Number(analyticsRes.data.kpis.totalRequests) > 0) {
+      if (analyticsRes.data && analyticsRes.data.kpis) {
         const k = analyticsRes.data.kpis;
-        setTotalRequests(k.totalRequests ?? 1420850);
-        setSuccessRate(k.successRatePercent ?? 99.98);
-        setAvgLatency(Math.round(k.averageLatencyMs ?? 28));
-        setTotalTokens(k.totalTokens ?? 4208500000);
-        setTotalSpend(k.totalSpendUsd ?? 18450.75);
+        setTotalRequests(k.totalRequests ?? (isDemo ? 1420850 : 0));
+        setSuccessRate(k.successRatePercent ?? (isDemo ? 99.98 : 100));
+        setAvgLatency(Math.round(k.averageLatencyMs ?? (isDemo ? 28 : 0)));
+        setTotalTokens(k.totalTokens ?? (isDemo ? 4208500000 : 0));
+        setTotalSpend(k.totalSpendUsd ?? (isDemo ? 18450.75 : 0));
+      } else if (!isDemo) {
+        setTotalRequests(0);
+        setSuccessRate(100);
+        setAvgLatency(0);
+        setTotalTokens(0);
+        setTotalSpend(0);
       }
 
       if (usageRes.data && Array.isArray(usageRes.data) && usageRes.data.length > 0) {
@@ -109,10 +123,10 @@ export default function GatewayPage() {
         }));
         setRequests(mapped);
       } else {
-        setRequests(DEMO_REQUEST_ITEMS);
+        setRequests(isDemo ? DEMO_REQUEST_ITEMS : []);
       }
     } catch {
-      setRequests(DEMO_REQUEST_ITEMS);
+      setRequests(isDemo ? DEMO_REQUEST_ITEMS : []);
     } finally {
       setLoading(false);
     }
@@ -120,7 +134,7 @@ export default function GatewayPage() {
 
   useEffect(() => {
     fetchLiveUsage();
-  }, [currentOrg?.id, getIdToken]);
+  }, [currentOrg?.id, getIdToken, isDemo]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);

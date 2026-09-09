@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { organizationId, reason } = body;
 
-    if (!organizationId || !reason) {
-      return ApiErrors.badRequest("Fields 'organizationId' and 'reason' are required.");
+    if (!organizationId) {
+      return ApiErrors.badRequest("Field 'organizationId' is required.");
     }
 
     const authResult = await requirePermission(request, organizationId, "security:delete");
@@ -22,7 +22,8 @@ export async function POST(request: Request) {
       return authResult.errorResponse;
     }
 
-    const result = await createDeletionRequest(organizationId, authResult.user.uid, reason);
+    const finalReason = reason?.trim() || "User requested account deletion";
+    const result = await createDeletionRequest(organizationId, authResult.user.uid, finalReason);
     return apiSuccess(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create privacy deletion request.";

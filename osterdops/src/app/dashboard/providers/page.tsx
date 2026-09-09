@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ContentTransition } from "@/components/layout/ContentTransition";
 import { AddModelModal } from "@/components/models/AddModelModal";
@@ -32,9 +33,11 @@ import {
 
 export default function ProvidersPage() {
   const { currentOrg, organizations } = useAuth();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get("demo") === "true";
   const effectiveOrgId = currentOrg?.id || organizations[0]?.organization?.id || "";
 
-  const [connections, setConnections] = useState<ProviderConnection[]>(DEMO_PROVIDER_CONNECTIONS);
+  const [connections, setConnections] = useState<ProviderConnection[]>(() => (isDemo ? DEMO_PROVIDER_CONNECTIONS : []));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +58,7 @@ export default function ProvidersPage() {
   // Fetch real connections from backend or fallback to rich demo connections
   const fetchConnections = useCallback(async () => {
     if (!effectiveOrgId) {
-      setConnections(DEMO_PROVIDER_CONNECTIONS);
+      setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
       setIsLoading(false);
       return;
     }
@@ -69,14 +72,14 @@ export default function ProvidersPage() {
       if (res.ok && Array.isArray(data?.data) && data.data.length > 0) {
         setConnections(data.data);
       } else {
-        setConnections(DEMO_PROVIDER_CONNECTIONS);
+        setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
       }
     } catch {
-      setConnections(DEMO_PROVIDER_CONNECTIONS);
+      setConnections(isDemo ? DEMO_PROVIDER_CONNECTIONS : []);
     } finally {
       setIsLoading(false);
     }
-  }, [effectiveOrgId]);
+  }, [effectiveOrgId, isDemo]);
 
   useEffect(() => {
     fetchConnections();

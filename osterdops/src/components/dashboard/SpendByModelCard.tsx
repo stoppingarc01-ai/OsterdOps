@@ -27,7 +27,13 @@ const BENCHMARK_MODELS: ModelUsage[] = [
 export function SpendByModelCard() {
   const { currentOrg, getIdToken } = useAuth();
   const { formatCurrency } = useCurrency();
-  const [models, setModels] = useState<ModelUsage[]>(BENCHMARK_MODELS);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [models, setModels] = useState<ModelUsage[]>(() => isDemo ? BENCHMARK_MODELS : []);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,10 +55,10 @@ export function SpendByModelCard() {
         if (res.data && Array.isArray(res.data.byModel) && res.data.byModel.length > 0) {
           setModels(res.data.byModel);
         } else {
-          setModels(BENCHMARK_MODELS);
+          setModels(isDemo ? BENCHMARK_MODELS : []);
         }
       } catch (err) {
-        if (isMounted) setModels(BENCHMARK_MODELS);
+        if (isMounted) setModels(isDemo ? BENCHMARK_MODELS : []);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -63,9 +69,9 @@ export function SpendByModelCard() {
     return () => {
       isMounted = false;
     };
-  }, [currentOrg?.id, getIdToken]);
+  }, [currentOrg?.id, getIdToken, isDemo]);
 
-  const activeModels = models.length > 0 ? models : BENCHMARK_MODELS;
+  const activeModels = models.length > 0 ? models : (isDemo ? BENCHMARK_MODELS : []);
   const maxSpend = Math.max(...activeModels.map((m) => m.spendUsd), 1);
 
   return (
@@ -79,6 +85,16 @@ export function SpendByModelCard() {
         <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
           <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
           <div>Aggregating model metrics...</div>
+        </div>
+      ) : activeModels.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#080a12] border border-[#171a29] text-center space-y-2">
+          <div className="w-8 h-8 rounded-lg bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82] mx-auto">
+            <Cpu className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-semibold text-white">No model usage recorded</div>
+          <p className="text-[11px] text-[#73788c] max-w-xs mx-auto">
+            Model spend breakdown will appear once completions are routed through the proxy gateway.
+          </p>
         </div>
       ) : (
         <div className="space-y-3.5">

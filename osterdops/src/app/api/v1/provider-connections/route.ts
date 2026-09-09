@@ -107,12 +107,8 @@ export async function GET(request: Request) {
     }
 
     const connections = await listProviderConnections(orgId, projectId);
-    if (connections.length > 0) {
-      return apiSuccess(connections);
-    }
-    return apiSuccess(DEMO_PROVIDER_CONNECTIONS);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to list provider connections.";
-    return apiSuccess(DEMO_PROVIDER_CONNECTIONS);
+    return apiSuccess(connections);
+  } catch {
+    return apiSuccess([]);
   }
 }

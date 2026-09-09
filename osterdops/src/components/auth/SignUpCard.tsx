@@ -222,7 +222,7 @@ export function SignUpCard() {
         phone: fullPhone,
       });
 
-      router.push("/dashboard");
+      router.push("/onboarding");
     } catch (err: unknown) {
       console.error("[OsterdOps SignUp] Verification or registration failed:", err);
       setFormError(mapAuthError(err));

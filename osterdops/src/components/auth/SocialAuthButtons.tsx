@@ -1,22 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 export function SocialAuthButtons() {
   const router = useRouter();
-  const { signInWithGoogle, signInWithMicrosoft } = useAuth();
+  const pathname = usePathname();
+  const { signInWithGoogle, signInWithMicrosoft, userProfile } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [microsoftLoading, setMicrosoftLoading] = useState(false);
   const [slackMessage, setSlackMessage] = useState<string | null>(null);
+
+  const isSignUpFlow = pathname.includes("sign-up") || pathname.includes("register");
 
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     setSlackMessage(null);
     try {
       await signInWithGoogle();
-      router.push("/dashboard");
+      if (isSignUpFlow || userProfile?.hasCompletedOnboarding === false) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
     } catch {
       // Error message is displayed by SignInCard/SignUpCard via AuthContext error
     } finally {
@@ -29,7 +36,11 @@ export function SocialAuthButtons() {
     setSlackMessage(null);
     try {
       await signInWithMicrosoft();
-      router.push("/dashboard");
+      if (isSignUpFlow || userProfile?.hasCompletedOnboarding === false) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
     } catch {
       // Error message is displayed by SignInCard/SignUpCard via AuthContext error
     } finally {

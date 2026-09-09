@@ -9,8 +9,14 @@ import { Sparkles, Loader2 } from "lucide-react";
 export function SavingsImpactCard() {
   const { currentOrg, getIdToken } = useAuth();
   const { formatCurrency } = useCurrency();
-  const [savings, setSavings] = useState<number>(612.40);
-  const [cacheHitRate, setCacheHitRate] = useState<number>(18.4);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [savings, setSavings] = useState<number>(() => isDemo ? 612.40 : 0);
+  const [cacheHitRate, setCacheHitRate] = useState<number>(() => isDemo ? 18.4 : 0);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -30,16 +36,16 @@ export function SavingsImpactCard() {
         if (!isMounted) return;
 
         if (res.data && res.data.kpis && (res.data.kpis.totalCacheSavingsUsd > 0 || res.data.kpis.cacheHitRatePercent > 0)) {
-          setSavings(res.data.kpis.totalCacheSavingsUsd ?? 612.40);
-          setCacheHitRate(res.data.kpis.cacheHitRatePercent ?? 18.4);
+          setSavings(res.data.kpis.totalCacheSavingsUsd ?? 0);
+          setCacheHitRate(res.data.kpis.cacheHitRatePercent ?? 0);
         } else if (isMounted) {
-          setSavings(612.40);
-          setCacheHitRate(18.4);
+          setSavings(isDemo ? 612.40 : 0);
+          setCacheHitRate(isDemo ? 18.4 : 0);
         }
       } catch (err) {
         if (isMounted) {
-          setSavings(612.40);
-          setCacheHitRate(18.4);
+          setSavings(isDemo ? 612.40 : 0);
+          setCacheHitRate(isDemo ? 18.4 : 0);
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -77,12 +83,12 @@ export function SavingsImpactCard() {
         <div className="w-full h-1.5 bg-[#141724] rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 to-[#dfba82] rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, Math.max(5, cacheHitRate))}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, cacheHitRate))}%` }}
           />
         </div>
         <div className="flex items-center justify-between text-[10.5px] font-mono text-neutral-400 pt-1 border-t border-[#141724]">
           <span>Prompt In-Memory Hits</span>
-          <span className="text-white font-semibold">12,850 reqs</span>
+          <span className="text-white font-semibold">{isDemo ? "12,850 reqs" : "0 reqs"}</span>
         </div>
       </div>
     </div>

@@ -37,7 +37,13 @@ const BENCHMARK_OPPORTUNITIES: OptimizationItem[] = [
 
 export function OptimizationOpportunitiesCard() {
   const { currentOrg, getIdToken } = useAuth();
-  const [items, setItems] = useState<OptimizationItem[]>(BENCHMARK_OPPORTUNITIES);
+  const isDemo = typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("demo") === "true" ||
+    sessionStorage.getItem("osterdops_demo_mode") === "true" ||
+    document.cookie.includes("osterdops_demo_mode=true")
+  );
+
+  const [items, setItems] = useState<OptimizationItem[]>(() => isDemo ? BENCHMARK_OPPORTUNITIES : []);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,10 +64,10 @@ export function OptimizationOpportunitiesCard() {
         if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           setItems(res.data);
         } else {
-          setItems(BENCHMARK_OPPORTUNITIES);
+          setItems(isDemo ? BENCHMARK_OPPORTUNITIES : []);
         }
       } catch (err) {
-        if (isMounted) setItems(BENCHMARK_OPPORTUNITIES);
+        if (isMounted) setItems(isDemo ? BENCHMARK_OPPORTUNITIES : []);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -72,9 +78,9 @@ export function OptimizationOpportunitiesCard() {
     return () => {
       isMounted = false;
     };
-  }, [currentOrg?.id, getIdToken]);
+  }, [currentOrg?.id, getIdToken, isDemo]);
 
-  const displayItems = items.length > 0 ? items : BENCHMARK_OPPORTUNITIES;
+  const displayItems = items.length > 0 ? items : (isDemo ? BENCHMARK_OPPORTUNITIES : []);
 
   return (
     <div className="p-5 bg-[#0d0f18] border border-[#1d202e] rounded-2xl space-y-4">
@@ -95,6 +101,16 @@ export function OptimizationOpportunitiesCard() {
         <div className="p-8 text-center text-xs text-[#8e93a6] space-y-2">
           <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#dfba82]" />
           <div>Scanning inference traces...</div>
+        </div>
+      ) : displayItems.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#080a12] border border-[#171a29] text-center space-y-2">
+          <div className="w-8 h-8 rounded-lg bg-[#dfba82]/10 border border-[#dfba82]/20 flex items-center justify-center text-[#dfba82] mx-auto">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-semibold text-white">All systems optimized</div>
+          <p className="text-[11px] text-[#73788c] max-w-xs mx-auto">
+            Model routing cascades and caching recommendations will appear once traffic flows through the gateway.
+          </p>
         </div>
       ) : (
         <div className="space-y-2.5">
